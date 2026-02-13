@@ -1,0 +1,7 @@
+{
+  "name": "Hypado System - Gestão de Marcenaria",
+  "description": "Sistema integrado de gestão 360º para marcenarias de alto padrão, focando em controle de produção, qualidade técnica e inteligência de dados.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
