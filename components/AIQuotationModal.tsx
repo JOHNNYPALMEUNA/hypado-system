@@ -65,21 +65,21 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
 
-            <div className="relative bg-white w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95">
+            <div className="relative bg-card w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95">
 
                 {/* Left Side: Input */}
-                <div className="w-full md:w-1/2 p-8 bg-slate-50 border-r border-slate-200 flex flex-col">
+                <div className="w-full md:w-1/2 p-8 bg-muted/50 border-r border-border flex flex-col">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <h3 className="text-xl font-black text-foreground flex items-center gap-2">
                             <Sparkles className="text-purple-600" /> Orçamentista AI
                         </h3>
-                        <button onClick={onClose} className="md:hidden p-2 bg-white rounded-full"><X size={20} /></button>
+                        <button onClick={onClose} className="md:hidden p-2 bg-card rounded-full"><X size={20} /></button>
                     </div>
 
                     <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar pr-2">
 
                         {/* Image Upload */}
-                        <div className="group relative w-full aspect-video bg-white rounded-2xl border-2 border-dashed border-slate-300 hover:border-purple-500 transition-all flex flex-col items-center justify-center overflow-hidden cursor-pointer">
+                        <div className="group relative w-full aspect-video bg-card rounded-2xl border-2 border-dashed border-border hover:border-purple-500 transition-all flex flex-col items-center justify-center overflow-hidden cursor-pointer">
                             {image ? (
                                 <>
                                     <img src={image} alt="Preview" className="w-full h-full object-contain" />
@@ -90,7 +90,7 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                             ) : (
                                 <div className="text-center p-6">
                                     <Upload className="mx-auto text-slate-300 mb-3" size={48} />
-                                    <p className="text-slate-500 font-medium">Arraste sua planta ou clique aqui</p>
+                                    <p className="text-muted-foreground font-medium">Arraste sua planta ou clique aqui</p>
                                     <p className="text-xs text-slate-400 mt-2">Suporta JPG, PNG</p>
                                 </div>
                             )}
@@ -101,7 +101,7 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                         <div>
                             <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Instruções Extras (Opcional)</label>
                             <textarea
-                                className="w-full mt-2 p-4 bg-white rounded-2xl border-2 border-transparent focus:border-purple-500 outline-none text-sm resize-none"
+                                className="w-full mt-2 p-4 bg-card rounded-2xl border-2 border-transparent focus:border-purple-500 outline-none text-sm resize-none"
                                 rows={4}
                                 placeholder="Ex: Considere MDF amadeirado para os armários e branco para as partes internas..."
                                 value={instructions}
@@ -121,10 +121,10 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                 </div>
 
                 {/* Right Side: Result */}
-                <div className="w-full md:w-1/2 p-8 bg-white flex flex-col">
+                <div className="w-full md:w-1/2 p-8 bg-card flex flex-col">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-slate-700">Análise da IA</h3>
-                        <button onClick={onClose} className="hidden md:block p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20} /></button>
+                        <h3 className="text-lg font-bold text-foreground">Análise da IA</h3>
+                        <button onClick={onClose} className="hidden md:block p-2 hover:bg-muted rounded-full transition-colors"><X size={20} /></button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 relative">
@@ -142,7 +142,7 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                                     <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-purple-600 animate-pulse" size={24} />
                                 </div>
                                 <div className="text-center space-y-2">
-                                    <p className="font-bold text-slate-800 text-lg">Analisando Geometria...</p>
+                                    <p className="font-bold text-foreground text-lg">Analisando Geometria...</p>
                                     <p className="text-slate-400 text-sm">Identificando móveis e calculando chapas.</p>
                                 </div>
                             </div>
@@ -156,10 +156,10 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                                     <div className="grid gap-3">
                                         {result.furniture?.map((f: any, i: number) => (
                                             <div key={i} className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-                                                <div className="flex justify-between font-bold text-slate-800 text-sm">
+                                                <div className="flex justify-between font-bold text-foreground text-sm">
                                                     <span>{f.name}</span>
                                                 </div>
-                                                <p className="text-xs text-slate-500 mt-1">{f.description}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">{f.description}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -170,15 +170,15 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                                     <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2"><Check size={14} /> Materiais Estimados</h4>
                                     <div className="space-y-2">
                                         {result.materials?.map((m: any, i: number) => (
-                                            <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <div key={i} className="flex justify-between items-center p-3 bg-muted/50 rounded-xl border border-slate-100">
                                                 <div className="flex items-center gap-3">
                                                     <span className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">{m.quantity}</span>
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-slate-700">{m.name}</span>
+                                                        <span className="text-sm font-bold text-foreground">{m.name}</span>
                                                         <span className="text-[10px] text-slate-400 uppercase">{m.unit}</span>
                                                     </div>
                                                 </div>
-                                                <span className="text-sm font-medium text-slate-500">~R$ {m.unitPrice * m.quantity}</span>
+                                                <span className="text-sm font-medium text-muted-foreground">~R$ {m.unitPrice * m.quantity}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -199,7 +199,7 @@ const AIQuotationModal: React.FC<Props> = ({ isOpen, onClose, onAddItems }) => {
                                 onClick={handleConfirm}
                                 className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-emerald-600 transition-all shadow-lg flex items-center justify-center gap-3"
                             >
-                                Adicionar Materiais à Cotação <ArrowRight size={20} />
+                                Adicionar Materiais Ã  Cotação <ArrowRight size={20} />
                             </button>
                         </div>
                     )}

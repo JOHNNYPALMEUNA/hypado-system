@@ -1,11 +1,12 @@
 
 import React, { useMemo } from 'react';
-import { Project, Client, Installer, TechnicalAssistance, Quotation } from '../types';
+import { Project, Client, Installer, TechnicalAssistance, Quotation, DailyLog } from '../types';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { TrendingUp, Users, AlertTriangle, DollarSign, Award, Truck, ShoppingCart, Hammer, Timer } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 interface Props {
   projects: Project[];
@@ -13,11 +14,13 @@ interface Props {
   installers: Installer[];
   assistances: TechnicalAssistance[];
   purchaseOrders: Quotation[];
+  dailyLogs: DailyLog[];
 }
 
 const COLORS = ['#f59e0b', '#10b981', '#6366f1', '#f43f5e', '#64748b', '#8b5cf6'];
 
-const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assistances, purchaseOrders }) => {
+const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assistances, purchaseOrders, dailyLogs }) => {
+  const { userRole } = useData();
 
   // --- 1. FINANCEIRO ---
   const financialMetrics = useMemo(() => {
@@ -113,7 +116,7 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
   const reworkRanking = useMemo(() => {
     const counts: Record<string, number> = {};
 
-    assistances.forEach(ticket => {
+    (assistances || []).forEach(ticket => {
       const project = projects.find(p => p.id === ticket.projectId);
       if (project) {
         // Try to find installer from project.installerId (Legacy) or infer from environments?
@@ -132,18 +135,20 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
     return ranking;
   }, [assistances, projects, installers]);
 
-  // --- 5. TOP CLIENTES (Valor Comprado) ---
-  const topClients = useMemo(() => {
-    const clientValues: Record<string, number> = {};
-    projects.forEach(p => {
-      clientValues[p.clientName] = (clientValues[p.clientName] || 0) + p.value;
-    });
+  // --- 5. INDICADORES DE REFAZIMENTO (Causas de Ocorrência) ---
+  const reworkCausesData = useMemo(() => {
+    if (!dailyLogs) return [];
 
-    return Object.entries(clientValues)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [projects]);
+    // Filtrar apenas categorias de erro/problema (ignorando 'Outros' se desejar, ou incluir todos)
+    const counts = dailyLogs.reduce((acc, log) => {
+      acc[log.category] = (acc[log.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(counts)
+      .map(([name, value]): { name: string; value: number } => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [dailyLogs]);
 
   // --- 6. TOP FORNECEDORES (Compras) ---
   const topSuppliers = useMemo(() => {
@@ -168,37 +173,41 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div>
-        <h3 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter">Relatórios & Métricas</h3>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Inteligência de Dados para Decisões Estratégicas</p>
+        <h3 className="text-3xl font-black text-foreground uppercase italic tracking-tighter">Relatórios & Métricas</h3>
+        <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Inteligência de Dados para Decisões Estratégicas</p>
       </div>
 
       {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-card p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Vendas Totais</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">R$ {financialMetrics.totalSold.toLocaleString()}</p>
+            <p className="text-2xl font-black text-foreground mt-1">
+              {userRole === 'owner' ? `R$ ${financialMetrics.totalSold.toLocaleString()}` : 'RESTRITO'}
+            </p>
           </div>
           <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><DollarSign size={24} /></div>
         </div>
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-card p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ticket Médio</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">R$ {financialMetrics.ticketmedio.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+            <p className="text-2xl font-black text-foreground mt-1">
+              {userRole === 'owner' ? `R$ ${financialMetrics.ticketmedio.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : 'RESTRITO'}
+            </p>
           </div>
           <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl"><ShoppingCart size={24} /></div>
         </div>
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-card p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tempo Médio Ciclo</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{avgCycleTime} Dias</p>
+            <p className="text-2xl font-black text-foreground mt-1">{avgCycleTime} Dias</p>
           </div>
           <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Timer size={24} /></div>
         </div>
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-card p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Obras Finalizadas</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{projects.filter(p => p.currentStatus === 'Finalizada').length}</p>
+            <p className="text-2xl font-black text-foreground mt-1">{projects.filter(p => p.currentStatus === 'Finalizada').length}</p>
           </div>
           <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Award size={24} /></div>
         </div>
@@ -207,7 +216,7 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
         {/* CHART: Status das Obras */}
-        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+        <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm">
           <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2"><Truck size={18} /> Status de Produção</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -222,24 +231,24 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
           </div>
         </div>
 
-        {/* CHART: Top Clientes */}
-        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
-          <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2"><Users size={18} /> Top 5 Clientes (Valor)</h4>
+        {/* CHART: Indicadores de Refazimento (Causas) */}
+        <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm">
+          <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2"><AlertTriangle size={18} /> Principais Causas de Refazimento</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topClients} layout="vertical" margin={{ left: 40 }}>
+              <BarChart data={reworkCausesData} layout="vertical" margin={{ left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fontWeight: 800 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: number) => `R$ ${value.toLocaleString()}`} contentStyle={{ borderRadius: '12px' }} />
-                <Bar dataKey="value" fill="#10b981" radius={[0, 8, 8, 0]} barSize={24} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} formatter={(value: number) => `${value} ocorrências`} contentStyle={{ borderRadius: '12px' }} />
+                <Bar dataKey="value" fill="#f43f5e" radius={[0, 8, 8, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* CHART: Ranking Montadores (Valor Autorizado) */}
-        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
+        <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm">
           <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-8 flex items-center gap-2"><Hammer size={18} /> Montadores: Valor Autorizado</h4>
           <div className="space-y-6">
             {installerRanking.map((inst, i) => (
@@ -248,9 +257,11 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
                 <div className="flex-1">
                   <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
                     <span>{inst.name}</span>
-                    <span className="text-slate-900">R$ {inst.value.toLocaleString()}</span>
+                    <span className="text-foreground">
+                      {userRole === 'owner' ? `R$ ${inst.value.toLocaleString()}` : '***'}
+                    </span>
                   </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                  <div className="w-full bg-muted h-3 rounded-full overflow-hidden">
                     <div className="bg-slate-900 h-full" style={{ width: `${(inst.value / (installerRanking[0]?.value || 1)) * 100}%` }}></div>
                   </div>
                   <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{inst.count} Ambientes Entregues</p>
@@ -262,13 +273,13 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
         </div>
 
         {/* CHART: Índice de Retrabalho */}
-        <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm border-l-8 border-l-red-500">
+        <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm border-l-8 border-l-red-500">
           <h4 className="text-sm font-black text-red-500 uppercase tracking-widest mb-8 flex items-center gap-2"><AlertTriangle size={18} /> Índice de Retrabalho (Chamados)</h4>
           <p className="text-xs text-slate-400 mb-6 font-bold uppercase">Montadores com maior volume de chamados de assistência técnica vinculados aos seus projetos.</p>
           <div className="space-y-4">
             {reworkRanking.map((inst, i) => (
               <div key={i} className="flex items-center justify-between p-4 bg-red-50 rounded-2xl border border-red-100">
-                <span className="font-black text-slate-700 uppercase text-xs">{inst.name}</span>
+                <span className="font-black text-foreground uppercase text-xs">{inst.name}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black text-red-600">{inst.tickets}</span>
                   <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest">Chamados</span>

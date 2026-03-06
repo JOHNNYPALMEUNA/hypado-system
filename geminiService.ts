@@ -1,6 +1,6 @@
 
 import { GoogleGenerativeAI, Part } from "@google/generative-ai";
-import { Project, MemorialDescritivo, EnvironmentWithDetails } from "./types";
+import { Project, MemorialDescritivo, EnvironmentWithDetails, Task } from "./types";
 
 // Initialize the API with the key from Vite environment variables
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
@@ -39,40 +39,82 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 1, delay = 5000): Pr
 }
 
 export async function analyzeProductionBottlenecks(projects: Project[]) {
+  // Legacy function kept for compatibility if needed, but Dashboard now uses analyzeBriefing
+  return analyzeDailyBriefing(projects, [], []);
+}
+
+export async function analyzeDailyBriefing(projects: Project[], events: any[], assistances: any[]) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
+  const today = new Date().toISOString().split('T')[0];
+
+  const relevantProjects = projects.filter(p => p.currentStatus !== 'Finalizada').map(p => ({
+    workName: p.workName,
+    client: p.clientName,
+    status: p.currentStatus,
+    promisedDate: p.promisedDate,
+    daysUntilDelivery: Math.ceil((new Date(p.promisedDate).getTime() - new Date().getTime()) / (86400000))
+  }));
+
+  const todaysEvents = events.filter(e => e.start.startsWith(today)).map(e => ({
+    title: e.title,
+    time: e.start.split('T')[1].substring(0, 5),
+    type: e.type
+  }));
+
+  const urgentAssistances = assistances.filter(a => a.status === 'Aberto' || (a.status === 'Agendado' && a.scheduledDate === today)).map(a => ({
+    client: a.clientName,
+    problem: a.reportedProblem,
+    status: a.status
+  }));
+
   const prompt = `
-    Analise os dados de produção da marcenaria:
-    ${JSON.stringify(projects.map(p => ({ id: p.id, status: p.currentStatus, valor: p.value, entrega: p.promisedDate })), null, 2)}
+    Atue como um Gerente de Produção Sênior da Marcenaria ("Hypado Planejados").
+    Gere um "Resumo Matinal" (Daily Briefing) curto, motivador e direto para mim (O Dono).
     
-    Identifique gargalos e dê 3 conselhos práticos para acelerar as obras em Português.
+    DADOS DE HOJE (${today}):
+    
+    1. AGENDA DO DIA:
+    ${JSON.stringify(todaysEvents)}
+    
+    2. URGÊNCIAS E ASSISTÊNCIAS:
+    ${JSON.stringify(urgentAssistances)}
+    
+    3. STATUS DA PRODUÇÃO (OBRAS ATIVAS):
+    ${JSON.stringify(relevantProjects)}
+    
+    INSTRUÇÕES:
+    - Seja DIRETO e OBJETIVO. Ignore saudações longas.
+    - Foco total em: Gargalos de Produção, Entregas Próximas (menos de 5 dias) e Assistências em Aberto.
+    - Liste no máximo 3 pontos críticos de atenção.
+    - Se houver assistências urgentes, destaque como PRIORIDADE ZERO.
+    - Use um tom de Gerente de Operações focado em eficiência.
+    - Máximo 3 parágrafos curtos. Use emojis apenas se ajudarem na urgência.
   `;
 
   try {
     const result = await withRetry(() => model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7
-      }
+      generationConfig: { temperature: 0.7 }
     }));
 
     const response = await result.response;
     return response.text();
   } catch (error: any) {
-    console.error("Erro Gemini:", error);
+    console.error("Erro Gemini Briefing:", error);
     if (error?.message?.includes('429')) {
-      return "⚠️ O limite de cota gratuita do Google foi atingido. A inteligência de dados retornará em instantes.";
+      return "⚠️ O limite de cota da IA foi atingido. Tente novamente em 1 minuto.";
     }
-    return "Não foi possível gerar a análise de inteligência no momento.";
+    return "Não foi possível gerar o briefing diário no momento.";
   }
 }
 
-export async function analyzeReceipt(base64Image: string, context?: string) {
+export async function analyzeReceipt(base64Image: string, context?: string, mimeType: string = "image/jpeg") {
   // Use gemini-2.0-flash which is multimodal and fast
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   let prompt = `
-    Analise esta imagem de Nota Fiscal ou Recibo.
+    Analise esta imagem/PDF de Nota Fiscal ou Recibo.
     Extraia os itens, quantidades e valores unitários.
     Retorne APENAS um JSON no seguinte formato:
     {
@@ -96,7 +138,7 @@ export async function analyzeReceipt(base64Image: string, context?: string) {
   const imagePart: Part = {
     inlineData: {
       data: base64Image,
-      mimeType: "image/jpeg",
+      mimeType: mimeType,
     },
   };
 
@@ -317,5 +359,237 @@ export async function generateContract(clientName: string, cpfCnpj: string, proj
   }
   return "Erro desconhecido ao gerar contrato.";
 }
+// Função para Analisar Plano de Corte (Smart CUT / PCP Express)
+export async function analyzeCutList(base64Image: string, mimeType: string = "image/jpeg", instructions?: string) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const prompt = `
+      Analise esta imagem de um relatório de plano de corte (Smart CUT / PCP Express).
+      O relatório é uma TABELA com colunas geralmente na ordem: Item, Qtd, Descrição, Categoria, Setor.
+      
+      SEU OBJETIVO É EXTRAIR TODOS OS ITENS LISTADOS (Do item 1 ao último visível).
+      
+      REGRAS DE EXTRAÇÃO POR CATEGORIA:
+      1. **CHAPAS (MDF)**: Categoria 'CHAPAS'. Extraia a Quantidade (UN) e a Descrição (Nome/Cor/Espessura).
+      2. **FITAS (TAPES)**: Categoria 'FITAS'. ATENÇÃO: A coluna 'Qtd' para fitas representa METROS LINEARES (ex: "149 ." significa 149 metros). Extraia o valor numérico como 'quantity' e force a unidade 'Metros'.
+      3. **FERRAGENS / ALMOXARIFADO / DISPOSITIVOS**: Inclui categorias 'FERRAGENS', 'ALMOXARIFADO', 'DISPOSITIVOS DE LIGAÇÃO', 'DISPOSITIVOS DE ABERTURA'. Extraia a Quantidade e Descrição.
+      4. **PERFIS / ALUMÍNIO**: Categoria 'PERFIS' ou 'ALUMÍNIO'. Extraia a Quantidade e Descrição.
+      
+      INSTRUÇÕES EXTRAS: ${instructions || "Nenhuma"}
+      
+      Retorne APENAS um JSON no seguinte formato:
+      {
+        "mdf": [
+          { "name": "Nome Completo do Material", "quantity": 0, "dimensions": "Espessura", "color": "Cor" }
+        ],
+        "tapes": [
+          { "name": "Nome da Fita", "quantity": 0, "unit": "Metros" }
+        ],
+        "hardware": [
+          { "name": "Nome Completo do Item", "quantity": 0, "unit": "Un/Kit/Par/Barra" }
+        ]
+      }
+    `;
+
+  const imagePart: Part = {
+    inlineData: {
+      data: base64Image,
+      mimeType: mimeType,
+    },
+  };
+
+  try {
+    const result = await withRetry(() => model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          imagePart,
+          { text: prompt }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    }));
+
+    const response = await result.response;
+    const text = response.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro CutList Gemini:", error);
+    throw error;
+  }
+}
 
 
+
+export async function processVoiceCommand(command: string, context: { projects: Project[], tasks: Task[] }) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const prompt = `
+    Você é o Assistente de Voz da Marcenaria Hypado.
+    Sua tarefa é interpretar o comando do usuário e decidir qual ação tomar.
+    
+    COMANDO DO USUÁRIO: "${command}"
+    
+    CONTEXTO DO SISTEMA:
+    - Obras Ativas: ${JSON.stringify(context.projects.map(p => ({ id: p.id, nome: p.workName, status: p.currentStatus, cliente: p.clientName })))}
+    - Tarefas: ${JSON.stringify(context.tasks.map(t => ({ title: t.title, done: t.done })))}
+    
+    INSTRUÇÕES:
+    1. Se o usuário quer CRIAR uma tarefa (ex: "Crie uma tarefa...", "Lembre-me de...", "Agendar pedido..."), retorne uma ação "CREATE_TASK".
+    2. Se o usuário quer SABER algo (ex: "Qual obra está em corte?", "Como está a obra Luciana?"), retorne uma ação "ANSWER".
+    3. Se for outra coisa, responda educadamente.
+    
+    SAÍDA ESPERADA (JSON APENAS):
+    {
+      "action": "CREATE_TASK" | "ANSWER",
+      "data": {
+        "taskTitle": "Título da tarefa (se for CREATE_TASK)",
+        "answerText": "Resposta curta e falada (se for ANSWER ou confirmação)",
+        "priority": "Alta" | "Média" | "Baixa"
+      }
+    }
+    
+    REGRAS:
+    - Para "CREATE_TASK", o taskTitle deve ser claro e incluir o nome da obra se mencionado.
+    - Para "ANSWER", seja direto. Ex: "A obra Luciana está em fase de Corte."
+    - Retorne APENAS o JSON.
+  `;
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+    const text = result.response.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro Voice Gemini:", error);
+    return { action: "ANSWER", data: { answerText: "Desculpe, tive um problema ao processar seu comando." } };
+  }
+}
+
+export async function searchAddressWithAI(query: string) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const prompt = `
+    Como assistente da Marcenaria Hypado, ajude a encontrar o endereço completo para este local:
+    LOCAL: "${query}"
+    
+    INSTRUÇÕES:
+    1. Pesquise ou use seus conhecimentos para encontrar o CEP, Logradouro, Bairro e Cidade/UF para este local (especialmente se for um condomínio em Goiânia/GO ou região).
+    2. Se for um condomínio, tente identificar o endereço oficial.
+    3. Retorne APENAS um JSON no seguinte formato:
+    
+    SAÍDA ESPERADA:
+    {
+      "addressStreet": "Nome da Rua/Avenida",
+      "addressNeighborhood": "Nome do Bairro",
+      "addressCity": "Cidade/UF",
+      "addressCep": "00000-000",
+      "addressComplement": "Informação extra se houver"
+    }
+    
+    REGRAS:
+    - Retorne APENAS o JSON.
+    - Se não encontrar, retorne os campos vazios.
+  `;
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+    const text = result.response.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro Address Gemini:", error);
+    return null;
+  }
+}
+export async function processRefundReceipt(input: string | { base64Image: string, mimeType: string }, context?: string) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  let prompt = `
+    Atue como um Especialista em Gestão Financeira Profissional Brasileiro.
+    
+    OBJETIVO: Extrair dados de Recibos, Notas Fiscais e COMPROVANTES DE PIX/TRANSFERÊNCIA (Cora, Nubank, Itaú, Inter, Bradesco, Santander, etc).
+    
+    INSTRUÇÕES CRÍTICAS DE EXTRAÇÃO:
+    1. VALOR TOTAL (amount): 
+       - É o valor monetário principal pago. 
+       - Se houver "R$ 150,00", retorne o número 150.00.
+       - Padrão Cora/Banks: Se vir "Valor" e logo abaixo um número em R$, esse é o valor.
+       - IMPORTANTE: Retorne como um NÚMERO no JSON, não como string. Use ponto para decimais.
+    2. FAVORECIDO/ESTABELECIMENTO (establishment): 
+       - Identifique QUEM RECEBEU o pagamento (Favorecido).
+       - Ignore o "De:" ou "Remetente". Use o "Para:".
+    3. DATA (date): Extraia no formato YYYY-MM-DD.
+    4. CATEGORIA (category): Sugira uma categoria (Alimentação, Transporte, Suprimentos, Ferramentas, Material, Outros).
+
+    EXEMPLO DE RESPOSTA ESPERADA:
+    {
+      "date": "2026-02-27",
+      "establishment": "Nome do Posto ou Pessoa",
+      "amount": 150.00,
+      "category": "Alimentação",
+      "description": "Comprovante de PIX",
+      "isRecognitionSuccessful": true
+    }
+  `;
+
+  if (context) {
+    prompt += `
+    5. CONTEXTO DO USUÁRIO: O usuário informou que este gasto refere-se a: "${context}".
+       - Use esta informação para ajudar a identificar o estabelecimento ou a categoria se a imagem estiver difícil de ler.
+    `;
+  }
+
+  prompt += `
+    Retorne APENAS um JSON:
+    {
+      "date": "YYYY-MM-DD",
+      "establishment": "Nome de quem recebeu o dinheiro (Favorecido)",
+      "cnpj": "00.000.000/0001-00 (se houver)",
+      "amount": 0.00,
+      "category": "Categoria sugerida",
+      "description": "Breve descrição resumida",
+      "isRecognitionSuccessful": true/false
+    }
+  `;
+
+  try {
+    let result;
+    if (typeof input === 'string') {
+      result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt + `\n\nTEXTO DA NOTA:\n${input}` }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      });
+    } else {
+      const imagePart: Part = {
+        inlineData: {
+          data: input.base64Image,
+          mimeType: input.mimeType,
+        },
+      };
+      result = await model.generateContent({
+        contents: [{
+          role: 'user',
+          parts: [
+            imagePart,
+            { text: prompt }
+          ]
+        }],
+        generationConfig: { responseMimeType: "application/json" }
+      });
+    }
+
+    const text = result.response.text();
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro Refund AI:", error);
+    return null;
+  }
+}

@@ -18,6 +18,7 @@ import {
   Search,
   User
 } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 interface Props {
   clients: Client[];
@@ -26,6 +27,7 @@ interface Props {
 }
 
 const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
+  const { addClient, updateClient, deleteClient, userRole } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -105,8 +107,8 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
     }
 
     if (editingClient) {
-      setClients(prev => (prev || []).map(c => c.id === editingClient.id ? {
-        ...c,
+      updateClient({
+        ...editingClient,
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -115,7 +117,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
         lote: formData.lote,
         description: formData.description,
         isBlocked: formData.isBlocked
-      } : c));
+      });
     } else {
       const newClient: Client = {
         id: `c-${Date.now()}`,
@@ -131,7 +133,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
         lastVisit: new Date().toISOString().split('T')[0],
         isBlocked: formData.isBlocked
       };
-      setClients(prev => [newClient, ...(prev || [])]);
+      addClient(newClient);
     }
 
     setIsModalOpen(false);
@@ -145,7 +147,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
         alert('Senha incorreta!');
         return;
       }
-      setClients(prev => (prev || []).filter(c => c.id !== editingClient.id));
+      deleteClient(editingClient.id);
       setIsModalOpen(false);
     }
   };
@@ -179,14 +181,18 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border overflow-hidden animate-in zoom-in-95">
+          <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border overflow-hidden animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
               <h4 className="text-lg font-semibold">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</h4>
               <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+
               <div className="space-y-4">
+                {/* URL input replaced by file upload above */}
+
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Nome Completo</label>
                   <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
@@ -264,7 +270,9 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
                 </div>
                 <div className="bg-muted/50 p-3 rounded-lg border border-border/50">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total</p>
-                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{(totalValue / 1000).toFixed(1)}k</p>
+                  <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                    {userRole === 'owner' ? `${(totalValue / 1000).toFixed(1)}k` : '***'}
+                  </p>
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Company } from '../types';
+import { useData } from '../contexts/DataContext';
 import { Building2, Mail, Phone, MapPin, Fingerprint, Camera, Save, Globe, AlertTriangle, Download, Upload, Database } from 'lucide-react';
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
+  const { resetDatabase } = useData();
   const [formData, setFormData] = useState<Company>({ ...company });
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,29 +69,29 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div>
-        <h3 className="text-2xl font-bold text-slate-800 tracking-tight">Dados da Marcenaria</h3>
-        <p className="text-slate-500">Estas informações aparecerão nos relatórios e ordens de serviço.</p>
+        <h3 className="text-2xl font-bold text-foreground tracking-tight">Dados da Marcenaria</h3>
+        <p className="text-muted-foreground">Estas informações aparecerão nos relatórios e ordens de serviço.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Card de Logo */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm flex flex-col items-center text-center space-y-6">
+          <div className="bg-card p-8 rounded-[40px] border border-border shadow-sm flex flex-col items-center text-center space-y-6">
             <div className="relative group">
-              <div className="w-32 h-32 bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-amber-500">
+              <div className="w-32 h-32 bg-muted/50 rounded-[32px] border-2 border-dashed border-border flex items-center justify-center overflow-hidden transition-all group-hover:border-amber-500">
                 {formData.logo ? (
                   <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
                   <Building2 size={48} className="text-slate-200" />
                 )}
               </div>
-              <label className="absolute -bottom-2 -right-2 bg-amber-500 text-slate-900 p-2.5 rounded-2xl shadow-lg cursor-pointer hover:bg-amber-400 transition-all">
+              <label className="absolute -bottom-2 -right-2 bg-amber-500 text-foreground p-2.5 rounded-2xl shadow-lg cursor-pointer hover:bg-amber-400 transition-all">
                 <Camera size={18} />
                 <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
               </label>
             </div>
             <div>
-              <h4 className="font-bold text-slate-900">{formData.name || 'Sua Empresa'}</h4>
+              <h4 className="font-bold text-foreground">{formData.name || 'Sua Empresa'}</h4>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{formData.cnpj || '00.000.000/0001-00'}</p>
             </div>
             <p className="text-xs text-slate-400 italic leading-relaxed px-4">
@@ -100,7 +102,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
 
         {/* Formulário */}
         <div className="lg:col-span-2">
-          <form onSubmit={handleSave} className="bg-white p-8 rounded-[40px] border border-slate-200 shadow-sm space-y-6">
+          <form onSubmit={handleSave} className="bg-card p-8 rounded-[40px] border border-border shadow-sm space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Razão Social / Nome Fantasia</label>
@@ -110,7 +112,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
                     type="text"
                     value={formData.name}
                     onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 bg-muted/50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
                     placeholder="Hypado Planejados"
                   />
                 </div>
@@ -123,7 +125,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
                     type="text"
                     value={formData.cnpj}
                     onChange={e => setFormData(p => ({ ...p, cnpj: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 bg-muted/50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
                     placeholder="00.000.000/0001-00"
                   />
                 </div>
@@ -139,7 +141,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
                     type="email"
                     value={formData.email}
                     onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 bg-muted/50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
                     placeholder="contato@empresa.com"
                   />
                 </div>
@@ -152,7 +154,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
                     type="text"
                     value={formData.phone}
                     onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 bg-muted/50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
                     placeholder="(00) 00000-0000"
                   />
                 </div>
@@ -167,7 +169,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
                   type="text"
                   value={formData.address}
                   onChange={e => setFormData(p => ({ ...p, address: e.target.value }))}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-muted/50 rounded-2xl border-2 border-transparent focus:border-amber-500 outline-none transition-all"
                   placeholder="Rua, Número, Bairro, Cidade - UF"
                 />
               </div>
@@ -186,7 +188,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
       </div>
 
       {/* DANGER ZONE */}
-      <div className="pt-12 border-t border-slate-200">
+      <div className="pt-12 border-t border-border">
         <div className="bg-red-50 border border-red-100 rounded-[32px] p-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h4 className="flex items-center gap-2 text-red-600 font-black uppercase tracking-widest"><AlertTriangle size={20} /> Zona de Perigo</h4>
@@ -195,13 +197,23 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
             </p>
           </div>
           <button
-            onClick={() => {
-              if (confirm('TEM CERTEZA ABSOLUTA?\n\nIsso apagará TODOS os dados (Clientes, Obras, Financeiro) e resetará o sistema para o estado inicial.\n\nEssa ação NÃO pode ser desfeita.')) {
-                localStorage.clear();
-                window.location.reload();
+            onClick={async () => {
+              // 1. Password Protection
+              // const password = prompt('Para realizar o RESET DE FÃBRICA, digite a senha de administrador:');
+              // Custom prompt or just simple prompt is fine.
+              const password = prompt('🔒 ZONA DE PERIGO 🔒\n\nPara confirmar o RESET TOTAL DO SISTEMA, digite a senha de administrador:');
+
+              if (password !== 'adm123') {
+                if (password !== null) alert('Senha incorreta.');
+                return;
+              }
+
+              // 2. Final Confirmation
+              if (confirm('âš ï¸ PERIGO IMINENTE âš ï¸\n\nIsso apagará TODAS as Obras, Clientes, Financeiro e Agendamentos.\n\nDados Base (Fornecedores, Materiais e Equipe) SERÃO MANTIDOS.\n\nTem certeza absoluta?')) {
+                await resetDatabase();
               }
             }}
-            className="px-6 py-3 bg-white border-2 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 text-red-500 font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all shadow-sm active:scale-95"
+            className="px-6 py-3 bg-card border-2 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 text-red-500 font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all shadow-sm active:scale-95"
           >
             Resetar Sistema (Factory Reset)
           </button>

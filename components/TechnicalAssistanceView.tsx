@@ -6,25 +6,31 @@ import {
 import {
     Wrench, Calendar, Clock, AlertTriangle, CheckCircle2,
     Search, Plus, X, Camera, Save, User, MapPin, ArrowRight,
-    Filter, AlertCircle, Phone, FileText, ChevronRight
+    Filter, AlertCircle, Phone, FileText, ChevronRight, Link, Printer
 } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 interface Props {
     assistances: TechnicalAssistance[];
-    setAssistances: React.Dispatch<React.SetStateAction<TechnicalAssistance[]>>;
+    addAssistance: (assistance: TechnicalAssistance) => Promise<void>;
+    updateAssistance: (assistance: TechnicalAssistance) => Promise<void>;
+    deleteAssistance: (id: string) => Promise<void>;
     clients: Client[];
     projects: Project[];
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>; // New Prop
+    setProjects: any; // Kept for compatibility but we use context
     installers: Installer[];
 }
 
 const TechnicalAssistanceView: React.FC<Props> = ({
-    assistances, setAssistances, clients, projects, setProjects, installers
+    assistances, addAssistance, updateAssistance, deleteAssistance, clients, projects, setProjects, installers
 }) => {
+    const { updateProject } = useData();
     const [viewMode, setViewMode] = useState<'dashboard' | 'list'>('dashboard');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'scheduled' | 'open' | 'pending'>('all');
+    const [printingAssistance, setPrintingAssistance] = useState<TechnicalAssistance | null>(null);
 
     // Form State
     const [formData, setFormData] = useState<TechnicalAssistance>({
@@ -35,34 +41,58 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
     // Derived State
     const filteredAssistances = useMemo(() => {
-        return assistances.filter(a =>
-            a.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.workName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            a.reportedProblem.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [assistances, searchTerm]);
+        const todayObj = new Date();
+        const year = todayObj.getFullYear();
+        const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const day = String(todayObj.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
+
+        return assistances.filter(a => {
+            const matchesSearch = (a.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (a.workName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (a.reportedProblem || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+            if (!matchesSearch) return false;
+
+            if (activeFilter === 'scheduled') return a.status === 'Agendado';
+            if (activeFilter === 'open') return a.status === 'Aberto';
+            if (activeFilter === 'pending') return a.status === 'Retorno Pendente';
+
+            return true;
+        });
+    }, [assistances, searchTerm, activeFilter]);
 
     const stats = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
         return {
-            today: assistances.filter(a => a.scheduledDate === today).length,
+            scheduled: assistances.filter(a => a.status === 'Agendado').length,
             open: assistances.filter(a => a.status === 'Aberto').length,
             pending: assistances.filter(a => a.status === 'Retorno Pendente').length,
-            completed: assistances.filter(a => a.status === 'Finalizado').length
+            total: assistances.length
         };
     }, [assistances]);
 
     // Handlers
+    const handleFilterClick = (filter: 'all' | 'scheduled' | 'open' | 'pending') => {
+        setActiveFilter(filter);
+        setViewMode('list');
+    };
+
     const handleOpenModal = (assistance?: TechnicalAssistance) => {
         if (assistance) {
             setEditingId(assistance.id);
             setFormData({ ...assistance });
         } else {
             setEditingId(null);
+            const todayObj = new Date();
+            const year = todayObj.getFullYear();
+            const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+            const day = String(todayObj.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day}`;
+
             setFormData({
                 id: `ta-${Date.now()}`,
                 clientId: '', clientName: '', projectId: '', workName: '',
-                requestDate: new Date().toISOString().split('T')[0],
+                requestDate: today,
                 reportedProblem: '', status: 'Aberto'
             });
         }
@@ -76,7 +106,16 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                 ...prev,
                 clientId: client.id,
                 clientName: client.name,
-                projectId: '', workName: '' // Reset project when client changes
+                projectId: prev.projectId === 'manual' ? 'manual' : '',
+                workName: prev.projectId === 'manual' ? prev.workName : ''
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                clientId: '',
+                clientName: '',
+                projectId: prev.projectId === 'manual' ? 'manual' : '',
+                workName: prev.projectId === 'manual' ? prev.workName : ''
             }));
         }
     };
@@ -92,7 +131,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Apply Business Rules for Status
@@ -109,20 +148,18 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         const updatedData = { ...formData, status: newStatus };
 
         // AUTOMATION: If Finalized, update Project Status
-        if (newStatus === 'Finalizado' && formData.projectId) {
-            setProjects(prev => prev.map(p => {
-                if (p.id === formData.projectId) {
-                    // Update Project to Finalized and Quality Report to Approved
-                    const updatedReport = p.qualityReport ? { ...p.qualityReport, status: 'Aprovado' as const } : undefined;
-                    return {
-                        ...p,
-                        currentStatus: 'Finalizada',
-                        qualityReport: updatedReport,
-                        history: [...p.history, { status: 'Finalizada', timestamp: new Date().toISOString() }]
-                    };
-                }
-                return p;
-            }));
+        if (newStatus === 'Finalizado' && formData.projectId && formData.projectId !== 'manual') {
+            const p = projects.find(p => p.id === formData.projectId);
+            if (p) {
+                // Update Project to Finalized and Quality Report to Approved
+                const updatedReport = p.qualityReport ? { ...p.qualityReport, status: 'Aprovado' as const } : undefined;
+                updateProject({
+                    ...p,
+                    currentStatus: 'Finalizada',
+                    qualityReport: updatedReport,
+                    history: [...p.history, { status: 'Finalizada', timestamp: new Date().toISOString() }]
+                } as Project);
+            }
 
             // Check if there are other open tickets to clear the global flag
             // We need to check against the updated list, so we simulate it here
@@ -135,9 +172,9 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         }
 
         if (editingId) {
-            setAssistances(prev => prev.map(a => a.id === editingId ? updatedData : a));
+            await updateAssistance(updatedData);
         } else {
-            setAssistances(prev => [...prev, updatedData]);
+            await addAssistance(updatedData);
             // Logic for global flag if new ticket is open (already covered in QualityView, but good as backup)
             if (newStatus === 'Aberto') {
                 localStorage.setItem('chamadoAberto', 'true');
@@ -147,7 +184,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         setIsModalOpen(false);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!editingId) return;
         if (confirm('Excluir este chamado de assistência?')) {
             const pwd = prompt('Digite a senha de administrador:');
@@ -155,7 +192,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                 alert('Senha incorreta!');
                 return;
             }
-            setAssistances(prev => prev.filter(a => a.id !== editingId));
+            await deleteAssistance(editingId);
             setIsModalOpen(false);
         }
     };
@@ -165,14 +202,14 @@ const TechnicalAssistanceView: React.FC<Props> = ({
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h3 className="text-2xl font-black text-slate-800 uppercase italic tracking-tight">Assistência Técnica</h3>
-                    <p className="text-slate-500 font-bold text-sm uppercase italic">Gestão de Garantias e Manutenção</p>
+                    <h3 className="text-2xl font-black text-foreground uppercase italic tracking-tight">Assistência Técnica</h3>
+                    <p className="text-muted-foreground font-bold text-sm uppercase italic">Gestão de Garantias e Manutenção</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setViewMode(viewMode === 'dashboard' ? 'list' : 'dashboard')} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors">
+                    <button onClick={() => setViewMode(viewMode === 'dashboard' ? 'list' : 'dashboard')} className="px-4 py-2 bg-muted text-muted-foreground rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition-colors">
                         {viewMode === 'dashboard' ? 'Ver Lista Completa' : 'Ver Dashboard'}
                     </button>
-                    <button onClick={() => handleOpenModal()} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-black uppercase tracking-widest flex items-center gap-2 hover:bg-amber-500 hover:text-slate-900 transition-all shadow-lg active:scale-95 text-xs">
+                    <button onClick={() => handleOpenModal()} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-black uppercase tracking-widest flex items-center gap-2 hover:bg-amber-500 hover:text-foreground transition-all shadow-lg active:scale-95 text-xs">
                         <Plus size={16} /> Nova Solicitação
                     </button>
                 </div>
@@ -180,64 +217,117 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                <div
+                    onClick={() => handleFilterClick('scheduled')}
+                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'scheduled' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-100'}`}
+                >
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Calendar size={24} /></div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hoje</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agendados</span>
                     </div>
-                    <p className="text-3xl font-black text-slate-800">{stats.today}</p>
+                    <p className="text-3xl font-black text-foreground">{stats.scheduled}</p>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Visitas Agendadas</p>
                 </div>
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                <div
+                    onClick={() => handleFilterClick('open')}
+                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'open' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-100'}`}
+                >
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl"><AlertCircle size={24} /></div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Abertas</span>
                     </div>
-                    <p className="text-3xl font-black text-slate-800">{stats.open}</p>
+                    <p className="text-3xl font-black text-foreground">{stats.open}</p>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Aguardando Agenda</p>
                 </div>
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                <div
+                    onClick={() => handleFilterClick('pending')}
+                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'pending' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-100'}`}
+                >
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><Wrench size={24} /></div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Retorno</span>
                     </div>
-                    <p className="text-3xl font-black text-slate-800">{stats.pending}</p>
+                    <p className="text-3xl font-black text-foreground">{stats.pending}</p>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Pendências Técnicas</p>
                 </div>
-                <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm">
+                <div
+                    onClick={() => handleFilterClick('all')}
+                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'all' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-100'}`}
+                >
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><CheckCircle2 size={24} /></div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</span>
                     </div>
-                    <p className="text-3xl font-black text-slate-800">{stats.completed}</p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Finalizadas</p>
+                    <p className="text-3xl font-black text-foreground">{stats.total}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Chamados Registrados</p>
                 </div>
             </div>
 
             {viewMode === 'dashboard' && (
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8">
-                    <h4 className="text-lg font-black text-slate-800 uppercase italic tracking-tight mb-6 flex items-center gap-2">
+                <div className="bg-card rounded-[32px] border border-border shadow-sm p-8">
+                    <h4 className="text-lg font-black text-foreground uppercase italic tracking-tight mb-6 flex items-center gap-2">
                         <Calendar className="text-amber-500" size={24} /> Agenda do Dia
                     </h4>
-                    {assistances.filter(a => a.scheduledDate === new Date().toISOString().split('T')[0]).length === 0 ? (
+                    {assistances.filter(a => {
+                        const todayObj = new Date();
+                        const year = todayObj.getFullYear();
+                        const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+                        const day = String(todayObj.getDate()).padStart(2, '0');
+                        const today = `${year}-${month}-${day}`;
+                        return a.scheduledDate === today;
+                    }).length === 0 ? (
                         <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-3xl">
                             <p className="text-slate-400 font-bold uppercase tracking-wider text-sm">Nenhuma visita agendada para hoje.</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {assistances.filter(a => a.scheduledDate === new Date().toISOString().split('T')[0]).map(item => (
-                                <div key={item.id} onClick={() => handleOpenModal(item)} className="p-6 bg-slate-50 hover:bg-amber-50 border border-transparent hover:border-amber-200 rounded-[24px] cursor-pointer transition-all group">
+                            {assistances.filter(a => {
+                                const todayObj = new Date();
+                                const year = todayObj.getFullYear();
+                                const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+                                const day = String(todayObj.getDate()).padStart(2, '0');
+                                const today = `${year}-${month}-${day}`;
+                                return a.scheduledDate === today;
+                            }).map(item => (
+                                <div key={item.id} onClick={() => handleOpenModal(item)} className="p-6 bg-muted/50 hover:bg-amber-50 border border-transparent hover:border-amber-200 rounded-[24px] cursor-pointer transition-all group">
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-white rounded-xl shadow-sm text-slate-700 font-black text-lg">
+                                            <div className="p-3 bg-card rounded-xl shadow-sm text-foreground font-black text-lg">
                                                 {item.scheduledTime || '--:--'}
                                             </div>
                                             <div>
-                                                <h5 className="font-black text-slate-800 uppercase italic">{item.clientName}</h5>
-                                                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{item.workName}</p>
+                                                <h5 className="font-black text-foreground uppercase italic">{item.clientName}</h5>
+                                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{item.workName}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const url = `${window.location.origin}${window.location.pathname}?mode=assistance-report&id=${item.id}`;
+                                                    navigator.clipboard.writeText(url);
+                                                    alert('✅ Link copiado para a área de transferência!\n\nVocê agora pode enviar este link para o cliente acompanhar o status.');
+                                                }}
+                                                className="p-2 bg-card text-slate-400 hover:text-blue-500 rounded-lg shadow-sm border border-slate-100 transition-all active:scale-95"
+                                                title="Gerar Link para Cliente"
+                                            >
+                                                <Link size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPrintingAssistance(item);
+                                                    setTimeout(() => {
+                                                        window.print();
+                                                        // Keep it for a bit longer to ensure print dialog captures it
+                                                        setTimeout(() => setPrintingAssistance(null), 500);
+                                                    }, 500);
+                                                }}
+                                                className="p-2 bg-card text-slate-400 hover:text-amber-500 rounded-lg shadow-sm border border-slate-100 transition-all active:scale-95"
+                                                title="Imprimir Relatório"
+                                            >
+                                                <Printer size={16} />
+                                            </button>
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${item.status === 'Finalizado' ? 'bg-emerald-100 text-emerald-700' :
                                                 item.status === 'Retorno Pendente' ? 'bg-red-100 text-red-700' :
                                                     'bg-blue-100 text-blue-700'
@@ -255,14 +345,14 @@ const TechnicalAssistanceView: React.FC<Props> = ({
             )}
 
             {viewMode === 'list' && (
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+                <div className="bg-card rounded-[32px] border border-border shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-100 flex gap-4">
                         <div className="flex-1 relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
                                 placeholder="Buscar por cliente, obra ou problema..."
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 rounded-2xl outline-none font-bold text-sm"
+                                className="w-full pl-12 pr-4 py-3 bg-muted/50 rounded-2xl outline-none font-bold text-sm"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -270,26 +360,52 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                     </div>
                     <div className="divide-y divide-slate-50">
                         {filteredAssistances.map(item => (
-                            <div key={item.id} onClick={() => handleOpenModal(item)} className="p-6 hover:bg-slate-50 cursor-pointer transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div key={item.id} onClick={() => handleOpenModal(item)} className="p-6 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-2xl ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+                                    <div className={`p-3 rounded-2xl ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
                                         <Wrench size={24} />
                                     </div>
                                     <div>
-                                        <h5 className="font-black text-slate-800 uppercase italic text-sm">{item.clientName}</h5>
+                                        <h5 className="font-black text-foreground uppercase italic text-sm">{item.clientName}</h5>
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{item.workName}</p>
-                                        <p className="text-xs text-slate-600 line-clamp-1">{item.reportedProblem}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-1">{item.reportedProblem}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-6">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const url = `${window.location.origin}${window.location.pathname}?mode=assistance-report&id=${item.id}`;
+                                            navigator.clipboard.writeText(url);
+                                            alert('✅ Link copiado!');
+                                        }}
+                                        className="p-2 bg-muted/50 text-slate-400 hover:text-blue-500 rounded-lg border border-slate-100 transition-all active:scale-95"
+                                        title="Copiar Link para Cliente"
+                                    >
+                                        <Link size={16} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPrintingAssistance(item);
+                                            setTimeout(() => {
+                                                window.print();
+                                                setTimeout(() => setPrintingAssistance(null), 500);
+                                            }, 500);
+                                        }}
+                                        className="p-2 bg-muted/50 text-slate-400 hover:text-amber-500 rounded-lg border border-slate-100 transition-all active:scale-95"
+                                        title="Imprimir Relatório"
+                                    >
+                                        <Printer size={16} />
+                                    </button>
                                     <div className="text-right hidden md:block">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Solicitado em</p>
-                                        <p className="font-bold text-slate-700 text-xs">{new Date(item.requestDate).toLocaleDateString()}</p>
+                                        <p className="font-bold text-foreground text-xs">{new Date(item.requestDate).toLocaleDateString()}</p>
                                     </div>
                                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${item.status === 'Finalizado' ? 'bg-emerald-100 text-emerald-700' :
                                         item.status === 'Retorno Pendente' ? 'bg-red-100 text-red-700' :
                                             item.status === 'Agendado' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-slate-100 text-slate-600'
+                                                'bg-muted text-muted-foreground'
                                         }`}>
                                         {item.status}
                                     </span>
@@ -303,16 +419,37 @@ const TechnicalAssistanceView: React.FC<Props> = ({
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] shadow-2xl animate-in zoom-in-95">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 sticky top-0 z-10">
+                    <div className="bg-card w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] shadow-2xl animate-in zoom-in-95">
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-muted/50 sticky top-0 z-10">
                             <div>
-                                <h4 className="text-xl font-black text-slate-800 uppercase italic tracking-tight">
+                                <h4 className="text-xl font-black text-foreground uppercase italic tracking-tight">
                                     {editingId ? 'Editar Assistência' : 'Nova Solicitação'}
                                 </h4>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                                     ID: {formData.id}
                                 </p>
                             </div>
+                        </div>
+                        <div className="flex gap-2">
+                            {editingId && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const assistance = assistances.find(a => a.id === editingId);
+                                        if (assistance) {
+                                            setPrintingAssistance(assistance);
+                                            setTimeout(() => {
+                                                window.print();
+                                                setPrintingAssistance(null);
+                                            }, 300);
+                                        }
+                                    }}
+                                    className="p-2.5 bg-muted text-muted-foreground rounded-full hover:bg-slate-200 transition-colors"
+                                    title="Imprimir Relatório"
+                                >
+                                    <Printer size={20} />
+                                </button>
+                            )}
                             <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X /></button>
                         </div>
 
@@ -326,7 +463,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
                                         <select
-                                            className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                                            className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
                                             value={formData.clientId}
                                             onChange={handleClientChange}
                                             required
@@ -336,19 +473,47 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                         </select>
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Projeto (RefData)</label>
-                                        <select
-                                            className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
-                                            value={formData.projectId}
-                                            onChange={handleProjectChange}
-                                            required
-                                            disabled={!formData.clientId}
-                                        >
-                                            <option value="">Selecione o Projeto</option>
-                                            {projects.filter(p => p.clientId === formData.clientId).map(p => (
-                                                <option key={p.id} value={p.id}>{p.workName}</option>
-                                            ))}
-                                        </select>
+                                        <div className="flex justify-between items-center ml-1 mb-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Projeto (RefData)</label>
+                                            <label className="flex items-center gap-1 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.projectId === 'manual'}
+                                                    onChange={e => {
+                                                        if (e.target.checked) {
+                                                            setFormData(prev => ({ ...prev, projectId: 'manual', workName: '' }));
+                                                        } else {
+                                                            setFormData(prev => ({ ...prev, projectId: '', workName: '' }));
+                                                        }
+                                                    }}
+                                                    className="w-3 h-3 text-amber-500 rounded outline-none"
+                                                />
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Informar Manualmente</span>
+                                            </label>
+                                        </div>
+                                        {formData.projectId === 'manual' ? (
+                                            <input
+                                                type="text"
+                                                className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                placeholder="Digite o nome da obra..."
+                                                value={formData.workName}
+                                                onChange={e => setFormData({ ...formData, workName: e.target.value })}
+                                                required
+                                            />
+                                        ) : (
+                                            <select
+                                                className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                value={formData.projectId}
+                                                onChange={handleProjectChange}
+                                                required
+                                                disabled={!formData.clientId}
+                                            >
+                                                <option value="">Selecione o Projeto</option>
+                                                {projects.filter(p => p.clientId === formData.clientId).map(p => (
+                                                    <option key={p.id} value={p.id}>{p.workName}</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -362,15 +527,15 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Solicitação</label>
-                                            <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" value={formData.requestDate} onChange={e => setFormData({ ...formData, requestDate: e.target.value })} />
+                                            <input type="date" className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none" value={formData.requestDate} onChange={e => setFormData({ ...formData, requestDate: e.target.value })} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Agendamento</label>
-                                            <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none focus:bg-amber-50 transition-colors" value={formData.scheduledDate || ''} onChange={e => setFormData({ ...formData, scheduledDate: e.target.value })} />
+                                            <input type="date" className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none focus:bg-amber-50 transition-colors" value={formData.scheduledDate || ''} onChange={e => setFormData({ ...formData, scheduledDate: e.target.value })} />
                                         </div>
                                         <div className="space-y-1 col-span-2">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Horário</label>
-                                            <input type="time" className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none" value={formData.scheduledTime || ''} onChange={e => setFormData({ ...formData, scheduledTime: e.target.value })} />
+                                            <input type="time" className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none" value={formData.scheduledTime || ''} onChange={e => setFormData({ ...formData, scheduledTime: e.target.value })} />
                                         </div>
                                     </div>
                                 </div>
@@ -382,32 +547,112 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Problema Relatado</label>
                                         <textarea
-                                            className="w-full p-4 bg-slate-50 rounded-2xl font-bold text-sm outline-none h-32 resize-none"
+                                            className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none h-32 resize-none"
                                             placeholder="Descreva o problema relatado pelo cliente..."
                                             value={formData.reportedProblem}
                                             onChange={e => setFormData({ ...formData, reportedProblem: e.target.value })}
                                             required
                                         />
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <button type="button" className="flex-1 py-3 bg-slate-100 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
-                                            <Camera size={16} /> {formData.photoUrl ? 'Foto Anexada' : 'Adicionar Foto'}
-                                        </button>
+                                    <div className="flex flex-col gap-4 mt-2">
+                                        <label className="flex-1 relative cursor-pointer py-3 bg-muted rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+                                            <Camera size={16} /> {formData.photoUrl ? 'Foto Anexada (Alterar)' : 'Adicionar Foto'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    if (e.target.files && e.target.files[0]) {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => {
+                                                            setFormData({ ...formData, photoUrl: reader.result as string });
+                                                        };
+                                                        reader.readAsDataURL(e.target.files[0]);
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+
+                                        <div className="flex gap-2 relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                <Link size={16} />
+                                            </div>
+                                            <input
+                                                type="url"
+                                                className="w-full pl-10 pr-4 py-3 bg-muted/50 border-2 border-transparent focus:border-amber-500 rounded-xl font-medium text-xs outline-none transition-colors placeholder-slate-400"
+                                                placeholder="Link de Vídeo ou Pasta (OneDrive, Drive, etc...)"
+                                                value={formData.videoUrl || ''}
+                                                onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="border-t border-dashed border-slate-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="border-t border-dashed border-border pt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {/* Visita Técnica */}
                                 <div className="space-y-4">
-                                    <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                    <h5 className="text-sm font-black text-foreground uppercase tracking-widest flex items-center gap-2">
                                         <Wrench size={18} /> Relatório Técnico
                                     </h5>
                                     <div className="space-y-3">
                                         <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Técnico Responsável</label>
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Responsável pela Obra Original</label>
                                             <select
-                                                className="w-full p-3 bg-slate-50 rounded-xl font-bold text-sm outline-none"
+                                                className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none"
+                                                value={formData.originalInstallerId || ''}
+                                                onChange={e => setFormData({ ...formData, originalInstallerId: e.target.value })}
+                                            >
+                                                <option value="">Não identificado / Selecione...</option>
+                                                {installers.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between items-center ml-1 mb-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Técnico que Executou a Assistência</label>
+                                                {formData.technicianId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const tech = installers.find(i => i.id === formData.technicianId);
+                                                            if (!tech || !tech.phone) {
+                                                                alert('Telefone do técnico não cadastrado.');
+                                                                return;
+                                                            }
+                                                            const phone = tech.phone.replace(/\D/g, '');
+
+                                                            let msg = `*ðŸ› ï¸ NOVO CHAMADO: ASSISTÊNCIA TÉCNICA*\n\n`;
+                                                            msg += `*Cliente:* ${formData.clientName}\n`;
+                                                            msg += `*Obra:* ${formData.workName}\n`;
+
+                                                            const address = clients.find(c => c.id === formData.clientId)?.address || '';
+                                                            if (address) {
+                                                                msg += `*Endereço:* ${address}\n`;
+                                                            }
+
+                                                            msg += `\n*Agendamento:* ${formData.scheduledDate ? new Date(formData.scheduledDate).toLocaleDateString() : 'A combinar'}`;
+                                                            if (formData.scheduledTime) msg += ` Ã s ${formData.scheduledTime}`;
+                                                            msg += `\n\n*📋 Problema Relatado:*\n${formData.reportedProblem}\n`;
+
+                                                            if (formData.photoUrl) {
+                                                                msg += `\n*📸 Foto Anexada:* ${formData.photoUrl}\n`;
+                                                            }
+                                                            if (formData.videoUrl) {
+                                                                msg += `\n*🔗 Link Mídia/Vídeo:* ${formData.videoUrl}\n`;
+                                                            }
+
+                                                            msg += `\n*Por favor, acesse o sistema para reportar a conclusão.*`;
+
+                                                            window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                                        }}
+                                                        className="text-[10px] font-black uppercase tracking-widest text-[#25D366] hover:text-[#128C7E] flex items-center gap-1 transition-colors bg-emerald-50 px-2 py-1 rounded-md"
+                                                    >
+                                                        <Phone size={12} /> Enviar Resumo
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <select
+                                                className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none"
                                                 value={formData.technicianId || ''}
                                                 onChange={e => setFormData({ ...formData, technicianId: e.target.value })}
                                             >
@@ -418,7 +663,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Resultado da Visita</label>
                                             <textarea
-                                                className="w-full p-3 bg-slate-50 rounded-xl font-medium text-sm outline-none h-20 resize-none"
+                                                className="w-full p-3 bg-muted/50 rounded-xl font-medium text-sm outline-none h-20 resize-none"
                                                 placeholder="O que foi feito na visita?"
                                                 value={formData.visitResult || ''}
                                                 onChange={e => setFormData({ ...formData, visitResult: e.target.value })}
@@ -444,12 +689,12 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                     <div className="space-y-3 bg-emerald-50/50 p-6 rounded-[24px] border border-emerald-100">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Retorno Agendado Para</label>
-                                            <input type="date" className="w-full p-3 bg-white rounded-xl font-bold text-sm outline-none" value={formData.returnDate || ''} onChange={e => setFormData({ ...formData, returnDate: e.target.value })} />
+                                            <input type="date" className="w-full p-3 bg-card rounded-xl font-bold text-sm outline-none" value={formData.returnDate || ''} onChange={e => setFormData({ ...formData, returnDate: e.target.value })} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Obs. Final (Encerra Chamado)</label>
                                             <textarea
-                                                className="w-full p-3 bg-white rounded-xl font-medium text-sm outline-none h-32 resize-none"
+                                                className="w-full p-3 bg-card rounded-xl font-medium text-sm outline-none h-32 resize-none"
                                                 placeholder="Conclusão final para encerramento..."
                                                 value={formData.finalObservations || ''}
                                                 onChange={e => setFormData({ ...formData, finalObservations: e.target.value })}
@@ -460,7 +705,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                             </div>
 
                             <div className="pt-4 space-y-4">
-                                <button type="submit" className="w-full py-5 bg-slate-900 text-white font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-amber-500 hover:text-slate-900 transition-all shadow-xl active:scale-[0.98]">
+                                <button type="submit" className="w-full py-5 bg-slate-900 text-white font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-amber-500 hover:text-foreground transition-all shadow-xl active:scale-[0.98]">
                                     Salvar Solicitação
                                 </button>
                                 {editingId && (
@@ -472,11 +717,113 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                         </form>
                     </div>
                 </div>
-            )}
+            )
+            }
 
-            {/* Import fake ChevronRight to avoid build error if not imported */}
-            {false && <ChevronRight />}
-        </div>
+            {/* PRINTABLE COMPONENT */}
+            {
+                printingAssistance && (
+                    <div id="printable-assistance-report" className="hidden print:block fixed inset-0 z-[9999] bg-card">
+                        <div className="print-header">
+                            <div>
+                                <div className="print-logo-box">
+                                    <Wrench size={40} />
+                                </div>
+                                <h1 className="text-3xl font-black">Hypado System</h1>
+                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1">Gestão de Assistência e Garantia</p>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="text-4xl font-black text-foreground italic uppercase">Relatório de Assistência</h2>
+                                <p className="text-sm font-bold text-muted-foreground mt-2">ID: {printingAssistance.id}</p>
+                                <div className="print-status-tag">{printingAssistance.status}</div>
+                            </div>
+                        </div>
+
+                        <div className="print-info-grid">
+                            <div className="print-info-item">
+                                <span className="print-info-label">Cliente</span>
+                                <span className="print-info-value">{printingAssistance.clientName}</span>
+                            </div>
+                            <div className="print-info-item">
+                                <span className="print-info-label">Obra</span>
+                                <span className="print-info-value">{printingAssistance.workName}</span>
+                            </div>
+                            <div className="print-info-item">
+                                <span className="print-info-label">Solicitação</span>
+                                <span className="print-info-value">{new Date(printingAssistance.requestDate).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="print-info-grid">
+                            <div className="print-info-item">
+                                <span className="print-info-label">Agendamento</span>
+                                <span className="print-info-value">{printingAssistance.scheduledDate ? new Date(printingAssistance.scheduledDate).toLocaleDateString() : 'Não agendado'}</span>
+                            </div>
+                            <div className="print-info-item">
+                                <span className="print-info-label">Horário</span>
+                                <span className="print-info-value">{printingAssistance.scheduledTime || '--:--'}</span>
+                            </div>
+                            <div className="print-info-item">
+                                <span className="print-info-label">Técnico Resp.</span>
+                                <span className="print-info-value">{installers.find(i => i.id === printingAssistance.technicianId)?.name || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        <div className="print-divider" />
+
+                        <div className="print-section">
+                            <h3 className="print-section-title">Problema Relatado</h3>
+                            <div className="print-description-box">
+                                <p className="print-description-text">{printingAssistance.reportedProblem}</p>
+                            </div>
+                        </div>
+
+                        {printingAssistance.visitResult && (
+                            <div className="print-section">
+                                <h3 className="print-section-title">Relatório da Visita</h3>
+                                <div className="print-description-box" style={{ borderLeftColor: '#10b981' }}>
+                                    <p className="print-description-text">{printingAssistance.visitResult}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {printingAssistance.pendingIssues && (
+                            <div className="print-section">
+                                <h3 className="print-section-title" style={{ color: '#ef4444' }}>Pendências / Retorno</h3>
+                                <div className="print-description-box" style={{ borderLeftColor: '#ef4444', backgroundColor: '#fef2f2' }}>
+                                    <p className="print-description-text">{printingAssistance.pendingIssues}</p>
+                                    {printingAssistance.returnDate && (
+                                        <p className="mt-4 text-xs font-black uppercase text-red-600">Retorno Previsto: {new Date(printingAssistance.returnDate).toLocaleDateString()}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {printingAssistance.finalObservations && (
+                            <div className="print-section">
+                                <h3 className="print-section-title">Observações Finais</h3>
+                                <div className="p-6 border-2 border-slate-100 rounded-2xl italic text-sm text-muted-foreground">
+                                    {printingAssistance.finalObservations}
+                                </div>
+                            </div>
+                        )}
+
+                        {printingAssistance.photoUrl && (
+                            <div className="print-section">
+                                <h3 className="print-section-title">Evidência Fotográfica</h3>
+                                <div className="print-photo-container">
+                                    <img src={printingAssistance.photoUrl} alt="Evidência" />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="print-footer">
+                            Relatório gerado via Hypado System em {new Date().toLocaleString()} • Documento Oficial de Garantia
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

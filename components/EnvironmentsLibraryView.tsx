@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import { Environment, MemorialDescritivo, MdfPart, HardwareItem, Appliance, Material } from '../types';
 import { Plus, Trash2, Layers, Search, X, Edit3, Save, Boxes, Settings2 } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 interface Props {
   environments: Environment[];
   setEnvironments: React.Dispatch<React.SetStateAction<Environment[]>>;
+  materialCategories: string[];
 }
 
 const INITIAL_MEMORIAL = (): MemorialDescritivo => ({
@@ -16,7 +18,8 @@ const INITIAL_MEMORIAL = (): MemorialDescritivo => ({
   appliances: []
 });
 
-const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironments }) => {
+const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironments, materialCategories }) => {
+  const { materials } = useData();
   const [newEnvName, setNewEnvName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingEnv, setEditingEnv] = useState<Environment | null>(null);
@@ -61,17 +64,17 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div>
-        <h3 className="text-2xl font-bold text-slate-800">Biblioteca de Ambientes</h3>
-        <p className="text-slate-500">Defina os padrões técnicos (MDF, Ferragens) para cada ambiente.</p>
+        <h3 className="text-2xl font-bold text-foreground">Biblioteca de Ambientes</h3>
+        <p className="text-muted-foreground">Defina os padrões técnicos (MDF, Ferragens) para cada ambiente.</p>
       </div>
 
-      <form onSubmit={handleAdd} className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex gap-3">
+      <form onSubmit={handleAdd} className="bg-card p-6 rounded-[32px] border border-border shadow-sm flex gap-3">
         <input
           type="text"
           value={newEnvName}
           onChange={(e) => setNewEnvName(e.target.value)}
           placeholder="Novo Ambiente (ex: Home Theater)..."
-          className="flex-1 px-4 py-3 bg-slate-50 border-2 border-transparent focus:border-amber-500/30 rounded-2xl outline-none"
+          className="flex-1 px-4 py-3 bg-muted/50 border-2 border-transparent focus:border-amber-500/30 rounded-2xl outline-none"
           required
         />
         <button type="submit" className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all">
@@ -79,7 +82,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
         </button>
       </form>
 
-      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-[32px] border border-border shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center gap-3">
           <Search size={20} className="text-slate-400" />
           <input
@@ -92,14 +95,14 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
         </div>
         <div className="divide-y divide-slate-50">
           {filtered.map(env => (
-            <div key={env.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors group">
+            <div key={env.id} className="p-6 flex items-center justify-between hover:bg-muted/50/50 transition-colors group">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${env.memorial ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+                <div className={`p-3 rounded-xl ${env.memorial ? 'bg-amber-100 text-amber-700' : 'bg-muted text-slate-400'}`}>
                   <Layers size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-800 text-lg">{env.name}</h4>
-                  <p className="text-xs text-slate-500">
+                  <h4 className="font-bold text-foreground text-lg">{env.name}</h4>
+                  <p className="text-xs text-muted-foreground">
                     {env.memorial ? 'Padrões definidos' : 'Sem padrões definidos'}
                   </p>
                 </div>
@@ -107,7 +110,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
               <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => setEditingEnv(env.memorial ? env : { ...env, memorial: INITIAL_MEMORIAL() })}
-                  className="px-4 py-2 bg-slate-100 hover:bg-amber-500 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-muted hover:bg-amber-500 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2"
                 >
                   <Edit3 size={14} /> Editar Padrões
                 </button>
@@ -130,10 +133,10 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
 
       {editingEnv && editingEnv.memorial && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[32px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <div className="bg-card w-full max-w-2xl max-h-[90vh] rounded-[32px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-muted/50">
               <div>
-                <h3 className="text-lg font-black text-slate-800 uppercase italic">Editando: {editingEnv.name}</h3>
+                <h3 className="text-lg font-black text-foreground uppercase italic">Editando: {editingEnv.name}</h3>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Defina os materiais padrão para este ambiente</p>
               </div>
               <button onClick={() => setEditingEnv(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} /></button>
@@ -155,14 +158,14 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 <div className="space-y-2">
                   {editingEnv.memorial.mdfParts.map((part, idx) => (
                     <div key={part.id} className="grid grid-cols-12 gap-2">
-                      <input className="col-span-5 text-sm px-3 py-2 bg-slate-50 rounded-lg outline-none font-medium" value={part.partName} onChange={e => {
+                      <input className="col-span-5 text-sm px-3 py-2 bg-muted/50 rounded-lg outline-none font-medium" value={part.partName} onChange={e => {
                         const parts = [...editingEnv.memorial!.mdfParts];
                         parts[idx].partName = e.target.value;
                         updateMemorial('mdfParts', parts);
                       }} placeholder="Descrição (ex: Caixaria)" />
 
                       <select
-                        className="col-span-4 text-sm px-3 py-2 bg-slate-50 rounded-lg outline-none font-medium"
+                        className="col-span-4 text-sm px-3 py-2 bg-muted/50 rounded-lg outline-none font-medium"
                         value={part.brandColor}
                         onChange={e => {
                           const parts = [...editingEnv.memorial!.mdfParts];
@@ -178,7 +181,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                         ))}
                         <option value="Branco Padrão">Branco Padrão (Genérico)</option>
                       </select>
-                      <select className="col-span-2 text-sm px-1 bg-slate-50 rounded-lg outline-none" value={part.thickness} onChange={e => {
+                      <select className="col-span-2 text-sm px-1 bg-muted/50 rounded-lg outline-none" value={part.thickness} onChange={e => {
                         const parts = [...editingEnv.memorial!.mdfParts];
                         parts[idx].thickness = e.target.value;
                         updateMemorial('mdfParts', parts);
@@ -195,7 +198,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 </div>
               </div>
 
-              <div className="h-px bg-slate-100"></div>
+              <div className="h-px bg-muted"></div>
 
               {/* Hardware Section */}
               <div>
@@ -212,7 +215,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 <div className="space-y-2">
                   {editingEnv.memorial.hardwareItems.map((hw, idx) => (
                     <div key={hw.id} className="grid grid-cols-12 gap-2">
-                      <select className="col-span-3 text-sm px-2 bg-slate-50 rounded-lg outline-none" value={hw.category} onChange={e => {
+                      <select className="col-span-3 text-sm px-2 bg-muted/50 rounded-lg outline-none" value={hw.category} onChange={e => {
                         const hws = [...editingEnv.memorial!.hardwareItems];
                         hws[idx].category = e.target.value;
                         updateMemorial('hardwareItems', hws);
@@ -221,7 +224,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                       </select>
                       <div className="col-span-8 grid grid-cols-2 gap-2">
                         <select
-                          className="col-span-2 text-sm px-3 py-2 bg-slate-50 rounded-lg outline-none font-medium"
+                          className="col-span-2 text-sm px-3 py-2 bg-muted/50 rounded-lg outline-none font-medium"
                           onChange={e => {
                             const selectedMat = materials.find(m => m.id === e.target.value);
                             if (selectedMat) {
@@ -250,9 +253,9 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setEditingEnv(null)} className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button onClick={handleSaveEdit} className="px-6 py-3 rounded-2xl text-sm font-bold bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900 transition-all shadow-lg flex items-center gap-2">
+            <div className="p-6 border-t border-slate-100 bg-muted/50 flex justify-end gap-3">
+              <button onClick={() => setEditingEnv(null)} className="px-6 py-3 rounded-2xl text-sm font-bold text-muted-foreground hover:bg-slate-200 transition-colors">Cancelar</button>
+              <button onClick={handleSaveEdit} className="px-6 py-3 rounded-2xl text-sm font-bold bg-slate-900 text-white hover:bg-amber-500 hover:text-foreground transition-all shadow-lg flex items-center gap-2">
                 <Save size={18} /> Salvar Padrão
               </button>
             </div>

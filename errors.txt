@@ -1,0 +1,4 @@
+components/EnvironmentsLibraryView.tsx(174,26): error TS2304: Cannot find name 'materials'.
+components/EnvironmentsLibraryView.tsx(226,49): error TS2304: Cannot find name 'materials'.
+components/EnvironmentsLibraryView.tsx(234,34): error TS2304: Cannot find name 'materials'.
+components/EnvironmentsLibraryView.tsx(237,28): error TS2304: Cannot find name 'materials'.

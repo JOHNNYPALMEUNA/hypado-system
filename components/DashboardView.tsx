@@ -1,92 +1,87 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Clock, CheckCircle2, AlertTriangle, Sparkles, Factory, Calendar, Info, Activity, ShieldCheck, Zap, RefreshCw, Play, Search, ArrowRight } from 'lucide-react';
-import { Client, Project, CalendarEvent, TechnicalAssistance } from '../types';
-import { analyzeProductionBottlenecks } from '../geminiService';
+import {
+  TrendingUp, Clock, CheckCircle2, AlertTriangle, Sparkles, Factory,
+  Calendar, Activity, ShieldCheck, Play, ArrowRight, Hammer, Scissors,
+  ListTodo, MapPin, Truck, AlertTriangle as AlertTriangleIcon
+} from 'lucide-react';
+import { Client, Project, CalendarEvent, TechnicalAssistance, Installer, ProductionStatus } from '../types';
+import { analyzeDailyBriefing } from '../geminiService';
+import { getStatusBadgeClass } from '../utils';
 
 interface Props {
   projects: Project[];
   clients: Client[];
   events: CalendarEvent[];
   assistances: TechnicalAssistance[];
+  installers: Installer[];
 }
 
-const CACHE_KEY = 'hypado_ai_insight_cache';
+const CACHE_KEY = 'hypado_ai_insight_cache_v2';
 
-const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances }) => {
-  const [activeTab, setActiveTab] = useState<'financeira' | 'producao'>('financeira');
+const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances, installers }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success'>('idle');
   const [testProgress, setTestProgress] = useState(0);
   const [currentStepText, setCurrentStepText] = useState('');
 
-  const stats = useMemo(() => {
-    const totalValue = projects.reduce((acc, p) => acc + p.value, 0);
-    const activeProjects = projects.filter(p => p.currentStatus !== 'Finalizada').length;
-    const pendingDeliveries = projects.filter(p => {
-      const promised = new Date(p.promisedDate);
-      const now = new Date();
-      const diff = (promised.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-      return diff < 15 && p.currentStatus !== 'Finalizada';
-    }).length;
+  // --- Derived State (Filters) ---
 
-    // Vistorias do Mês (Real Data)
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+  const cuttingProjects = useMemo(() =>
+    projects.filter(p => p.currentStatus === 'Corte'),
+    [projects]);
 
-    // Count events of type 'Visita' in current month
-    const visitsCount = events.filter(e => {
-      const d = new Date(e.start);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear && e.type === 'Visita';
-    }).length;
+  const installingProjects = useMemo(() =>
+    projects.filter(p => p.currentStatus === 'Instalação'),
+    [projects]);
 
-    // Count assistances created in current month
-    const assistanceCount = assistances.filter(a => {
-      const d = new Date(a.requestDate);
-      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    }).length;
+  const logisticsProjects = useMemo(() =>
+    projects.filter(p => p.currentStatus === 'Produção' || p.currentStatus === 'Entrega'),
+    [projects]);
 
-    const totalInspections = visitsCount + assistanceCount;
+  const activeProjectsCount = useMemo(() =>
+    projects.filter(p => p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada').length,
+    [projects]);
 
-    return [
-      { label: 'Obras Ativas', value: activeProjects, icon: Factory, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-      { label: 'Valor em Produção', value: `R$ ${(totalValue / 1000).toFixed(1)}k`, icon: TrendingUp, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-      { label: 'Entregas Próximas', value: pendingDeliveries, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-      { label: 'Vistorias Mês', value: totalInspections, icon: CheckCircle2, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    ];
-  }, [projects, events, assistances]);
-
-  const upcomingEvents = useMemo(() => {
-    const now = new Date();
+  const todaysEvents = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
     return events
-      .filter(e => new Date(e.start) >= now)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      .slice(0, 3);
+      .filter(e => e.start.startsWith(todayStr))
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }, [events]);
 
+  const priorityAssistances = useMemo(() =>
+    (assistances || []).filter(a => a.status === 'Aberto' || a.status === 'Agendado' || a.status === 'Retorno Pendente')
+      .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime())
+    , [assistances]);
+
+  const stats = useMemo(() => {
+    return [
+      { label: 'Obras Ativas', value: activeProjectsCount, icon: Factory, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-100', gradient: 'from-blue-600 to-blue-400' },
+      { label: 'Em Corte', value: cuttingProjects.length, icon: Scissors, color: 'text-orange-600', bg: 'bg-orange-600/10', border: 'border-orange-100', gradient: 'from-orange-600 to-orange-400' },
+      { label: 'Logística', value: logisticsProjects.length, icon: Truck, color: 'text-emerald-600', bg: 'bg-emerald-600/10', border: 'border-emerald-100', gradient: 'from-emerald-600 to-emerald-400' },
+      { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-600/10', border: 'border-rose-100', gradient: 'from-rose-600 to-rose-400' },
+    ];
+  }, [assistances, activeProjectsCount, cuttingProjects.length, logisticsProjects.length]);
+
+
+  // --- Integrity Test Logic ---
   const runIntegrityTest = () => {
     setTestStatus('running');
     setTestProgress(0);
-
     const steps = [
-      "Escaneando Banco de Dados de Obras...",
-      "Validando Memoriais Descritivos...",
-      "Simulando Cotação Técnica...",
-      "Testando Entrada de Nota Fiscal...",
-      "Verificando Atualização do DRE...",
-      "Validando Auditoria de Montadores...",
+      "Escaneando Banco de Dados de Obras...", "Validando Memoriais Descritivos...",
+      "Simulando Cotação Técnica...", "Testando Entrada de Nota Fiscal...",
+      "Verificando Atualização do DRE...", "Validando Auditoria de Montadores...",
       "Hypado Integrity Lab: Sistema Operacional!"
     ];
-
     let currentStep = 0;
     setCurrentStepText(steps[0]);
-
     const interval = setInterval(() => {
       currentStep++;
       setTestProgress((currentStep / steps.length) * 100);
       setCurrentStepText(steps[currentStep] || steps[steps.length - 1]);
-
       if (currentStep >= steps.length) {
         clearInterval(interval);
         setTestStatus('success');
@@ -94,219 +89,352 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
     }, 1000);
   };
 
+  // --- AI Insight Logic ---
   const fetchInsight = async (force = false) => {
     if (!force) {
       const cached = sessionStorage.getItem(CACHE_KEY);
-      if (cached) {
-        setInsight(cached);
-        return;
-      }
+      if (cached) { setInsight(cached); return; }
     }
-
     setLoadingInsight(true);
-    const result = await analyzeProductionBottlenecks(projects);
-    if (result && !result.includes("limite de cota") && !result.includes("⚠️")) {
+    const result = await analyzeDailyBriefing(projects, todaysEvents, priorityAssistances);
+    if (result && !result.includes("limite") && !result.includes("âš ï¸")) {
       sessionStorage.setItem(CACHE_KEY, result);
     }
     setInsight(result);
     setLoadingInsight(false);
   };
 
-  useEffect(() => {
-    fetchInsight();
-  }, []);
+  useEffect(() => { fetchInsight(); }, []);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
 
-      {/* Welcome / Header Section if needed */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral da produção e desempenho.</p>
-        </div>
-        <div className="flex gap-2">
-          <button className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            Nova Obra
+      {/* Hero Header */}
+      <div className="relative pt-12 pb-8 overflow-hidden rounded-[48px]">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5" />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6 px-1">
+          <div className="space-y-2">
+            <h1 className="text-5xl font-black tracking-tightest leading-none text-gradient-premium">
+              Bom dia, <span className="opacity-50">Equipe Hypado</span>
+            </h1>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.4em] italic pl-1">
+              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </p>
+          </div>
+          <button className="group relative px-8 py-4 bg-slate-900 dark:bg-card text-white dark:text-foreground rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="relative z-10 flex items-center gap-2">
+              <Play size={14} fill="currentColor" className="text-amber-500" /> Nova Obra
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Bento Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <div key={idx} className="bg-card text-card-foreground p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center justify-between">
+          <div
+            key={idx}
+            className="group relative bg-card dark:bg-slate-900/50 p-8 bento-card border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden"
+          >
+            <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 blur-2xl rounded-full`} />
+
+            <div className="flex flex-col items-start gap-6 relative z-10">
+              <div className={`${stat.bg} ${stat.color} w-14 h-14 rounded-3xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
+                <stat.icon size={28} strokeWidth={1.5} />
+              </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic transition-all group-hover:translate-x-1">{stat.label}</p>
+                <div className="flex items-baseline gap-1">
+                  <p className="text-4xl font-black text-foreground dark:text-white tracking-tighter leading-none italic">{stat.value}</p>
+                  <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-2 transition-transform" />
+                </div>
               </div>
-              <div className={`${stat.bg} ${stat.color} p-3 rounded-lg`}>
-                <stat.icon size={20} />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs text-muted-foreground">
-              <span className="text-emerald-500 font-medium flex items-center gap-1">
-                <TrendingUp size={12} /> +2.5%
-              </span>
-              <span className="ml-1">vs mês passado</span>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Column */}
-        <div className="lg:col-span-2 space-y-6">
-
-          {/* AI Insights Card */}
-          <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-border bg-muted/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <Sparkles className="text-purple-500" size={18} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Inteligência de Produção</h3>
-                  <p className="text-xs text-muted-foreground">Análise Gemini AI em tempo real</p>
-                </div>
-              </div>
-              <button
-                onClick={() => fetchInsight(true)}
-                disabled={loadingInsight}
-                className="text-xs font-medium bg-background border border-border hover:bg-accent hover:text-accent-foreground px-3 py-1.5 rounded-md transition-colors disabled:opacity-50"
-              >
-                {loadingInsight ? 'Analisando...' : 'Recalcular Análise'}
-              </button>
+      {/* Smart AI Hub */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="xl:col-span-3 relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-600/10 rounded-[40px] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="relative glass-premium p-6 bento-card overflow-hidden">
+            <div className="absolute -right-20 -top-20 opacity-[0.03] group-hover:opacity-[0.07] transition-all duration-1000">
+              <Sparkles size={300} className="text-indigo-600 animate-pulse" />
             </div>
 
-            <div className="p-6">
-              {loadingInsight ? (
-                <div className="space-y-3 animate-pulse">
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-4 bg-muted rounded w-full"></div>
-                  <div className="h-4 bg-muted rounded w-5/6"></div>
+            <div className="flex flex-col md:flex-row gap-10 items-start relative z-10">
+              <div className="flex flex-col items-center gap-6 shrink-0">
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-indigo-300 dark:shadow-none animate-bounce-slow">
+                  <Sparkles size={24} strokeWidth={1.5} />
                 </div>
-              ) : (
-                <div className={`prose prose-sm max-w-none ${insight?.includes("⚠️") ? 'text-sm bg-destructive/10 text-destructive p-4 rounded-lg flex gap-3 items-start' : 'text-muted-foreground'}`}>
-                  {insight?.includes("⚠️") && <AlertTriangle className="shrink-0 mt-0.5" size={16} />}
-                  <p className="leading-relaxed whitespace-pre-line">
-                    {insight || "Iniciando análise inteligente da linha de produção..."}
+                <button
+                  onClick={() => fetchInsight(true)}
+                  disabled={loadingInsight}
+                  className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] hover:text-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {loadingInsight ? 'Sincronizando...' : 'Recalcular'}
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-6">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="h-[2px] w-8 bg-indigo-500 rounded-full" />
+                    <h3 className="text-xs font-black text-indigo-500 uppercase tracking-[0.4em] italic">Hypado Assistant</h3>
+                  </div>
+                  <h4 className="text-xl font-black text-foreground dark:text-white uppercase italic tracking-tighter leading-none pt-1">Pulse Check</h4>
+                </div>
+                <div className="relative">
+                  <p className="text-sm text-muted-foreground dark:text-slate-300 font-medium italic leading-relaxed whitespace-pre-line pl-4">
+                    {insight || "Analisando fluxo e pontos críticos..."}
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Projects List */}
-          <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h3 className="font-semibold text-lg">Cronograma de Entregas</h3>
-              <button className="text-sm text-primary hover:underline">Ver todas</button>
-            </div>
-            <div className="divide-y divide-border">
-              {projects.filter(p => p.currentStatus !== 'Finalizada').slice(0, 5).map(project => {
-                const promised = new Date(project.promisedDate);
-                const diff = Math.ceil((promised.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                const isLate = diff < 10;
-
-                return (
-                  <div key={project.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isLate ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'}`}>
-                        {isLate ? <AlertTriangle size={18} /> : <Calendar size={18} />}
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{project.workName}</p>
-                        <p className="text-xs text-muted-foreground">{project.clientName} • {project.currentStatus}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold text-sm ${isLate ? 'text-red-500' : 'text-foreground'}`}>
-                        {diff} dias
-                      </p>
-                      <p className="text-xs text-muted-foreground">restantes</p>
-                    </div>
-                  </div>
-                );
-              })}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column / Sidebar Stats */}
-        <div className="space-y-6">
-
-          {/* System Check Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl shadow-lg overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-8 opacity-5">
-              <ShieldCheck size={100} />
-            </div>
-
-            <div className="p-6 relative z-10">
-              <div className="flex items-center gap-2 mb-4">
-                <Activity className="text-amber-500" size={18} />
-                <h3 className="font-bold text-lg">Integrity Lab</h3>
+        {/* System Health / Performance Mini Bento */}
+        <div className="flex flex-col gap-6">
+          <div className="flex-1 glass-dark p-8 bento-card group">
+            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-4 italic">Eficiência Operacional</p>
+            <div className="space-y-6">
+              <div className="flex justify-between items-end">
+                <span className="text-3xl font-black text-white tracking-tighter italic">98.4%</span>
+                <TrendingUp size={20} className="text-emerald-400 mb-1" />
               </div>
-              <p className="text-slate-400 text-xs mb-6">Verificação de integridade operacional do sistema.</p>
-
-              {testStatus !== 'running' ? (
-                <button
-                  onClick={runIntegrityTest}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-2.5 rounded-lg text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-                >
-                  <Play size={16} fill="currentColor" />
-                  {testStatus === 'success' ? 'Verificar Novamente' : 'Iniciar Verificação'}
-                </button>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex justify-between text-xs text-slate-400 mb-1">
-                    <span>Progresso</span>
-                    <span>{testProgress.toFixed(0)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-amber-500 transition-all duration-300"
-                      style={{ width: `${testProgress}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-amber-500 italic animate-pulse">{currentStepText}</p>
-                </div>
-              )}
-
-              {testStatus === 'success' && (
-                <div className="mt-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-emerald-400 text-xs font-medium">
-                  <CheckCircle2 size={14} />
-                  <span>Sistema Operando Normalmente</span>
-                </div>
-              )}
+              <div className="w-full bg-card/10 h-1.5 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 w-[98.4%] rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+              </div>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Sincronização entre corte e logística operando em alta performance.</p>
             </div>
           </div>
 
-          {/* Agenda / Next Events */}
-          <div className="bg-card text-card-foreground rounded-xl border border-border shadow-sm p-6">
-            <h3 className="font-bold text-lg mb-4">Agenda Próxima</h3>
-            <div className="space-y-4">
-              {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Nenhum evento próximo agendado.</p>
-              ) : (
-                upcomingEvents.map((evt, i) => (
-                  <div key={i} className="flex gap-3 group cursor-pointer hover:bg-muted/50 p-2 -mx-2 rounded-lg transition-colors">
-                    <div className="flex flex-col items-center justify-center w-12 h-12 bg-muted rounded-lg border border-border group-hover:border-primary/50 group-hover:text-primary transition-colors">
-                      <span className="text-[10px] font-bold uppercase">{new Date(evt.start).toLocaleDateString(undefined, { month: 'short' }).toUpperCase().replace('.', '')}</span>
-                      <span className="text-lg font-bold leading-none">{new Date(evt.start).getDate()}</span>
+          <div className="glass-premium p-6 bento-card bg-emerald-500/5 border-emerald-500/20">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 dark:shadow-none">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status Sistema</p>
+                <p className="text-xs font-black text-foreground dark:text-white uppercase">Operacional 100%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Ultra-Modern Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        {/* Left: Production Pulse (Timeline-style) */}
+        <div className="lg:col-span-8 space-y-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-6 bg-slate-900 dark:bg-card rounded-full" />
+              <h3 className="text-sm font-black text-foreground dark:text-white uppercase tracking-[0.4em] italic leading-none">Pulse de Produção</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fluxo Ativo</span>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Cutting Column */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
+                  <Scissors size={18} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Em Corte</span>
+              </div>
+              <div className="space-y-4">
+                {cuttingProjects.length === 0 ? (
+                  <div className="h-40 glass-premium rounded-[32px] flex items-center justify-center border-dashed border-2 border-slate-100">
+                    <p className="text-[10px] font-black text-slate-300 uppercase italic">Vazio</p>
+                  </div>
+                ) : (
+                  cuttingProjects.map((p, i) => (
+                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-orange-50/50 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-1">
+                          <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{p.clientName}</p>
+                        </div>
+                        <div className="p-2 bg-card dark:bg-slate-800 rounded-xl text-[9px] font-black italic text-orange-600 shadow-sm">
+                          {p.promisedDate ? new Date(p.promisedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'S/D'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                          <div className="h-full bg-orange-500 w-1/3" />
+                        </div>
+                        <span className="text-[9px] font-black text-orange-500 italic">33%</span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="text-sm font-medium truncate">{evt.title}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(evt.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {evt.type}</p>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Logistics Column */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                  <Truck size={18} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Logística</span>
+              </div>
+              <div className="space-y-4">
+                {logisticsProjects.length === 0 ? (
+                  <div className="h-40 glass-premium rounded-[32px] flex items-center justify-center border-dashed border-2 border-slate-100">
+                    <p className="text-[10px] font-black text-slate-300 uppercase italic">Vazio</p>
+                  </div>
+                ) : (
+                  logisticsProjects.map((p, i) => (
+                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-emerald-50/50 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-1">
+                          <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{p.clientName}</p>
+                        </div>
+                        <div className="p-2 bg-card dark:bg-slate-800 rounded-xl text-[9px] font-black italic text-emerald-600 shadow-sm">
+                          {p.promisedDate ? new Date(p.promisedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'S/D'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 w-2/3" />
+                        </div>
+                        <span className="text-[9px] font-black text-emerald-500 italic">66%</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Production Column */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 px-2">
+                <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                  <Hammer size={18} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Instalação</span>
+              </div>
+              <div className="space-y-4">
+                {installingProjects.length === 0 ? (
+                  <div className="h-40 glass-premium rounded-[32px] flex items-center justify-center border-dashed border-2 border-slate-100">
+                    <p className="text-[10px] font-black text-slate-300 uppercase italic">Vazio</p>
+                  </div>
+                ) : (
+                  installingProjects.map((p, i) => (
+                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-indigo-50/50 transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="space-y-1">
+                          <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{p.clientName}</p>
+                        </div>
+                        <div className="p-2 bg-card dark:bg-slate-800 rounded-xl text-[9px] font-black italic text-indigo-600 shadow-sm">
+                          {p.promisedDate ? new Date(p.promisedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'S/D'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-muted dark:bg-slate-800 h-1 rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500 w-[90%]" />
+                        </div>
+                        <span className="text-[9px] font-black text-indigo-500 italic">90%</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Minimalist Focus Sidebar */}
+        <div className="lg:col-span-4 space-y-8 h-full">
+          <div className="glass-premium p-8 bento-card flex flex-col gap-10 min-h-[600px]">
+            <div>
+              <div className="flex items-center gap-3 mb-8">
+                <Calendar size={18} className="text-foreground dark:text-white" />
+                <h3 className="text-xs font-black text-foreground dark:text-white uppercase tracking-[0.4em] italic leading-none">Agenda Focal</h3>
+              </div>
+
+              <div className="space-y-6">
+                {todaysEvents.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic leading-relaxed">Sem compromissos externos para hoje.</p>
+                  </div>
+                ) : (
+                  todaysEvents.map(evt => (
+                    <div key={evt.id} className="group relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all">
+                      <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 transition-all" />
+                      <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1 italic">{new Date(evt.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="text-sm font-black text-foreground dark:text-white uppercase italic tracking-tight">{evt.title}</p>
+                      <p className="text-[9px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest mt-1">
+                        <MapPin size={8} /> {evt.location || 'Escritório'}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="pt-8 border-t border-slate-50 dark:border-slate-800">
+              <div className="flex items-center gap-3 mb-8">
+                <AlertTriangle size={18} className="text-rose-500" />
+                <h3 className="text-xs font-black text-rose-500 uppercase tracking-[0.4em] italic leading-none">Prioridades</h3>
+              </div>
+              <div className="space-y-4">
+                {priorityAssistances.length === 0 ? (
+                  <div className="p-6 bg-emerald-500/5 rounded-3xl border border-emerald-500/10 text-center">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic">Operação estável âœ¨</p>
+                  </div>
+                ) : (
+                  priorityAssistances.slice(0, 2).map(a => (
+                    <div key={a.id} className="p-6 bg-muted/50 dark:bg-slate-800/50 rounded-[32px] border border-slate-100 dark:border-slate-700 group hover:border-rose-200 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="text-xs font-black text-foreground dark:text-white uppercase italic truncate max-w-[140px]">{a.clientName}</p>
+                        <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground dark:text-slate-400 font-medium italic line-clamp-1">"{a.reportedProblem}"</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Integrity Lab (Mini) Moved to bottom of focus panel */}
+            <div className={`mt-auto p-8 rounded-[40px] overflow-hidden relative transition-all duration-700 ${testStatus === 'success' ? 'bg-emerald-600' : 'bg-slate-900'}`}>
+              <ShieldCheck className={`absolute -right-6 -bottom-6 text-white opacity-10 transition-transform duration-1000 ${testStatus === 'running' ? 'animate-spin-slow scale-150' : ''}`} size={120} />
+              <div className="relative z-10 flex flex-col gap-6">
+                <div className="flex items-center gap-3">
+                  {testStatus === 'success' ? <CheckCircle2 size={16} className="text-white" /> : <Activity size={16} className="text-amber-500" />}
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] italic leading-none">Integrity Lab</span>
+                </div>
+
+                {testStatus !== 'running' ? (
+                  <button
+                    onClick={runIntegrityTest}
+                    className="w-full bg-card text-foreground text-xs font-black uppercase italic tracking-[0.2em] py-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-black/40"
+                  >
+                    {testStatus === 'success' ? 'Sistema Verificado' : 'Verificar Sistema'}
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-[10px] text-white font-black italic uppercase truncate animate-pulse tracking-widest">{currentStepText}</p>
+                    <div className="w-full bg-card/20 h-1.5 rounded-full overflow-hidden">
+                      <div className="h-full bg-card transition-all duration-300 shadow-[0_0_10px_white]" style={{ width: `${testProgress}%` }}></div>
                     </div>
                   </div>
-                ))
-              )}
+                )}
+              </div>
             </div>
-            <button className="w-full mt-6 py-2 text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1 group">
-              Ver agenda completa <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-            </button>
           </div>
         </div>
       </div>

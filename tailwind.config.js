@@ -50,6 +50,9 @@ export default {
             fontFamily: {
                 sans: ['Inter', 'sans-serif'],
             },
+            boxShadow: {
+                'bento': '0 32px 64px -12px rgba(0, 0, 0, 0.14)',
+            },
         },
     },
     plugins: [],

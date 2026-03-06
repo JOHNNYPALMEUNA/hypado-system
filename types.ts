@@ -1,9 +1,10 @@
 
-export type ProductionStatus = 'Venda' | 'Projeto' | 'Corte' | 'Produção' | 'Entrega' | 'Instalação' | 'Vistoria' | 'Finalizada';
+export type ProductionStatus = 'Venda' | 'Projeto' | 'Corte' | 'Produção' | 'Entrega' | 'Instalação' | 'Vistoria' | 'Finalizada' | 'Cancelada';
 export type PurchaseStatus = 'Cotação' | 'Comprado' | 'Entregue';
 export type SupplierType = 'Material' | 'Serviço (Corte/Fitação)' | 'Montagem (Terceirizado)';
 export type OutsourcedStatus = 'Pendente' | 'Pedido' | 'Pronto';
-export type TeamRole = 'Montador' | 'Ajudante' | 'Marceneiro' | 'Freteiro' | 'Projetista';
+export type TeamRole = 'Montador' | 'Ajudante' | 'Marceneiro' | 'Freteiro' | 'Projetista' | 'Gerente' | 'Vendedora';
+export type UserRole = 'owner' | 'manager';
 
 export interface Company {
   name: string;
@@ -42,10 +43,14 @@ export interface ProjectDiaryEntry {
 
 export interface MdfPart {
   id: string;
+  uniqueId?: string; // ID Único (ex: 338 da sua foto)
   partName: string;
   brandColor: string;
   thickness: string;
+  width?: number; // Comprimento
+  depth?: number; // Profundidade
   value?: number;
+  quantity?: number;
 }
 
 export interface Appliance {
@@ -108,6 +113,7 @@ export interface SelectedModule {
   depth: number;
   quantity: number;
   selectedVariants: Record<string, any>; // e.g., { "Espelho": true, "Espessura": "18mm" }
+  parts?: MdfPart[]; // Peças específicas deste módulo (ID 338, 511, etc)
   value?: number;
   promobId?: string; // ID from Promob software for tracking
   status?: 'Pendente' | 'Produção' | 'Concluído' | 'Entregue' | 'Instalado';
@@ -133,6 +139,7 @@ export interface EnvironmentWithDetails {
   memorial: MemorialDescritivo;
   value: number;
   assignedInstallerId?: string;
+  mdoRefusalReason?: string; // Motivo da recusa (se houver)
   serviceContractValue?: number;
   servicePercentage?: number;
   manualValueOverride?: boolean;
@@ -142,6 +149,7 @@ export interface EnvironmentWithDetails {
   difficultyFactor?: number; // 0.8 (Easy) to 1.2 (Hard)
   commissionValue?: number; // Final agreed value
   mdoStatus?: 'Pendente' | 'Enviado' | 'Aceito' | 'Recusado'; // Negotiation Status
+  currentStatus?: ProductionStatus; // Status of this specific environment
 }
 
 export interface Expense {
@@ -168,6 +176,7 @@ export interface Client {
   isBlocked?: boolean;
   status?: string; // 'Ativo', 'Inativo'
   totalSpent?: number;
+  avatar?: string;
 }
 
 export interface Environment {
@@ -191,6 +200,15 @@ export interface Project {
   expenses: Expense[];
   team: string;
   installerId?: string;
+  addressCep?: string;
+  addressCity?: string;
+  addressStreet?: string;
+  addressNumber?: string;
+  addressNeighborhood?: string;
+  addressComplement?: string;
+  addressQuadra?: string;
+  addressLote?: string;
+  // Legacy or Calculated
   workAddress: string;
   materialsDelivered?: boolean;
   productionCentral?: string;
@@ -198,6 +216,18 @@ export interface Project {
   qualityReport?: QualityReport;
   cloudFolderLink?: string; // Link to OneDrive/Cloud folder
   attachments?: { name: string; url: string; type: 'Project' | 'CutList' | 'Other' }[];
+  // Logistics Checklist (Pre-Installation)
+  preAssemblyDone?: boolean;
+  freightOrganized?: boolean;
+  clientScheduled?: boolean;
+  deliveryPath?: 'Workshop' | 'Direct';
+  preAssemblyTeam?: string[];
+  freightCarrierId?: string;
+  freightDate?: string;
+  deliveryDate?: string;
+  projectPdfUrl?: string; // URL to the project PDF
+  modules?: SelectedModule[];
+  architectId?: string; // ID of the architect/designer
 }
 
 export interface Product {
@@ -207,6 +237,15 @@ export interface Product {
   brand?: string;
   unit?: string;
   description?: string;
+  // Extended fields for Materials (Library)
+  model?: string;
+  color?: string;
+  thickness?: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  code?: string;
+  supplierId?: string;
+  imageUrl?: string;
 }
 
 export type Material = Product;
@@ -236,6 +275,8 @@ export interface Quotation {
   status: PurchaseStatus;
   items: QuotationItem[];
   date: string;
+  settlementId?: string;
+  settlementDate?: string;
 }
 
 export interface ChecklistItem {
@@ -280,9 +321,11 @@ export interface TechnicalAssistance {
   // Diagnóstico
   reportedProblem: string;
   photoUrl?: string;
+  videoUrl?: string;
 
   // Visita Técnica
-  technicianId?: string;
+  originalInstallerId?: string; // Quem fez a montagem original
+  technicianId?: string; // Quem vai fazer o reparo atual
   visitResult?: string;
   pendingIssues?: string;
 
@@ -312,4 +355,55 @@ export interface CalendarEvent {
   projectId?: string;
   description?: string;
   location?: string;
+}
+
+export interface DailyLog {
+  id: string;
+  projectId: string; // Used for "manual" when unlinked
+  workName?: string;
+  date: string;
+  author: string;
+  category: 'Falta de Peça' | 'Peça Danificada' | 'Falta de Material' | 'Erro de Projeto' | 'Erro de Fabricação' | 'Serviço de Terceiros' | 'Montador Ausente' | 'Cliente Ausente' | 'Atraso Frete' | 'Peça Extra' | 'Registro Diário' | 'Outros';
+  description: string;
+  photoUrl?: string;
+  reworkDetails?: {
+    partName: string;
+    width: number;
+    height: number;
+    thickness: string;
+    color: string;
+    quantity: number;
+    reason: string;
+  }[];
+  status: 'Pendente' | 'Em Produção' | 'Pronto' | 'Concluído' | 'Registrado';
+  createdAt: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  relatedId: string;
+  relatedType: 'PROJECT' | 'DAILY_LOG' | 'PURCHASE_ORDER' | 'TASK' | 'EVENTS';
+  eventType: 'STATUS_CHANGE' | 'CREATED' | 'UPDATED' | 'COMMENT';
+  oldValue?: string;
+  newValue?: string;
+  userId?: string;
+  createdAt: string;
+}
+
+export type RefundStatus = '🟡 A PAGAR' | '🟢 PAGO';
+
+export interface RefundRequest {
+  id: string;
+  collaboratorName: string;
+  date: string;
+  establishment: string;
+  description: string;
+  category: string;
+  amount: number;
+  cnpj?: string;
+  status: RefundStatus;
+  projectId?: string;
+  receiptUrl?: string;
+  settlementId?: string;
+  createdAt: string;
 }
