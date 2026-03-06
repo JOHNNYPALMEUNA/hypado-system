@@ -96,6 +96,16 @@ const RefundSettlementReportView: React.FC<Props> = ({ settlementId, requests = 
         return fetchedRequests;
     }, [requests, settlementId, fetchedRequests]);
 
+    const stats = useMemo(() => {
+        const grouped: Record<string, number> = {};
+        let total = 0;
+        settlementRequests.forEach(r => {
+            grouped[r.collaboratorName] = (grouped[r.collaboratorName] || 0) + r.amount;
+            total += r.amount;
+        });
+        return { grouped, total };
+    }, [settlementRequests]);
+
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-slate-950">
@@ -112,16 +122,6 @@ const RefundSettlementReportView: React.FC<Props> = ({ settlementId, requests = 
             minimumFractionDigits: 2
         }).format(value);
     };
-
-    const stats = useMemo(() => {
-        const grouped: Record<string, number> = {};
-        let total = 0;
-        settlementRequests.forEach(r => {
-            grouped[r.collaboratorName] = (grouped[r.collaboratorName] || 0) + r.amount;
-            total += r.amount;
-        });
-        return { grouped, total };
-    }, [settlementRequests]);
 
     if (settlementRequests.length === 0) {
         return (

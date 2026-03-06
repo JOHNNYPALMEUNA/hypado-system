@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cronograma de Marcenaria</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Bibliotecas jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.21/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Cronograma de Marcenaria</h1>
+
+    <!-- Filtro de Status -->
+    <div class="filter">
+      <label for="statusFilter">Filtrar por Status:</label>
+      <select id="statusFilter" onchange="filterStatus()">
+        <option value="Todos">Todos</option>
+        <option value="Pendente">Pendente</option>
+        <option value="Em andamento">Em andamento</option>
+        <option value="Concluída">Concluída</option>
+      </select>
+    </div>
+
+    <!-- Abas de navegação -->
+    <div class="tabs">
+      <button class="tab-button active" onclick="showTab('tab1')">Atividades</button>
+      <button class="tab-button" onclick="showTab('tab2')">Adicionar Atividade</button>
+    </div>
+
+    <!-- Conteúdo das Abas -->
+    <div id="tab1" class="tab-content active">
+      <table class="activities-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Responsável</th>
+            <th>Data Início</th>
+            <th>Data Prometida</th>
+            <th>Status</th>
+            <th>Atraso</th>
+            <th>Observações</th>
+            <th>Dependência</th>
+            <th>Endereço</th>
+            <th>Data de Término</th> <!-- Novo campo -->
+            <th>Editar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Aqui as atividades serão inseridas dinamicamente -->
+        </tbody>
+      </table>
+      <button class="add-button" onclick="showTab('tab2')">Adicionar Nova Atividade</button>
+      <button onclick="generatePDF()">Gerar Relatório em PDF</button> <!-- Botão para gerar PDF -->
+    </div>
+
+    <div id="tab2" class="tab-content">
+      <form id="addActivityForm">
+        <label for="activityName">Nome da Atividade:</label>
+        <input type="text" id="activityName" required><br><br>
+
+        <label for="responsible">Responsável:</label>
+        <input type="text" id="responsible" required><br><br>
+
+        <label for="startDate">Data Início:</label>
+        <input type="date" id="startDate" required><br><br>
+
+        <label for="endDate">Data Prometida:</label>
+        <input type="date" id="endDate" required><br><br>
+
+        <label for="status">Status:</label>
+        <select id="status" onchange="updateEndDate()">
+          <option value="Pendente">Pendente</option>
+          <option value="Em andamento">Em andamento</option>
+          <option value="Concluída">Concluída</option>
+        </select><br><br>
+
+        <label for="address">Endereço:</label>
+        <input type="text" id="address" placeholder="Rua, Nº, Bairro" required><br><br>
+
+        <label for="dependency">Dependência de Tarefa (ID):</label>
+        <input type="number" id="dependency" placeholder="ID da Tarefa Dependente"><br><br>
+
+        <label for="observations">Observações:</label>
+        <textarea id="observations" placeholder="Adicione observações"></textarea><br><br>
+
+        <label for="endDateReal">Data de Término:</label>
+        <input type="date" id="endDateReal" readonly><br><br> <!-- Novo campo -->
+
+        <button type="submit">Adicionar Atividade</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="scripts.js"></script>
+</body>
+</html>

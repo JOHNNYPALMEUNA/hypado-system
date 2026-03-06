@@ -60,6 +60,7 @@ interface DataContextType {
         oldValue?: string,
         newValue?: string
     ) => Promise<void>;
+    isIdle: boolean;
     userRole: UserRole | null;
     currentUserEmail: string | null;
 }
@@ -232,6 +233,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
+    const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 minutes session idle limit
+    const [isIdle, setIsIdle] = useState(false);
+    const isIdleRef = useRef(false);
+
+    useEffect(() => {
+        let timeoutId: any;
+        const resetTimer = () => {
+            if (isIdleRef.current) {
+                console.log('User returned. Reconnecting and fetching fresh DB state...');
+                setIsIdle(false);
+                isIdleRef.current = false;
+                fetchData();
+            }
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                console.warn('App went IDLE for 10 minutes. Unsubscribing from WebSockets to save Supabase Resources.');
+                setIsIdle(true);
+                isIdleRef.current = true;
+            }, IDLE_TIMEOUT);
+        };
+
+        window.addEventListener('mousemove', resetTimer);
+        window.addEventListener('keydown', resetTimer);
+        window.addEventListener('click', resetTimer);
+        window.addEventListener('scroll', resetTimer);
+        window.addEventListener('touchstart', resetTimer);
+
+        timeoutId = setTimeout(() => {
+            setIsIdle(true);
+            isIdleRef.current = true;
+        }, IDLE_TIMEOUT);
+
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('mousemove', resetTimer);
+            window.removeEventListener('keydown', resetTimer);
+            window.removeEventListener('click', resetTimer);
+            window.removeEventListener('scroll', resetTimer);
+            window.removeEventListener('touchstart', resetTimer);
+        };
+    }, []);
 
     // --- GRANULAR FETCH FUNCTIONS ---
 
@@ -477,6 +519,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         });
 
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isIdle || !userRole) {
+            return; // Don't subscribe to events if user is idle or logged out
+        }
+
         // --- GRANULAR SUBSCRIPTIONS ---
         // Only trigger specific fetch functions to prevent full reload on every event
         const clientSub = supabase.channel('public:clients')
@@ -528,7 +580,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .subscribe();
 
         return () => {
-            subscription.unsubscribe();
             supabase.removeChannel(clientSub);
             supabase.removeChannel(projectSub);
             supabase.removeChannel(installersSub);
@@ -542,7 +593,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             supabase.removeChannel(logsSub);
             supabase.removeChannel(timelineEventsSub);
         };
-    }, []);
+    }, [isIdle, userRole]);
 
     const addInstaller = async (installer: Installer) => {
         try {
@@ -1137,6 +1188,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             refundRequests, addRefundRequest, updateRefundRequest, deleteRefundRequest,
             resetDatabase,
             logEvent,
+            isIdle,
             userRole,
             currentUserEmail
         }}>

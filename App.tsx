@@ -172,7 +172,7 @@ const AppContent: React.FC = () => {
     events, addEvent, updateEvent, deleteEvent,
     company, updateCompany,
     assistances, addAssistance, updateAssistance, deleteAssistance,
-    dailyLogs, userRole, refundRequests, suppliers
+    dailyLogs, userRole, refundRequests, suppliers, isIdle
   } = useData();
 
   const [procurementSubTab, setProcurementSubTab] = useState<'cotacoes' | 'apontamento' | 'diario' | 'produtos' | 'fornecedores'>('cotacoes');
@@ -453,7 +453,24 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground font-sans">
+    <div className="min-h-screen flex bg-background text-foreground font-sans relative">
+      {/* Idle Overlay */}
+      {isIdle && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center">
+            <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
+              <Loader2 size={32} className="text-blue-500 animate-spin" />
+            </div>
+            <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2">Sessão Inativa</h2>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed">
+              O sistema foi pausado temporariamente para economizar recursos do banco de dados (Supabase).
+              <br /><br />
+              Mexa o mouse ou clique em qualquer lugar para reconectar e atualizar os dados.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (
         <div

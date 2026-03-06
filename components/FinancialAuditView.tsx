@@ -26,7 +26,7 @@ import { processRefundReceipt } from '../geminiService';
 import { supabase } from '../supabaseClient';
 
 const FinancialAuditView: React.FC = () => {
-    const { addRefundRequest, updateRefundRequest, deleteRefundRequest, projects, installers } = useData();
+    const { addRefundRequest, updateRefundRequest, deleteRefundRequest, projects, installers, isIdle } = useData();
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
     React.useEffect(() => {
@@ -58,12 +58,14 @@ const FinancialAuditView: React.FC = () => {
         };
         fetchRefunds();
 
+        if (isIdle) return; // Prevent websocket connection if app is inactive
+
         const sub = supabase.channel('public:refund_requests')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'refund_requests' }, () => fetchRefunds())
             .subscribe();
 
         return () => { supabase.removeChannel(sub); };
-    }, []);
+    }, [isIdle]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [filter, setFilter] = useState('');
     const [showSettlementSummary, setShowSettlementSummary] = useState(false);
