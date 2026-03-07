@@ -138,7 +138,9 @@ const PurchaseSettlementReportView: React.FC<Props> = ({ settlementId, quotation
                             <span className="text-[10px] font-black uppercase tracking-widest">Data da Operação</span>
                         </div>
                         <p className="text-2xl font-black text-white tracking-tighter uppercase italic">
-                            {new Date(settlementOrders[0].settlementDate || settlementOrders[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            {settlementOrders.length > 0
+                                ? new Date(settlementOrders[0].settlementDate || settlementOrders[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+                                : 'DATA INDISPONÍVEL'}
                         </p>
                     </div>
                 </div>
@@ -153,7 +155,8 @@ const PurchaseSettlementReportView: React.FC<Props> = ({ settlementId, quotation
 
                     <div className="divide-y divide-slate-800/50">
                         {settlementOrders.map((q) => {
-                            const orderTotal = q.items.reduce((acc, item) => acc + ((item.materialValue || 0) * item.quantity), 0);
+                            const items = q.items || [];
+                            const orderTotal = items.reduce((acc, item) => acc + ((item.materialValue || 0) * (item.quantity || 1)), 0);
                             const supplier = suppliers.find(s => s.id === q.supplierId);
 
                             return (
@@ -184,32 +187,34 @@ const PurchaseSettlementReportView: React.FC<Props> = ({ settlementId, quotation
                                     </div>
 
                                     {/* Items Table */}
-                                    <div className="mt-6 pt-6 border-t border-slate-800/30">
-                                        <table className="w-full text-left">
-                                            <thead>
-                                                <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800/50">
-                                                    <th className="pb-4 px-2">Item</th>
-                                                    <th className="pb-4 px-2 text-center">Qtd</th>
-                                                    <th className="pb-4 px-2 text-center">Unidade</th>
-                                                    <th className="pb-4 px-2 text-right">Valor Unit.</th>
-                                                    <th className="pb-4 px-2 text-right">Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-800/10">
-                                                {q.items.map((item, idx) => (
-                                                    <tr key={idx} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">
-                                                        <td className="py-4 px-2 uppercase">{item.name}</td>
-                                                        <td className="py-4 px-2 text-center">{item.quantity}</td>
-                                                        <td className="py-4 px-2 text-center text-[10px]">{item.unit}</td>
-                                                        <td className="py-4 px-2 text-right font-mono">{formatCurrency(item.materialValue || 0)}</td>
-                                                        <td className="py-4 px-2 text-right font-mono text-slate-200">
-                                                            {formatCurrency((item.materialValue || 0) * item.quantity)}
-                                                        </td>
+                                    {items.length > 0 && (
+                                        <div className="mt-6 pt-6 border-t border-slate-800/30">
+                                            <table className="w-full text-left">
+                                                <thead>
+                                                    <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800/50">
+                                                        <th className="pb-4 px-2">Item</th>
+                                                        <th className="pb-4 px-2 text-center">Qtd</th>
+                                                        <th className="pb-4 px-2 text-center">Unidade</th>
+                                                        <th className="pb-4 px-2 text-right">Valor Unit.</th>
+                                                        <th className="pb-4 px-2 text-right">Total</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-800/10">
+                                                    {items.map((item, idx) => (
+                                                        <tr key={idx} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">
+                                                            <td className="py-4 px-2 uppercase">{item.name || 'Sem nome'}</td>
+                                                            <td className="py-4 px-2 text-center">{item.quantity || 1}</td>
+                                                            <td className="py-4 px-2 text-center text-[10px]">{item.unit || 'UN'}</td>
+                                                            <td className="py-4 px-2 text-right font-mono">{formatCurrency(item.materialValue || 0)}</td>
+                                                            <td className="py-4 px-2 text-right font-mono text-slate-200">
+                                                                {formatCurrency((item.materialValue || 0) * (item.quantity || 1))}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

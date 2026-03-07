@@ -3,7 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Clock, CheckCircle2, AlertTriangle, Sparkles, Factory,
   Calendar, Activity, ShieldCheck, Play, ArrowRight, Hammer, Scissors,
-  ListTodo, MapPin, Truck, AlertTriangle as AlertTriangleIcon
+  ListTodo, MapPin, Truck, AlertTriangle as AlertTriangleIcon,
+  AlertOctagon, X
 } from 'lucide-react';
 import { Client, Project, CalendarEvent, TechnicalAssistance, Installer, ProductionStatus } from '../types';
 import { analyzeDailyBriefing } from '../geminiService';
@@ -15,16 +16,18 @@ interface Props {
   events: CalendarEvent[];
   assistances: TechnicalAssistance[];
   installers: Installer[];
+  onNavigate?: (tab: string) => void;
 }
 
 const CACHE_KEY = 'hypado_ai_insight_cache_v2';
 
-const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances, installers }) => {
+const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances, installers, onNavigate }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success'>('idle');
   const [testProgress, setTestProgress] = useState(0);
   const [currentStepText, setCurrentStepText] = useState('');
+  const [showDelayedModal, setShowDelayedModal] = useState(false);
 
   // --- Derived State (Filters) ---
 
@@ -56,14 +59,21 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
       .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime())
     , [assistances]);
 
+  const delayedProjects = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return projects.filter(p => p.promisedDate && p.promisedDate < todayStr && p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada')
+      .sort((a, b) => new Date(a.promisedDate).getTime() - new Date(b.promisedDate).getTime());
+  }, [projects]);
+
   const stats = useMemo(() => {
     return [
-      { label: 'Obras Ativas', value: activeProjectsCount, icon: Factory, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-100', gradient: 'from-blue-600 to-blue-400' },
-      { label: 'Em Corte', value: cuttingProjects.length, icon: Scissors, color: 'text-orange-600', bg: 'bg-orange-600/10', border: 'border-orange-100', gradient: 'from-orange-600 to-orange-400' },
-      { label: 'Logística', value: logisticsProjects.length, icon: Truck, color: 'text-emerald-600', bg: 'bg-emerald-600/10', border: 'border-emerald-100', gradient: 'from-emerald-600 to-emerald-400' },
-      { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-rose-600', bg: 'bg-rose-600/10', border: 'border-rose-100', gradient: 'from-rose-600 to-rose-400' },
+      { label: 'Obras Ativas', value: activeProjectsCount, icon: Factory, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-100', gradient: 'from-blue-600 to-blue-400', onClick: () => onNavigate?.('obras') },
+      { label: 'Em Atraso', value: delayedProjects.length, icon: AlertOctagon, color: 'text-rose-600', bg: 'bg-rose-600/10', border: 'border-rose-100', gradient: 'from-rose-600 to-rose-400', onClick: () => setShowDelayedModal(true) },
+      { label: 'Em Corte', value: cuttingProjects.length, icon: Scissors, color: 'text-orange-600', bg: 'bg-orange-600/10', border: 'border-orange-100', gradient: 'from-orange-600 to-orange-400', onClick: () => onNavigate?.('pcp') },
+      { label: 'Logística', value: logisticsProjects.length, icon: Truck, color: 'text-emerald-600', bg: 'bg-emerald-600/10', border: 'border-emerald-100', gradient: 'from-emerald-600 to-emerald-400', onClick: () => onNavigate?.('pcp') },
+      { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-600/10', border: 'border-purple-100', gradient: 'from-purple-600 to-purple-400', onClick: () => onNavigate?.('assistance') },
     ];
-  }, [assistances, activeProjectsCount, cuttingProjects.length, logisticsProjects.length]);
+  }, [assistances, activeProjectsCount, delayedProjects.length, cuttingProjects.length, logisticsProjects.length, onNavigate]);
 
 
   // --- Integrity Test Logic ---
@@ -121,7 +131,10 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <button className="group relative px-8 py-4 bg-slate-900 dark:bg-card text-white dark:text-foreground rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden">
+          <button
+            onClick={() => onNavigate?.('obras')}
+            className="group relative px-8 py-4 bg-slate-900 dark:bg-card text-white dark:text-foreground rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden"
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="relative z-10 flex items-center gap-2">
               <Play size={14} fill="currentColor" className="text-amber-500" /> Nova Obra
@@ -131,11 +144,12 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
       </div>
 
       {/* Bento Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
         {stats.map((stat, idx) => (
           <div
             key={idx}
-            className="group relative bg-card dark:bg-slate-900/50 p-8 bento-card border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden"
+            onClick={stat.onClick}
+            className={`group relative bg-card dark:bg-slate-900/50 p-8 bento-card border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden ${stat.onClick ? 'cursor-pointer hover:border-rose-200 dark:hover:border-rose-800' : ''}`}
           >
             <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 blur-2xl rounded-full`} />
 
@@ -258,7 +272,11 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   </div>
                 ) : (
                   cuttingProjects.map((p, i) => (
-                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-orange-50/50 transition-all">
+                    <div
+                      key={p.id}
+                      onClick={() => onNavigate?.('pcp')}
+                      className="group relative glass-premium p-6 bento-card border-none hover:bg-orange-50/50 transition-all cursor-pointer"
+                    >
                       <div className="flex justify-between items-start mb-4">
                         <div className="space-y-1">
                           <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
@@ -295,7 +313,11 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   </div>
                 ) : (
                   logisticsProjects.map((p, i) => (
-                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-emerald-50/50 transition-all">
+                    <div
+                      key={p.id}
+                      onClick={() => onNavigate?.('pcp')}
+                      className="group relative glass-premium p-6 bento-card border-none hover:bg-emerald-50/50 transition-all cursor-pointer"
+                    >
                       <div className="flex justify-between items-start mb-4">
                         <div className="space-y-1">
                           <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
@@ -332,7 +354,11 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   </div>
                 ) : (
                   installingProjects.map((p, i) => (
-                    <div key={p.id} className="group relative glass-premium p-6 bento-card border-none hover:bg-indigo-50/50 transition-all">
+                    <div
+                      key={p.id}
+                      onClick={() => onNavigate?.('pcp')}
+                      className="group relative glass-premium p-6 bento-card border-none hover:bg-indigo-50/50 transition-all cursor-pointer"
+                    >
                       <div className="flex justify-between items-start mb-4">
                         <div className="space-y-1">
                           <h5 className="text-base font-black text-foreground dark:text-white uppercase italic leading-tight">{p.workName}</h5>
@@ -372,7 +398,11 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   </div>
                 ) : (
                   todaysEvents.map(evt => (
-                    <div key={evt.id} className="group relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all">
+                    <div
+                      key={evt.id}
+                      onClick={() => onNavigate?.('agenda')}
+                      className="group relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all cursor-pointer"
+                    >
                       <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 transition-all" />
                       <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1 italic">{new Date(evt.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       <p className="text-sm font-black text-foreground dark:text-white uppercase italic tracking-tight">{evt.title}</p>
@@ -397,7 +427,11 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   </div>
                 ) : (
                   priorityAssistances.slice(0, 2).map(a => (
-                    <div key={a.id} className="p-6 bg-muted/50 dark:bg-slate-800/50 rounded-[32px] border border-slate-100 dark:border-slate-700 group hover:border-rose-200 transition-all">
+                    <div
+                      key={a.id}
+                      onClick={() => onNavigate?.('assistance')}
+                      className="p-6 bg-muted/50 dark:bg-slate-800/50 rounded-[32px] border border-slate-100 dark:border-slate-700 group hover:border-rose-200 transition-all cursor-pointer"
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <p className="text-xs font-black text-foreground dark:text-white uppercase italic truncate max-w-[140px]">{a.clientName}</p>
                         <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
@@ -438,6 +472,67 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
           </div>
         </div>
       </div>
+
+      {/* Modal: Delayed Projects */}
+      {showDelayedModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-card w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-rose-50/50 dark:bg-rose-900/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl">
+                  <AlertOctagon size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-foreground dark:text-white uppercase italic tracking-tight">Obras em Atraso</h2>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{delayedProjects.length} {delayedProjects.length === 1 ? 'registro' : 'registros'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDelayedModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                title="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {delayedProjects.length === 0 ? (
+                <div className="p-10 text-center flex flex-col items-center">
+                  <CheckCircle2 size={48} className="text-emerald-400 mb-4 opacity-50" />
+                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhuma obra em atraso!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {delayedProjects.map(project => {
+                    const diffTime = Math.abs(new Date().getTime() - new Date(project.promisedDate).getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                    return (
+                      <div key={project.id} className="p-4 bg-muted/30 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800 transition-colors flex justify-between items-center group">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-foreground dark:text-white uppercase italic">{project.workName}</h4>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{project.clientName}</p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Prometido</p>
+                            <p className="text-xs font-bold text-foreground dark:text-white">{new Date(project.promisedDate).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                          <div className="px-3 py-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-lg border border-rose-200 dark:border-rose-800 min-w-[80px] text-center">
+                            <p className="text-xs font-black italic">{diffDays} {diffDays === 1 ? 'dia' : 'dias'}</p>
+                            <p className="text-[8px] font-black uppercase tracking-widest opacity-80">Atraso</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

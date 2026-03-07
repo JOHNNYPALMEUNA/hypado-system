@@ -23,7 +23,11 @@ const AlertCenter: React.FC<Props> = ({ projects, assistances, onClose }) => {
         threeDaysFromNow.setDate(todayObj.getDate() + 3);
 
         const assistanceToday = assistances.filter(a => a.scheduledDate === today && a.status !== 'Finalizado');
-        const pendingReturns = assistances.filter(a => a.status === 'Retorno Pendente');
+
+        // Separa os retornos em pendentes gerais e os que venceram ou vencem hoje
+        const allReturns = assistances.filter(a => a.status === 'Retorno Pendente');
+        const criticalReturns = allReturns.filter(a => a.returnDate && a.returnDate <= today);
+        const pendingReturns = allReturns.filter(a => !a.returnDate || a.returnDate > today);
 
         const upcomingDeliveries = projects.filter(p => {
             if (!p.promisedDate || p.currentStatus === 'Finalizada') return false;
@@ -40,9 +44,10 @@ const AlertCenter: React.FC<Props> = ({ projects, assistances, onClose }) => {
         return {
             assistanceToday,
             pendingReturns,
+            criticalReturns,
             upcomingDeliveries,
             overdueDeliveries,
-            total: assistanceToday.length + pendingReturns.length + upcomingDeliveries.length + overdueDeliveries.length
+            total: assistanceToday.length + pendingReturns.length + criticalReturns.length + upcomingDeliveries.length + overdueDeliveries.length
         };
     }, [projects, assistances, today]);
 
@@ -74,8 +79,16 @@ const AlertCenter: React.FC<Props> = ({ projects, assistances, onClose }) => {
             msg += `\n`;
         }
 
+        if (alerts.criticalReturns.length > 0) {
+            msg += `*🚨 RETORNOS CRÍTICOS (HOJE/ATRASADOS):*\n`;
+            alerts.criticalReturns.forEach(a => {
+                msg += `- ${a.clientName} (Agendado p/: ${new Date(a.returnDate!).toLocaleDateString()})\n`;
+            });
+            msg += `\n`;
+        }
+
         if (alerts.pendingReturns.length > 0) {
-            msg += `*🔄 RETORNOS PENDENTES:* ${alerts.pendingReturns.length} chamados aguardando.\n`;
+            msg += `*🔄 RETORNOS FUTUROS:* ${alerts.pendingReturns.length} chamados aguardando.\n`;
         }
 
         msg += `\n_Para mais detalhes, acesse o sistema: ${window.location.origin}_`;
@@ -192,10 +205,30 @@ const AlertCenter: React.FC<Props> = ({ projects, assistances, onClose }) => {
                         )}
                     </div>
 
+                    {/* Critical Returns */}
+                    {alerts.criticalReturns.length > 0 && (
+                        <div className="space-y-4">
+                            <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <AlertTriangle size={14} /> Retornos Críticos (Hoje/Atrasos)
+                            </h4>
+                            <div className="space-y-2">
+                                {alerts.criticalReturns.map(a => (
+                                    <div key={a.id} className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between group">
+                                        <div>
+                                            <p className="font-black text-rose-900 uppercase italic text-xs">{a.clientName}</p>
+                                            <p className="text-[10px] font-bold text-rose-400 mt-1 uppercase">Retorno p/: {new Date(a.returnDate!).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className="p-2 bg-card rounded-lg text-rose-600 shadow-sm"><Wrench size={16} /></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Pending Returns */}
                     <div className="space-y-4">
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <AlertTriangle size={14} /> Retornos Pendentes
+                            <AlertTriangle size={14} /> Retornos Pendentes (Futuros)
                         </h4>
                         {alerts.pendingReturns.length === 0 ? (
                             <p className="text-[10px] text-slate-300 font-bold uppercase italic p-8 text-center border-2 border-dashed border-slate-100 rounded-3xl">Tudo em dia!</p>
@@ -214,16 +247,16 @@ const AlertCenter: React.FC<Props> = ({ projects, assistances, onClose }) => {
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Footer AI */}
-                <div className="p-6 bg-muted/50 border-t border-slate-100 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                        <Sparkles size={20} className="text-white" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest italic">Hypado AI Assistente</p>
-                        <p className="text-[11px] font-bold text-muted-foreground leading-tight">Revise os alertas matinais para garantir o cumprimento dos prazos.</p>
-                    </div>
+            {/* Footer AI */}
+            <div className="p-6 bg-muted/50 border-t border-slate-100 flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                    <Sparkles size={20} className="text-white" />
+                </div>
+                <div>
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest italic">Hypado AI Assistente</p>
+                    <p className="text-[11px] font-bold text-muted-foreground leading-tight">Revise os alertas matinais para garantir o cumprimento dos prazos.</p>
                 </div>
             </div>
         </div>
