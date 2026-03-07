@@ -333,10 +333,6 @@ const AppContent: React.FC = () => {
           events={events}
           assistances={assistances}
           installers={installers}
-          onNavigate={(tab) => {
-            setActiveTab(tab as any);
-            window.scrollTo(0, 0);
-          }}
         />
       );
       case 'clientes': return <CRMView clients={clients} setClients={() => { }} projects={projects} />;
@@ -451,10 +447,6 @@ const AppContent: React.FC = () => {
           events={events}
           assistances={assistances}
           installers={installers}
-          onNavigate={(tab) => {
-            setActiveTab(tab as any);
-            window.scrollTo(0, 0);
-          }}
         />
       );
     }

@@ -16,12 +16,11 @@ interface Props {
   events: CalendarEvent[];
   assistances: TechnicalAssistance[];
   installers: Installer[];
-  onNavigate?: (tab: string) => void;
 }
 
 const CACHE_KEY = 'hypado_ai_insight_cache_v2';
 
-const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances, installers, onNavigate }) => {
+const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances, installers }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success'>('idle');
@@ -67,13 +66,13 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
 
   const stats = useMemo(() => {
     return [
-      { label: 'Obras Ativas', value: activeProjectsCount, icon: Factory, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-100', gradient: 'from-blue-600 to-blue-400', onClick: () => onNavigate?.('obras') },
+      { label: 'Obras Ativas', value: activeProjectsCount, icon: Factory, color: 'text-blue-600', bg: 'bg-blue-600/10', border: 'border-blue-100', gradient: 'from-blue-600 to-blue-400' },
       { label: 'Em Atraso', value: delayedProjects.length, icon: AlertOctagon, color: 'text-rose-600', bg: 'bg-rose-600/10', border: 'border-rose-100', gradient: 'from-rose-600 to-rose-400', onClick: () => setShowDelayedModal(true) },
-      { label: 'Em Corte', value: cuttingProjects.length, icon: Scissors, color: 'text-orange-600', bg: 'bg-orange-600/10', border: 'border-orange-100', gradient: 'from-orange-600 to-orange-400', onClick: () => onNavigate?.('pcp') },
-      { label: 'Logística', value: logisticsProjects.length, icon: Truck, color: 'text-emerald-600', bg: 'bg-emerald-600/10', border: 'border-emerald-100', gradient: 'from-emerald-600 to-emerald-400', onClick: () => onNavigate?.('pcp') },
-      { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-600/10', border: 'border-purple-100', gradient: 'from-purple-600 to-purple-400', onClick: () => onNavigate?.('assistance') },
+      { label: 'Em Corte', value: cuttingProjects.length, icon: Scissors, color: 'text-orange-600', bg: 'bg-orange-600/10', border: 'border-orange-100', gradient: 'from-orange-600 to-orange-400' },
+      { label: 'Logística', value: logisticsProjects.length, icon: Truck, color: 'text-emerald-600', bg: 'bg-emerald-600/10', border: 'border-emerald-100', gradient: 'from-emerald-600 to-emerald-400' },
+      { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-600/10', border: 'border-purple-100', gradient: 'from-purple-600 to-purple-400' },
     ];
-  }, [assistances, activeProjectsCount, delayedProjects.length, cuttingProjects.length, logisticsProjects.length, onNavigate]);
+  }, [assistances, activeProjectsCount, delayedProjects.length, cuttingProjects.length, logisticsProjects.length]);
 
 
   // --- Integrity Test Logic ---
@@ -132,7 +131,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
             </p>
           </div>
           <button
-            onClick={() => onNavigate?.('obras')}
             className="group relative px-8 py-4 bg-slate-900 dark:bg-card text-white dark:text-foreground rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -274,7 +272,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   cuttingProjects.map((p, i) => (
                     <div
                       key={p.id}
-                      onClick={() => onNavigate?.('pcp')}
                       className="group relative glass-premium p-6 bento-card border-none hover:bg-orange-50/50 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-4">
@@ -315,7 +312,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   logisticsProjects.map((p, i) => (
                     <div
                       key={p.id}
-                      onClick={() => onNavigate?.('pcp')}
                       className="group relative glass-premium p-6 bento-card border-none hover:bg-emerald-50/50 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-4">
@@ -356,7 +352,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   installingProjects.map((p, i) => (
                     <div
                       key={p.id}
-                      onClick={() => onNavigate?.('pcp')}
                       className="group relative glass-premium p-6 bento-card border-none hover:bg-indigo-50/50 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-4">
@@ -400,7 +395,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   todaysEvents.map(evt => (
                     <div
                       key={evt.id}
-                      onClick={() => onNavigate?.('agenda')}
                       className="group relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 hover:border-indigo-500 transition-all cursor-pointer"
                     >
                       <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 transition-all" />
@@ -429,7 +423,6 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
                   priorityAssistances.slice(0, 2).map(a => (
                     <div
                       key={a.id}
-                      onClick={() => onNavigate?.('assistance')}
                       className="p-6 bg-muted/50 dark:bg-slate-800/50 rounded-[32px] border border-slate-100 dark:border-slate-700 group hover:border-rose-200 transition-all cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-2">
