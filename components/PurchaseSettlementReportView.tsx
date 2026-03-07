@@ -154,13 +154,15 @@ const PurchaseSettlementReportView: React.FC<Props> = ({ settlementId, quotation
                     </div>
 
                     <div className="divide-y divide-slate-800/50">
-                        {settlementOrders.map((q) => {
-                            const items = q.items || [];
-                            const orderTotal = items.reduce((acc, item) => acc + ((item.materialValue || 0) * (item.quantity || 1)), 0);
+                        {settlementOrders.map((q, qIndex) => {
+                            if (!q || typeof q !== 'object') return null;
+                            const items = Array.isArray(q.items) ? q.items : [];
+                            const orderTotal = items.reduce((acc, item) => acc + ((item?.materialValue || 0) * (item?.quantity || 1)), 0);
                             const supplier = suppliers.find(s => s.id === q.supplierId);
+                            const safeKey = q.id || `order-${qIndex}`;
 
                             return (
-                                <div key={q.id} className="p-8 hover:bg-slate-800/20 transition-all group">
+                                <div key={safeKey} className="p-8 hover:bg-slate-800/20 transition-all group">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                                         <div className="space-y-3">
                                             <div className="flex items-center gap-3">
@@ -200,17 +202,20 @@ const PurchaseSettlementReportView: React.FC<Props> = ({ settlementId, quotation
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-800/10">
-                                                    {items.map((item, idx) => (
-                                                        <tr key={idx} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">
-                                                            <td className="py-4 px-2 uppercase">{item.name || 'Sem nome'}</td>
-                                                            <td className="py-4 px-2 text-center">{item.quantity || 1}</td>
-                                                            <td className="py-4 px-2 text-center text-[10px]">{item.unit || 'UN'}</td>
-                                                            <td className="py-4 px-2 text-right font-mono">{formatCurrency(item.materialValue || 0)}</td>
-                                                            <td className="py-4 px-2 text-right font-mono text-slate-200">
-                                                                {formatCurrency((item.materialValue || 0) * (item.quantity || 1))}
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                    {items.map((item, idx) => {
+                                                        if (!item) return null;
+                                                        return (
+                                                            <tr key={`item-${safeKey}-${idx}`} className="text-sm font-bold text-slate-400 hover:text-white transition-colors">
+                                                                <td className="py-4 px-2 uppercase">{item.name || 'Sem nome'}</td>
+                                                                <td className="py-4 px-2 text-center">{item.quantity || 1}</td>
+                                                                <td className="py-4 px-2 text-center text-[10px]">{item.unit || 'UN'}</td>
+                                                                <td className="py-4 px-2 text-right font-mono">{formatCurrency(item.materialValue || 0)}</td>
+                                                                <td className="py-4 px-2 text-right font-mono text-slate-200">
+                                                                    {formatCurrency((item.materialValue || 0) * (item.quantity || 1))}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
