@@ -180,6 +180,20 @@
     @apply rounded-[40px] transition-all duration-500 hover:shadow-bento hover:-translate-y-1;
   }
 
+  .bg-300\% {
+    background-size: 300% 300%;
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-gradient {
+    animation: gradient 8s ease infinite;
+  }
+
   .text-gradient-premium {
     @apply bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500 bg-clip-text text-transparent dark:from-white dark:to-slate-400;
   }

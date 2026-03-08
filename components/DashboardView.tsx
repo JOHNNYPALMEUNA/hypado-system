@@ -28,6 +28,13 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
   const [currentStepText, setCurrentStepText] = useState('');
   const [showDelayedModal, setShowDelayedModal] = useState(false);
 
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  }, []);
+
   // --- Derived State (Filters) ---
 
   const cuttingProjects = useMemo(() =>
@@ -118,48 +125,58 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
 
-      {/* Hero Header */}
-      <div className="relative pt-12 pb-8 overflow-hidden rounded-[48px]">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5" />
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6 px-1">
-          <div className="space-y-2">
-            <h1 className="text-5xl font-black tracking-tightest leading-none text-gradient-premium">
-              Bom dia, <span className="opacity-50">Equipe Hypado</span>
+      {/* Premium Hero Header */}
+      <div className="relative pt-16 pb-12 overflow-hidden rounded-[48px] bg-slate-900 dark:bg-slate-950 shadow-2xl mb-8 group animate-in fade-in slide-in-from-top-2 duration-700">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-slate-900/80 z-0"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500 rounded-full mix-blend-overlay filter blur-[100px] opacity-50 animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-overlay filter blur-[100px] opacity-40 animate-bounce-slow"></div>
+
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6 px-10">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/10 mb-2">
+              <Sparkles size={14} className="text-indigo-400" />
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-[0.3em]">Sistema Otimizado</span>
+            </div>
+            <h1 className="text-5xl md:text-6xl font-black tracking-tighter leading-none text-white drop-shadow-xl">
+              {greeting}, <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 bg-300% animate-gradient">Equipe Hypado</span>
             </h1>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.4em] italic pl-1">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.4em] italic pl-1 pt-2">
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
           <button
-            className="group relative px-8 py-4 bg-slate-900 dark:bg-card text-white dark:text-foreground rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-indigo-200 dark:shadow-none overflow-hidden"
+            className="group relative px-8 py-4 bg-white text-slate-900 rounded-full font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(99,102,241,0.5)] overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-100 to-purple-100 opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="relative z-10 flex items-center gap-2">
-              <Play size={14} fill="currentColor" className="text-amber-500" /> Nova Obra
+              <Play size={14} fill="currentColor" className="text-indigo-600 group-hover:text-indigo-700 transition-colors" /> Iniciar Fluxo
             </span>
           </button>
         </div>
       </div>
 
       {/* Bento Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {stats.map((stat, idx) => (
           <div
             key={idx}
             onClick={stat.onClick}
-            className={`group relative bg-card dark:bg-slate-900/50 p-8 bento-card border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden ${stat.onClick ? 'cursor-pointer hover:border-rose-200 dark:hover:border-rose-800' : ''}`}
+            className={`group relative bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl p-6 rounded-[40px] border border-white/40 dark:border-slate-800/60 shadow-xl overflow-hidden transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl flex flex-col justify-between min-h-[180px] ${stat.onClick ? 'cursor-pointer hover:shadow-rose-500/20 hover:border-rose-300 dark:hover:border-rose-700' : 'hover:shadow-indigo-500/10'} animate-in fade-in slide-in-from-bottom-8`}
+            style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'both' }}
           >
-            <div className={`absolute -right-8 -top-8 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 blur-2xl rounded-full`} />
+            <div className={`absolute -right-8 -top-8 w-40 h-40 bg-gradient-to-br ${stat.gradient} opacity-10 group-hover:opacity-20 transition-all duration-700 blur-3xl rounded-full`} />
 
-            <div className="flex flex-col items-start gap-6 relative z-10">
-              <div className={`${stat.bg} ${stat.color} w-14 h-14 rounded-3xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-                <stat.icon size={28} strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 italic transition-all group-hover:translate-x-1">{stat.label}</p>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-4xl font-black text-foreground dark:text-white tracking-tighter leading-none italic">{stat.value}</p>
-                  <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-2 transition-transform" />
+            <div className={`${stat.bg} ${stat.color} w-14 h-14 rounded-3xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500 ring-4 ring-white/50 dark:ring-slate-800/50 mb-6 relative z-10`}>
+              <stat.icon size={28} strokeWidth={1.5} />
+            </div>
+
+            <div className="w-full relative z-10">
+              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] mb-2 italic transition-all group-hover:translate-x-1">{stat.label}</p>
+              <div className="flex items-center justify-between w-full">
+                <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tighter leading-none italic">{stat.value}</p>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 shadow-sm opacity-0 group-hover:opacity-100 group-hover:translate-x-0 -translate-x-4 transition-all duration-500 ${stat.color}`}>
+                  <ArrowRight size={14} strokeWidth={3} />
                 </div>
               </div>
             </div>
