@@ -14,7 +14,7 @@ interface Props {
 }
 
 const QualityView: React.FC<Props> = ({ projects, setProjects, installers, setInstallers, addAssistance }) => {
-  const { updateProject, updateInstaller } = useData();
+  const { updateProject, updateInstaller, assistances } = useData();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [score, setScore] = useState(10);
@@ -110,7 +110,7 @@ const QualityView: React.FC<Props> = ({ projects, setProjects, installers, setIn
       };
 
       await addAssistance(newTicket);
-      localStorage.setItem('chamadoAberto', 'true'); // SET FLAG
+      // REMOVED: localStorage flag is unreliable. Block is now based on real DB data.
 
       alert(`AUDITORIA REPROVADA!\n\nChamado de Assistência Técnica (ID: ${newTicket.id}) aberto com sucesso.\n\nA obra NÃO foi finalizada e permanece em Vistoria até a resolução.`);
       setIsFinishing(false);
@@ -120,12 +120,19 @@ const QualityView: React.FC<Props> = ({ projects, setProjects, installers, setIn
 
     // Logic for Approval
     if (auditStatus === 'Aprovado') {
-      // Check Lock
-      if (localStorage.getItem('chamadoAberto') === 'true') {
-        alert('â›” AÇÃO BLOQUEADA\n\nExiste um chamado de assistência em aberto (Flag Ativa). Você deve resolver o chamado antes de aprovar a obra.');
+      // Check if there is a REAL open assistance ticket linked to this project in the DB
+      const hasOpenAssistance = assistances.some(
+        a => a.projectId === selectedProject.id && (a.status === 'Aberto' || a.status === 'Agendado' || a.status === 'Retorno Pendente')
+      );
+
+      if (hasOpenAssistance) {
+        alert('⛔ AÇÃO BLOQUEADA\n\nExiste um chamado de Assistência Técnica em aberto para esta obra.\n\nAcesse o módulo "Assistência" e finalize o chamado antes de aprovar.');
         setIsFinishing(false);
         return;
       }
+
+      // Clean up any legacy localStorage flag
+      localStorage.removeItem('chamadoAberto');
 
       // Update Project
       const p = projects.find(p => p.id === selectedProject.id);
@@ -134,7 +141,7 @@ const QualityView: React.FC<Props> = ({ projects, setProjects, installers, setIn
           ...p,
           currentStatus: 'Finalizada',
           qualityReport: report,
-          history: [...p.history, { status: 'Finalizada', timestamp: new Date().toISOString() }]
+          history: [...(p.history || []), { status: 'Finalizada', timestamp: new Date().toISOString() }]
         } as Project);
       }
 
@@ -154,7 +161,7 @@ const QualityView: React.FC<Props> = ({ projects, setProjects, installers, setIn
       });
 
       setTimeout(() => {
-        alert(`AUDITORIA APROVADA!\n\nScore: ${score}/10\nBÃ´nus Gerado: R$ ${bonus.toFixed(2)}\nO projeto foi arquivado.`);
+        alert(`AUDITORIA APROVADA!\n\nScore: ${score}/10\nBônus Gerado: R$ ${bonus.toFixed(2)}\nO projeto foi arquivado.`);
         setIsFinishing(false);
         setSelectedProject(null);
       }, 1500);
