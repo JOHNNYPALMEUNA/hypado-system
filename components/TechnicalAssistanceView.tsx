@@ -29,7 +29,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeFilter, setActiveFilter] = useState<'all' | 'scheduled' | 'open' | 'pending'>('all');
+    const [activeFilter, setActiveFilter] = useState<'active' | 'scheduled' | 'open' | 'pending' | 'finalizados'>('active');
     const [printingAssistance, setPrintingAssistance] = useState<TechnicalAssistance | null>(null);
 
     // Form State
@@ -41,12 +41,6 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
     // Derived State
     const filteredAssistances = useMemo(() => {
-        const todayObj = new Date();
-        const year = todayObj.getFullYear();
-        const month = String(todayObj.getMonth() + 1).padStart(2, '0');
-        const day = String(todayObj.getDate()).padStart(2, '0');
-        const today = `${year}-${month}-${day}`;
-
         return assistances.filter(a => {
             const matchesSearch = (a.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (a.workName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,9 +48,12 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
             if (!matchesSearch) return false;
 
+            // Default: hide Finalizados — show only active tickets
+            if (activeFilter === 'active') return a.status !== 'Finalizado';
             if (activeFilter === 'scheduled') return a.status === 'Agendado';
             if (activeFilter === 'open') return a.status === 'Aberto';
             if (activeFilter === 'pending') return a.status === 'Retorno Pendente';
+            if (activeFilter === 'finalizados') return a.status === 'Finalizado';
 
             return true;
         });
@@ -67,12 +64,14 @@ const TechnicalAssistanceView: React.FC<Props> = ({
             scheduled: assistances.filter(a => a.status === 'Agendado').length,
             open: assistances.filter(a => a.status === 'Aberto').length,
             pending: assistances.filter(a => a.status === 'Retorno Pendente').length,
+            finalizados: assistances.filter(a => a.status === 'Finalizado').length,
+            active: assistances.filter(a => a.status !== 'Finalizado').length,
             total: assistances.length
         };
     }, [assistances]);
 
     // Handlers
-    const handleFilterClick = (filter: 'all' | 'scheduled' | 'open' | 'pending') => {
+    const handleFilterClick = (filter: 'active' | 'scheduled' | 'open' | 'pending' | 'finalizados') => {
         setActiveFilter(filter);
         setViewMode('list');
     };
@@ -218,48 +217,55 @@ const TechnicalAssistanceView: React.FC<Props> = ({
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div
-                    onClick={() => handleFilterClick('scheduled')}
-                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'scheduled' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-100'}`}
-                >
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Calendar size={24} /></div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agendados</span>
-                    </div>
-                    <p className="text-3xl font-black text-foreground">{stats.scheduled}</p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Visitas Agendadas</p>
-                </div>
-                <div
                     onClick={() => handleFilterClick('open')}
-                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'open' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-slate-100'}`}
+                    className={`relative overflow-hidden bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group ${activeFilter === 'open' ? 'border-amber-400 ring-2 ring-amber-400/20 bg-amber-50' : 'border-slate-100 hover:border-amber-200'}`}
                 >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity bg-amber-500" />
                     <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl"><AlertCircle size={24} /></div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Abertas</span>
+                        <div className="p-3 bg-amber-100 text-amber-600 rounded-2xl"><AlertCircle size={22} /></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-muted px-2 py-0.5 rounded-full">Em Aberto</span>
                     </div>
-                    <p className="text-3xl font-black text-foreground">{stats.open}</p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Aguardando Agenda</p>
+                    <p className="text-4xl font-black text-foreground tracking-tighter">{stats.open}</p>
+                    <p className="text-xs font-bold text-amber-500 uppercase tracking-wide mt-1">Aguardando Agenda</p>
                 </div>
+
+                <div
+                    onClick={() => handleFilterClick('scheduled')}
+                    className={`relative overflow-hidden bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group ${activeFilter === 'scheduled' ? 'border-blue-400 ring-2 ring-blue-400/20 bg-blue-50' : 'border-slate-100 hover:border-blue-200'}`}
+                >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity bg-blue-500" />
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl"><Calendar size={22} /></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-muted px-2 py-0.5 rounded-full">Agendados</span>
+                    </div>
+                    <p className="text-4xl font-black text-foreground tracking-tighter">{stats.scheduled}</p>
+                    <p className="text-xs font-bold text-blue-500 uppercase tracking-wide mt-1">Visitas Marcadas</p>
+                </div>
+
                 <div
                     onClick={() => handleFilterClick('pending')}
-                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'pending' ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-100'}`}
+                    className={`relative overflow-hidden bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group ${activeFilter === 'pending' ? 'border-red-400 ring-2 ring-red-400/20 bg-red-50' : 'border-slate-100 hover:border-red-200'}`}
                 >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity bg-red-500" />
                     <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><Wrench size={24} /></div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Retorno</span>
+                        <div className="p-3 bg-red-100 text-red-600 rounded-2xl"><Wrench size={22} /></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-muted px-2 py-0.5 rounded-full">Retorno</span>
                     </div>
-                    <p className="text-3xl font-black text-foreground">{stats.pending}</p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Pendências Técnicas</p>
+                    <p className="text-4xl font-black text-foreground tracking-tighter">{stats.pending}</p>
+                    <p className="text-xs font-bold text-red-500 uppercase tracking-wide mt-1">Pendências Técnicas</p>
                 </div>
+
                 <div
-                    onClick={() => handleFilterClick('all')}
-                    className={`bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-105 active:scale-95 ${activeFilter === 'all' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-slate-100'}`}
+                    onClick={() => handleFilterClick('finalizados')}
+                    className={`relative overflow-hidden bg-card p-6 rounded-[24px] border shadow-sm cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group ${activeFilter === 'finalizados' ? 'border-emerald-400 ring-2 ring-emerald-400/20 bg-emerald-50' : 'border-slate-100 hover:border-emerald-200'}`}
                 >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity bg-emerald-500" />
                     <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><CheckCircle2 size={24} /></div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</span>
+                        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl"><CheckCircle2 size={22} /></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-muted px-2 py-0.5 rounded-full">Finalizados</span>
                     </div>
-                    <p className="text-3xl font-black text-foreground">{stats.total}</p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-1">Chamados Registrados</p>
+                    <p className="text-4xl font-black text-foreground tracking-tighter">{stats.finalizados}</p>
+                    <p className="text-xs font-bold text-emerald-500 uppercase tracking-wide mt-1">Chamados Encerrados</p>
                 </div>
             </div>
 
@@ -346,8 +352,9 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
             {viewMode === 'list' && (
                 <div className="bg-card rounded-[32px] border border-border shadow-sm overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex gap-4">
-                        <div className="flex-1 relative">
+                    {/* Search + Filter Pills */}
+                    <div className="p-6 border-b border-slate-100 space-y-4">
+                        <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
@@ -357,61 +364,96 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                        {filteredAssistances.map(item => (
-                            <div key={item.id} onClick={() => handleOpenModal(item)} className="p-6 hover:bg-muted/50 cursor-pointer transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div className="flex items-start gap-4">
-                                    <div className={`p-3 rounded-2xl ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
-                                        <Wrench size={24} />
-                                    </div>
-                                    <div>
-                                        <h5 className="font-black text-foreground uppercase italic text-sm">{item.clientName}</h5>
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{item.workName}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-1">{item.reportedProblem}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const url = `${window.location.origin}${window.location.pathname}?mode=assistance-report&id=${item.id}`;
-                                            navigator.clipboard.writeText(url);
-                                            alert('✅ Link copiado!');
-                                        }}
-                                        className="p-2 bg-muted/50 text-slate-400 hover:text-blue-500 rounded-lg border border-slate-100 transition-all active:scale-95"
-                                        title="Copiar Link para Cliente"
-                                    >
-                                        <Link size={16} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setPrintingAssistance(item);
-                                            setTimeout(() => {
-                                                window.print();
-                                                setTimeout(() => setPrintingAssistance(null), 500);
-                                            }, 500);
-                                        }}
-                                        className="p-2 bg-muted/50 text-slate-400 hover:text-amber-500 rounded-lg border border-slate-100 transition-all active:scale-95"
-                                        title="Imprimir Relatório"
-                                    >
-                                        <Printer size={16} />
-                                    </button>
-                                    <div className="text-right hidden md:block">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Solicitado em</p>
-                                        <p className="font-bold text-foreground text-xs">{new Date(item.requestDate).toLocaleDateString()}</p>
-                                    </div>
-                                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${item.status === 'Finalizado' ? 'bg-emerald-100 text-emerald-700' :
-                                        item.status === 'Retorno Pendente' ? 'bg-red-100 text-red-700' :
-                                            item.status === 'Agendado' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-muted text-muted-foreground'
-                                        }`}>
-                                        {item.status}
+                        {/* Status Filter Pills */}
+                        <div className="flex gap-2 flex-wrap">
+                            {[
+                                { id: 'active', label: '⚡ Em Aberto', color: 'bg-slate-900 text-white', inactive: 'bg-muted text-muted-foreground hover:bg-slate-200' },
+                                { id: 'open', label: '🟡 Aberto', color: 'bg-amber-500 text-white', inactive: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+                                { id: 'scheduled', label: '📅 Agendado', color: 'bg-blue-500 text-white', inactive: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
+                                { id: 'pending', label: '🔴 Retorno', color: 'bg-red-500 text-white', inactive: 'bg-red-50 text-red-700 hover:bg-red-100' },
+                                { id: 'finalizados', label: '✅ Finalizados', color: 'bg-emerald-600 text-white', inactive: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+                            ].map(f => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => setActiveFilter(f.id as any)}
+                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                                        activeFilter === f.id ? f.color : f.inactive
+                                    }`}
+                                >
+                                    {f.label}
+                                    <span className="ml-1.5 opacity-70">
+                                        {f.id === 'active' ? stats.active :
+                                         f.id === 'open' ? stats.open :
+                                         f.id === 'scheduled' ? stats.scheduled :
+                                         f.id === 'pending' ? stats.pending :
+                                         stats.finalizados}
                                     </span>
-                                </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="divide-y divide-slate-50">
+                        {filteredAssistances.length === 0 && (
+                            <div className="py-16 text-center">
+                                <CheckCircle2 size={40} className="text-slate-200 mx-auto mb-3" />
+                                <p className="text-slate-400 font-black uppercase italic text-sm tracking-widest">Nenhum chamado encontrado</p>
                             </div>
-                        ))}
+                        )}
+                        {filteredAssistances.map(item => {
+                            const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
+                                'Aberto':           { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-400' },
+                                'Agendado':         { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-400' },
+                                'Retorno Pendente': { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-400' },
+                                'Finalizado':       { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-400' },
+                            };
+                            const sc = statusConfig[item.status] || { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-slate-300' };
+
+                            return (
+                                <div key={item.id} onClick={() => handleOpenModal(item)}
+                                    className="p-5 hover:bg-muted/30 cursor-pointer transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-2xl shrink-0 ${item.status === 'Finalizado' ? 'bg-emerald-100 text-emerald-600' : item.status === 'Retorno Pendente' ? 'bg-red-100 text-red-500' : item.status === 'Agendado' ? 'bg-blue-100 text-blue-500' : 'bg-amber-100 text-amber-500'}`}>
+                                            <Wrench size={20} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h5 className="font-black text-foreground uppercase italic text-sm truncate">{item.clientName}</h5>
+                                                <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${sc.bg} ${sc.text}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                                                    {item.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.workName}</p>
+                                            <p className="text-xs text-muted-foreground line-clamp-1">{item.reportedProblem}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0 ml-auto">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); const url = `${window.location.origin}${window.location.pathname}?mode=assistance-report&id=${item.id}`; navigator.clipboard.writeText(url); alert('✅ Link copiado!'); }}
+                                            className="p-2 bg-muted/50 text-slate-400 hover:text-blue-500 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                            title="Copiar Link para Cliente"
+                                        >
+                                            <Link size={15} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setPrintingAssistance(item); setTimeout(() => { window.print(); setTimeout(() => setPrintingAssistance(null), 500); }, 500); }}
+                                            className="p-2 bg-muted/50 text-slate-400 hover:text-amber-500 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                            title="Imprimir"
+                                        >
+                                            <Printer size={15} />
+                                        </button>
+                                        <div className="text-right hidden md:block">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Solicitado</p>
+                                            <p className="font-bold text-foreground text-xs">{new Date(item.requestDate).toLocaleDateString()}</p>
+                                        </div>
+                                        <ChevronRight size={16} className="text-slate-300 group-hover:text-primary transition-colors" />
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
