@@ -80,7 +80,8 @@ const mapProjectFromDB = (p: any): Project => ({
     cloudFolderLink: p.cloud_folder_link || p.cloudFolderLink,
     materialsDelivered: p.materials_delivered || p.materialsDelivered,
     productionCentral: p.production_central || p.productionCentral,
-    qualityReport: p.quality_report,
+    qualityReport: p.quality_report || p.qualityReport, // FIX: Load from DB field
+    history: p.history || [], // FIX: Load history from DB
     preAssemblyDone: p.pre_assembly_done,
     freightOrganized: p.freight_organized,
     clientScheduled: p.client_scheduled,
@@ -111,6 +112,8 @@ const mapProjectToDB = (project: Project) => {
         environments: project.environments || [],
         environmentsDetails: project.environmentsDetails || [],
         expenses: project.expenses || [],
+        history: project.history || [], // FIX: Persist history to DB
+        quality_report: project.qualityReport || null, // FIX: Persist qualityReport to DB
         outsourced_services: project.outsourcedServices || [],
         attachments: project.attachments || [],
         project_pdf_url: project.projectPdfUrl,

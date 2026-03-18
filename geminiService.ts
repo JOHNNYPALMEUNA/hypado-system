@@ -593,3 +593,68 @@ export async function processRefundReceipt(input: string | { base64Image: string
     return null;
   }
 }
+
+export async function analyzeBudget(project: any): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const totalRevenue = project.value || 0;
+  const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
+  const grossMargin = totalRevenue - totalExpenses;
+  const marginPct = totalRevenue > 0 ? ((grossMargin / totalRevenue) * 100).toFixed(1) : "0";
+
+  const expensesByCategory = (project.expenses || []).reduce((acc: any, curr: any) => {
+    const cat = curr.category || 'Outros';
+    acc[cat] = (acc[cat] || 0) + (curr.value || 0);
+    return acc;
+  }, {});
+
+  const environments = (project.environmentsDetails || []).map((e: any) => ({
+    nome: e.name,
+    valor: e.value,
+    percentualServico: e.servicePercentage,
+    status: e.currentStatus
+  }));
+
+  const prompt = `
+    Você é um ANALISTA DE ORÇAMENTO especialista em marcenaria e móveis planejados.
+    Analise os dados financeiros desta OS (Ordem de Serviço) e forneça um diagnóstico profissional.
+    
+    DADOS DA OBRA:
+    - Nome da Obra: "${project.workName}"
+    - Cliente: "${project.clientName}"
+    - Status Atual: "${project.currentStatus}"
+    - Receita Total Contratada: R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    - Custo Total Lançado: R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    - Margem Bruta: R$ ${grossMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    - Margem %: ${marginPct}%
+    
+    CUSTOS POR CATEGORIA:
+    ${JSON.stringify(expensesByCategory, null, 2)}
+    
+    AMBIENTES / MÓDULOS:
+    ${JSON.stringify(environments, null, 2)}
+    
+    INSTRUÇÕES:
+    1. **Diagnóstico de Rentabilidade**: A margem de ${marginPct}% é boa, razoável ou crítica para uma marcenaria? Benchmark do setor é 35-50%.
+    2. **Pontos de Atenção Financeiros**: Identifique as categorias de custo que mais impactam a margem.
+    3. **Projeção de Risco**: Existe risco de prejuízo? A que percentual de estouro de custo isso acontece?
+    4. **Recomendações**: 2-3 ações práticas para melhorar ou proteger a margem desta obra.
+    5. **Veredicto Final**: Em uma frase clara, dê o veredicto desta OS (🟢 Lucrativa / 🟡 Atenção / 🔴 Crítica).
+    
+    Formato: Use Markdown com títulos, bullets e emojis. Seja direto e profissional. Max 300 palavras.
+  `;
+
+  try {
+    const result = await withRetry(() => model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.5 }
+    }));
+    return result.response.text();
+  } catch (error: any) {
+    console.error("Erro Budget AI:", error);
+    if (error?.message?.includes('429')) {
+      return "⚠️ Limite de cota da IA atingido. Tente novamente em 1 minuto.";
+    }
+    return "Não foi possível gerar a análise no momento. Verifique sua conexão e tente novamente.";
+  }
+}

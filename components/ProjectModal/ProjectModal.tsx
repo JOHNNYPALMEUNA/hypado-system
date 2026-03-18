@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    X, Save, FileText, Users, ShieldCheck, TrendingUp, Clock, Sparkles, Trash2, Layers
+    X, Save, FileText, Users, ShieldCheck, TrendingUp, Clock, Sparkles, Trash2, Layers, Brain
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Client, Project, Installer, Material, ProductionStatus } from '../../types';
@@ -9,6 +9,7 @@ import QualityTab from './QualityTab';
 import CPCTab from './CPCTab';
 import EquipeTab from './EquipeTab';
 import ProjectTimelineTab from './ProjectTimelineTab';
+import BudgetAnalystTab from './BudgetAnalystTab';
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -87,11 +88,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         { id: 'memorial', label: 'Timeline PCP', icon: <Clock size={16} /> },
         { id: 'equipe', label: 'Equipe', icon: <Users size={16} /> },
         { id: 'qualidade', label: 'Auditoria', icon: <ShieldCheck size={16} /> },
+        { id: 'budget', label: 'Analista IA', icon: <Brain size={16} /> },
         { id: 'cpc', label: 'CPC Relatório', icon: <TrendingUp size={16} /> }
     ];
 
     const tabs = allTabs.filter(tab => {
-        if (tab.id === 'cpc') return userRole === 'owner';
+        if (tab.id === 'cpc' || tab.id === 'budget') return userRole === 'owner';
         return true;
     });
 
@@ -118,6 +120,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
+                        title="Fechar"
+                        aria-label="Fechar"
                         className="p-3 bg-card/10 hover:bg-card/20 rounded-full transition-all text-white"
                     >
                         <X size={24} />
@@ -175,6 +179,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             project={formData}
                             installers={installers}
                             setFormData={setFormData}
+                        />
+                    )}
+
+                    {activeModalTab === 'budget' && (
+                        <BudgetAnalystTab
+                            project={formData}
                         />
                     )}
                 </div>
