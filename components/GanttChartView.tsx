@@ -19,7 +19,7 @@ import {
 const GanttChartView: React.FC = () => {
     const { projects } = useData();
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<ProductionStatus | 'Todas'>('Todas');
+    const [statusFilter, setStatusFilter] = useState<ProductionStatus | 'Todas' | 'Em Aberto'>('Em Aberto');
     const [viewWindowDays] = useState(60); // Total days to show
     const [startOffset, setStartOffset] = useState(-14); // Days from today to start the view (2 weeks ago)
 
@@ -41,8 +41,12 @@ const GanttChartView: React.FC = () => {
         return projects.filter(p => {
             const matchSearch = p.workName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 p.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchStatus = statusFilter === 'Todas' || p.currentStatus === statusFilter;
-            return matchSearch && matchStatus && p.currentStatus !== 'Cancelada';
+            // 'Em Aberto' = tudo exceto Finalizada e Cancelada
+            const matchStatus =
+                statusFilter === 'Todas' ? p.currentStatus !== 'Cancelada' :
+                statusFilter === 'Em Aberto' ? (p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada') :
+                p.currentStatus === statusFilter;
+            return matchSearch && matchStatus;
         });
     }, [projects, searchTerm, statusFilter]);
 
@@ -192,6 +196,7 @@ const GanttChartView: React.FC = () => {
                             onChange={(e) => setStatusFilter(e.target.value as any)}
                             aria-label="Filtrar por status"
                         >
+                            <option value="Em Aberto">⚡ Em Aberto</option>
                             <option value="Todas">Status: Todos</option>
                             <option value="Venda">Venda</option>
                             <option value="Projeto">Projeto</option>
