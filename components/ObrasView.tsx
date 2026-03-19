@@ -981,6 +981,8 @@ const ObrasView: React.FC<Props> = ({
                      </div>
                      <div className="flex-1 p-0 overflow-hidden relative">
                         <textarea
+                           title="Conteúdo do Contrato"
+                           placeholder="Edite o contrato aqui..."
                            className="w-full h-full p-8 resize-none outline-none font-mono text-sm leading-relaxed text-foreground"
                            value={contractText}
                            onChange={e => setContractText(e.target.value)}

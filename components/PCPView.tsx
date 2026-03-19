@@ -229,15 +229,14 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     }
 
     // --- COMMISSION CALCULATION LOGIC ---
-    const totalParts = Object.values(productionPartsCount).reduce((a: number, b: number) => a + b, 0);
+    const totalParts = Object.values(productionPartsCount).reduce((a: number, b: number) => a + b, 0) as number;
     const totalCommissionBudget = (project.value || 0) * 0.10; // 10% of Project Value
 
     const updatedEnvironments = project.environmentsDetails.map(env => {
-      const envParts = productionPartsCount[env.name] || 0;
+      const envParts = (productionPartsCount[env.name] || 0) as number;
       // Distribute Commission Proporciomonally to Parts
-      const calculatedCommission = (totalParts as number) > 0
-        ? (envParts / (totalParts as number)) * totalCommissionBudget
-        : 0;
+      const share = totalParts > 0 ? envParts / totalParts : 1 / project.environmentsDetails.length;
+      const calculatedCommission = totalCommissionBudget * share;
 
       return {
         ...env,
@@ -262,6 +261,38 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
     setShowLogisticsModal(showCentralModal);
     setShowCentralModal(null);
+  };
+
+  const savePartsCount = async () => {
+    if (!showCentralModal) return;
+    const project = projects.find(p => p.id === showCentralModal);
+    if (!project) return;
+
+    const totalParts = Object.values(productionPartsCount).reduce((a: number, b: number) => a + b, 0) as number;
+    const totalCommissionBudget = (project.value || 0) * 0.10;
+
+    const updatedEnvironments = project.environmentsDetails.map(env => {
+      const envParts = (productionPartsCount[env.name] || 0) as number;
+      const share = totalParts > 0 ? envParts / totalParts : 1 / project.environmentsDetails.length;
+      const calculatedCommission = totalCommissionBudget * share;
+
+      return {
+        ...env,
+        memorial: {
+          ...env.memorial,
+          partsCount: envParts
+        },
+        commissionValue: Number(calculatedCommission.toFixed(2)),
+        authorizedMdoValue: Number(calculatedCommission.toFixed(2))
+      };
+    });
+
+    await updateProject({
+      ...project,
+      environmentsDetails: updatedEnvironments
+    } as Project);
+    
+    alert("APONTAMENTO DE PEÇAS SALVO!\nOs valores de MDO foram recalculados proporcionalmente.");
   };
 
   const updateOutsourcedItem = (projectId: string, serviceId: string, field: keyof OutsourcedService, value: any) => {
@@ -713,6 +744,13 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                     </div>
                   ))}
                 </div>
+                
+                <button 
+                  onClick={savePartsCount}
+                  className="w-full py-3 bg-amber-500/10 text-amber-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center justify-center gap-2 mt-4"
+                >
+                  <Save size={14} /> Salvar Apontamento
+                </button>
               </div>
 
               <div className="grid grid-cols-1 gap-3">

@@ -4,11 +4,11 @@ import {
   TrendingUp, Clock, CheckCircle2, AlertTriangle, Sparkles, Factory,
   Calendar, Activity, ShieldCheck, Play, ArrowRight, Hammer, Scissors,
   ListTodo, MapPin, Truck, AlertTriangle as AlertTriangleIcon,
-  AlertOctagon, X
+  AlertOctagon, X, DollarSign, PieChart, BarChart3, Target
 } from 'lucide-react';
 import { Client, Project, CalendarEvent, TechnicalAssistance, Installer, ProductionStatus } from '../types';
 import { analyzeDailyBriefing } from '../geminiService';
-import { getStatusBadgeClass } from '../utils';
+import { getStatusBadgeClass, formatDate } from '../utils';
 
 interface Props {
   projects: Project[];
@@ -80,6 +80,41 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
       { label: 'Chamados', value: (assistances || []).filter(a => a.status === 'Aberto').length, icon: AlertTriangle, color: 'text-purple-600', bg: 'bg-purple-600/10', border: 'border-purple-100', gradient: 'from-purple-600 to-purple-400' },
     ];
   }, [assistances, activeProjectsCount, delayedProjects.length, cuttingProjects.length, logisticsProjects.length]);
+
+  const financialKPIs = useMemo(() => {
+    const activeProjects = projects.filter(p => p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada');
+    const totalContractValue = activeProjects.reduce((acc, p) => acc + (p.value || 0), 0);
+    const totalExpenses = activeProjects.reduce((acc, p) => acc + (p.expenses || []).reduce((sum, e) => sum + e.value, 0), 0);
+    const grossMargin = totalContractValue > 0 ? ((totalContractValue - totalExpenses) / totalContractValue) * 100 : 0;
+
+    return { totalContractValue, totalExpenses, grossMargin };
+  }, [projects]);
+
+  const bottlenecks = useMemo(() => {
+    const today = new Date();
+    const criticallyDelayed = projects.filter(p => {
+        if (p.currentStatus === 'Finalizada' || p.currentStatus === 'Cancelada' || !p.promisedDate) return false;
+        const promised = new Date(p.promisedDate);
+        const diffDays = (promised.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays < 5;
+    });
+
+    const stuckProjects = projects.filter(p => {
+        if (p.currentStatus === 'Finalizada' || p.currentStatus === 'Cancelada') return false;
+        // Se houver status_updated_at (opcional)
+        // @ts-ignore
+        if (p.status_updated_at) {
+            // @ts-ignore
+            const lastUpdate = new Date(p.status_updated_at);
+            const staleDays = (today.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+            return staleDays > 3;
+        }
+        return false;
+    });
+
+    return { criticallyDelayed, stuckProjects };
+  }, [projects]);
+
 
 
   // --- Integrity Test Logic ---
@@ -252,6 +287,108 @@ const DashboardView: React.FC<Props> = ({ projects, clients, events, assistances
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Advanced KPI & Risk Management Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="glass-premium p-10 bento-card border border-white/20 dark:border-slate-800/40 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <BarChart3 size={120} className="text-indigo-600" />
+            </div>
+            
+            <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
+                    <PieChart size={24} />
+                </div>
+                <h3 className="text-sm font-black text-foreground dark:text-white uppercase tracking-[0.4em] italic leading-none">Financial ROI & Performance</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Venda Global (Ativa)</p>
+                        <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic">
+                            R$ {financialKPIs.totalContractValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Custo Real (Alocado)</p>
+                        <p className="text-2xl font-black text-rose-500 tracking-tighter italic">
+                            - R$ {financialKPIs.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col justify-center items-center p-8 bg-slate-900 rounded-[40px] shadow-2xl relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent" />
+                    <Target size={40} className="text-indigo-400 mb-4" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">Margem Bruta Média</p>
+                    <p className="text-5xl font-black text-white tracking-tighter italic leading-none">
+                        {financialKPIs.grossMargin.toFixed(1)}%
+                    </p>
+                    <div className="mt-6 w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${Math.min(financialKPIs.grossMargin, 100)}%` }} />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Bottleneck Alerts & Risk Control */}
+        <div className="glass-premium p-10 bento-card border border-white/20 dark:border-slate-800/40 relative group bg-rose-50/5 dark:bg-rose-950/5">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl animate-pulse">
+                    <Activity size={24} />
+                </div>
+                <h3 className="text-sm font-black text-rose-500 uppercase tracking-[0.4em] italic leading-none">Controle de Riscos & Gargalos</h3>
+            </div>
+
+            <div className="space-y-4">
+                {bottlenecks.criticallyDelayed.length === 0 && bottlenecks.stuckProjects.length === 0 ? (
+                    <div className="py-12 text-center">
+                        <CheckCircle2 size={48} className="text-emerald-500/30 mx-auto mb-4" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic">Zero riscos críticos detectados.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* High Risk: Near Promised Date */}
+                        <div className="space-y-4">
+                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.3em] pl-2 flex items-center gap-2">
+                                <AlertOctagon size={12} /> Prazo Crítico (&lt; 5 dias)
+                            </p>
+                            {bottlenecks.criticallyDelayed.slice(0, 3).map(p => (
+                                <div key={p.id} className="p-4 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-rose-100 dark:border-rose-900/40 flex justify-between items-center group/item hover:border-rose-500 transition-all">
+                                    <div className="truncate pr-4">
+                                        <p className="text-xs font-black text-foreground dark:text-white uppercase italic truncate">{p.workName}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase">{p.clientName}</p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-[9px] font-black text-rose-500 uppercase italic leading-none">{formatDate(p.promisedDate)}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Efficiency Risk: Stuck Status */}
+                        <div className="space-y-4">
+                            <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] pl-2 flex items-center gap-2">
+                                <Clock size={12} /> Fluxo Travado (&gt; 3 dias)
+                            </p>
+                            {bottlenecks.stuckProjects.slice(0, 3).map(p => (
+                                <div key={p.id} className="p-4 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-amber-100 dark:border-amber-900/40 flex justify-between items-center group/item hover:border-amber-500 transition-all">
+                                    <div className="truncate pr-4">
+                                        <p className="text-xs font-black text-foreground dark:text-white uppercase italic truncate">{p.workName}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase">Status: {p.currentStatus}</p>
+                                    </div>
+                                    <div className="shrink-0 p-1.5 bg-amber-500/10 rounded-lg">
+                                        <AlertTriangle size={14} className="text-amber-500" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
       </div>
 

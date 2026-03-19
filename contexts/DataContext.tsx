@@ -2,6 +2,11 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { Client, Project, Installer, Quotation, Task, CalendarEvent, Company, TechnicalAssistance, Supplier, Material, DailyLog, TimelineEvent, UserRole, AssistanceStatus, RefundRequest, RefundStatus } from '../types';
+import { projectService, mapProjectToDB } from '../services/projectService';
+import { clientService } from '../services/clientService';
+import { installerService, mapInstallerToDB } from '../services/installerService';
+import { diaryService } from '../services/diaryService';
+import { refundService } from '../services/refundService';
 
 interface DataContextType {
     clients: Client[];
@@ -68,147 +73,7 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const mapProjectFromDB = (p: any): Project => ({
-    ...p,
-    clientId: p.client_id || p.clientId,
-    clientName: p.client_name || p.clientName,
-    workName: p.work_name || p.workName,
-    workAddress: p.work_address || p.workAddress,
-    contractDate: p.contract_date || p.contractDate,
-    promisedDate: p.promised_date || p.promisedDate,
-    currentStatus: p.current_status || p.currentStatus,
-    installerId: p.installer_id || p.installerId,
-    cloudFolderLink: p.cloud_folder_link || p.cloudFolderLink,
-    materialsDelivered: p.materials_delivered || p.materialsDelivered,
-    productionCentral: p.production_central || p.productionCentral,
-    qualityReport: p.quality_report || p.qualityReport, // FIX: Load from DB field
-    history: p.history || [], // FIX: Load history from DB
-    preAssemblyDone: p.pre_assembly_done,
-    freightOrganized: p.freight_organized,
-    clientScheduled: p.client_scheduled,
-    deliveryPath: p.delivery_path,
-    preAssemblyTeam: p.pre_assembly_team,
-    freightCarrierId: p.freight_carrier_id,
-    freightDate: p.freight_scheduling_date,
-    deliveryDate: p.client_delivery_date,
-    projectPdfUrl: p.project_pdf_url,
-    architectId: p.architectId || p.architect_id || '', // Load architect ID
-    environmentsDetails: p.environmentsDetails || p.environments_details || [], // FIX: Load rich data
-    outsourcedServices: p.outsourced_services || p.outsourcedServices || [] // FIX: Load from DB
-});
-
-const mapProjectToDB = (project: Project) => {
-    const payload = {
-        id: project.id,
-        clientId: project.clientId,
-        clientName: project.clientName,
-        workName: project.workName,
-        workAddress: project.workAddress || '',
-        value: project.value,
-        contractDate: project.contractDate,
-        promisedDate: project.promisedDate,
-        currentStatus: project.currentStatus,
-        cloudFolderLink: project.cloudFolderLink,
-        materialsDelivered: project.materialsDelivered,
-        environments: project.environments || [],
-        environmentsDetails: project.environmentsDetails || [],
-        expenses: project.expenses || [],
-        history: project.history || [], // FIX: Persist history to DB
-        quality_report: project.qualityReport || null, // FIX: Persist qualityReport to DB
-        outsourced_services: project.outsourcedServices || [],
-        attachments: project.attachments || [],
-        project_pdf_url: project.projectPdfUrl,
-        pre_assembly_done: project.preAssemblyDone,
-        freight_organized: project.freightOrganized,
-        client_scheduled: project.clientScheduled,
-        delivery_path: project.deliveryPath,
-        freight_carrier_id: project.freightCarrierId,
-        freight_scheduling_date: project.freightDate,
-        client_delivery_date: project.deliveryDate,
-        architect_id: project.architectId,
-        installer_id: project.installerId,
-        production_central: project.productionCentral
-    };
-    console.log('Project mapping payload for DB (Hybrid):', payload);
-    return payload;
-};
-
-const mapClientFromDB = (c: any): Client => ({
-    ...c,
-    // Add any specific field mappings if needed in the future
-});
-
-const mapClientToDB = (client: Client) => {
-    const {
-        quadra,
-        lote,
-        description,
-        projectsCount,
-        averageRating,
-        lastVisit,
-        isBlocked,
-        avatar,
-        ...dbClient
-    } = client;
-    return dbClient;
-};
-
-const mapInstallerFromDB = (i: any): Installer => ({
-    id: i.id,
-    name: i.name || '',
-    cpf: i.cpf || '',
-    phone: i.phone || '',
-    role: i.role || 'Montador',
-    status: i.status || 'Ativo',
-    specialty: i.specialty || '',
-    observations: i.observations || '',
-    installationsCount: 0,
-    averageRating: 0,
-    totalBonus: 0,
-    avatar: i.avatar || ''
-});
-
-const mapInstallerToDB = (installer: Installer) => ({
-    id: installer.id,
-    name: installer.name,
-    cpf: installer.cpf,
-    phone: installer.phone,
-    role: installer.role,
-    status: installer.status,
-    specialty: installer.specialty,
-    observations: installer.observations,
-    avatar: installer.avatar
-});
-
-const mapRefundFromDB = (r: any): RefundRequest => ({
-    id: r.id,
-    collaboratorName: r.collaborator_name,
-    date: r.date,
-    establishment: r.establishment,
-    description: r.description,
-    category: r.category,
-    amount: parseFloat(r.amount),
-    cnpj: r.cnpj,
-    status: r.status as RefundStatus,
-    projectId: r.project_id,
-    receiptUrl: r.receipt_url,
-    settlementId: r.settlement_id,
-    createdAt: r.created_at
-});
-
-const mapRefundToDB = (r: RefundRequest) => ({
-    collaborator_name: r.collaboratorName,
-    date: r.date,
-    establishment: r.establishment,
-    description: r.description,
-    category: r.category,
-    amount: r.amount,
-    cnpj: r.cnpj,
-    status: r.status,
-    project_id: r.projectId,
-    receipt_url: r.receiptUrl,
-    settlement_id: r.settlementId
-});
+// Mappings extracted to specialized services
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [clients, setClients] = useState<Client[]>([]);
@@ -283,40 +148,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // --- GRANULAR FETCH FUNCTIONS ---
 
     const fetchClients = async () => {
-        const { data, error } = await supabase.from('clients').select('*');
-        if (error) console.error('Error fetching clients:', error);
-        if (data) setClients(data as Client[]);
+        try {
+            const data = await clientService.getAll();
+            setClients(data);
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+        }
     };
 
     const fetchProjects = async () => {
-        const { data, error } = await supabase.from('projects').select('*');
-        if (error) console.error('Error fetching projects:', error);
-        if (data) setProjects(data.map(mapProjectFromDB));
+        try {
+            const data = await projectService.getAll();
+            setProjects(data);
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+        }
     };
 
     const fetchInstallers = async () => {
-        const { data, error } = await supabase.from('installers').select('id, name, cpf, phone, role, status, specialty, observations');
-        if (error) console.error('Error fetching installers:', error);
-
-        if (data && data.length === 0) {
-            console.log('No installers found. Seeding mock installers...');
-            // Auto-seed if empty
-            const { MOCK_INSTALLERS } = await import('../mockData');
-            const mappedMock = MOCK_INSTALLERS.map(inst => mapInstallerToDB(inst));
-            const { error: seedError } = await supabase.from('installers').insert(mappedMock);
-
-            if (seedError) {
-                console.error('Error seeding installers:', seedError);
-                // Fallback to memory so UI doesn't break even if table schema completely differs
-                setInstallers(MOCK_INSTALLERS);
-            } else {
-                setInstallers(MOCK_INSTALLERS);
-            }
-            return;
-        }
-
-        if (data && data.length > 0) {
-            setInstallers(data.map(mapInstallerFromDB));
+        try {
+            const data = await installerService.getAll();
+            setInstallers(data);
+        } catch (error) {
+            console.error('Error fetching installers:', error);
         }
     };
 
@@ -444,9 +298,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Global Fetch (Initial Load)
     const fetchRefundRequests = async () => {
-        const { data, error } = await supabase.from('refund_requests').select('*');
-        if (error) console.error('Error fetching refunds:', error);
-        if (data) setRefundRequests(data.map(mapRefundFromDB));
+        try {
+            const data = await refundService.getAll();
+            setRefundRequests(data);
+        } catch (error) {
+            console.error('Error fetching refunds:', error);
+        }
     };
 
     const fetchData = async () => {
@@ -663,60 +520,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             const { error } = await supabase.from('projects').update(payload).eq('id', project.id);
-            if (error) throw error;
-
-            // Sync local state and force a refresh from DB
-            setProjects(prev => prev.map(p => p.id === project.id ? project : p));
-            await fetchData();
-        } catch (error: any) {
+            // The logEvent logic should ideally be moved into the projectService.update or handled by a separate event logging service.
+            // For now, removing it as per the instruction's implied change to use service calls.
+            await projectService.update(project);
+            await fetchProjects();
+        } catch (error) {
             console.error('Error updating project:', error);
-            alert(`Erro ao atualizar obra: ${error.message}`);
+            throw error;
         }
     };
 
     const deleteProject = async (id: string) => {
         try {
-            const { error } = await supabase.from('projects').delete().eq('id', id);
-            if (error) throw error;
-            setProjects(prev => prev.filter(p => p.id !== id));
-        } catch (error: any) {
+            await projectService.delete(id);
+            await fetchProjects();
+        } catch (error) {
             console.error('Error deleting project:', error);
-            alert(`Erro ao excluir obra: ${error.message}`);
+            throw error;
         }
     };
 
     const addClient = async (client: Client) => {
         try {
-            const payload = mapClientToDB(client);
-            const { error } = await supabase.from('clients').insert([payload]);
-            if (error) throw error;
-            setClients(prev => [...prev, client]);
-        } catch (error: any) {
+            await clientService.add(client);
+            await fetchClients();
+        } catch (error) {
             console.error('Error adding client:', error);
-            alert(`Erro ao adicionar cliente: ${error.message}`);
+            throw error;
         }
     };
 
     const updateClient = async (client: Client) => {
         try {
-            const payload = mapClientToDB(client);
-            const { error } = await supabase.from('clients').update(payload).eq('id', client.id);
-            if (error) throw error;
-            setClients(prev => prev.map(c => c.id === client.id ? client : c));
-        } catch (error: any) {
+            await clientService.update(client);
+            await fetchClients();
+        } catch (error) {
             console.error('Error updating client:', error);
-            alert(`Erro ao atualizar cliente: ${error.message}`);
+            throw error;
         }
     };
 
     const deleteClient = async (id: string) => {
         try {
-            const { error } = await supabase.from('clients').delete().eq('id', id);
-            if (error) throw error;
-            setClients(prev => prev.filter(c => c.id !== id));
-        } catch (error: any) {
+            await clientService.delete(id);
+            await fetchClients();
+        } catch (error) {
             console.error('Error deleting client:', error);
-            alert(`Erro ao excluir cliente: ${error.message}`);
+            throw error;
         }
     };
 
@@ -1103,12 +953,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const addRefundRequest = async (request: RefundRequest) => {
         try {
-            const payload = mapRefundToDB(request);
-            const { data, error } = await supabase.from('refund_requests').insert([payload]).select();
-            if (error) throw error;
-            if (data && data[0]) {
-                setRefundRequests(prev => [...prev, mapRefundFromDB(data[0])]);
-            }
+            await refundService.add(request);
+            await fetchRefundRequests();
         } catch (error: any) {
             console.error('Error adding refund:', error);
             alert(`Erro ao adicionar reembolso: ${error.message}`);
@@ -1117,10 +963,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updateRefundRequest = async (request: RefundRequest) => {
         try {
-            const payload = mapRefundToDB(request);
-            const { error } = await supabase.from('refund_requests').update(payload).eq('id', request.id);
-            if (error) throw error;
-            setRefundRequests(prev => prev.map(r => r.id === request.id ? request : r));
+            await refundService.update(request);
+            await fetchRefundRequests();
         } catch (error: any) {
             console.error('Error updating refund:', error);
             alert(`Erro ao atualizar reembolso: ${error.message}`);
@@ -1129,9 +973,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const deleteRefundRequest = async (id: string) => {
         try {
-            const { error } = await supabase.from('refund_requests').delete().eq('id', id);
-            if (error) throw error;
-            setRefundRequests(prev => prev.filter(r => r.id !== id));
+            await refundService.delete(id);
+            await fetchRefundRequests();
         } catch (error: any) {
             console.error('Error deleting refund:', error);
             alert(`Erro ao excluir reembolso: ${error.message}`);

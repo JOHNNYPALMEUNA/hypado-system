@@ -17,11 +17,19 @@ import {
 } from 'lucide-react';
 
 const GanttChartView: React.FC = () => {
-    const { projects } = useData();
+    const { projects, updateProject } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<ProductionStatus | 'Todas' | 'Em Aberto'>('Em Aberto');
     const [viewWindowDays] = useState(60); // Total days to show
     const [startOffset, setStartOffset] = useState(-14); // Days from today to start the view (2 weeks ago)
+
+    // Drag and Drop State
+    const [isDragging, setIsDragging] = useState<{
+        projectId: string;
+        type: 'promised' | 'freight' | 'delivery';
+        initialX: number;
+        initialDate: string;
+    } | null>(null);
 
     // Calculate dates for the header
     const timelineDates = useMemo(() => {
@@ -67,6 +75,52 @@ const GanttChartView: React.FC = () => {
         return diffDays;
     };
 
+    const handleDragStart = (e: React.MouseEvent, projectId: string, type: 'promised' | 'freight' | 'delivery', initialDate: string) => {
+        e.preventDefault();
+        setIsDragging({
+            projectId,
+            type,
+            initialX: e.clientX,
+            initialDate
+        });
+    };
+
+    const handleMouseMove = async (e: React.MouseEvent) => {
+        if (!isDragging) return;
+
+        const diffX = e.clientX - isDragging.initialX;
+        const daysShift = Math.floor(diffX / 40);
+
+        if (daysShift !== 0) {
+            // Optional: Provide visual feedback here if needed
+        }
+    };
+
+    const handleMouseUp = async (e: React.MouseEvent) => {
+        if (!isDragging) return;
+
+        const diffX = e.clientX - isDragging.initialX;
+        const daysShift = Math.floor(diffX / 40);
+
+        if (daysShift !== 0) {
+            const project = projects.find(p => p.id === isDragging.projectId);
+            if (project) {
+                const newDate = new Date(isDragging.initialDate);
+                newDate.setDate(newDate.getDate() + daysShift);
+                const dateIso = newDate.toISOString().split('T')[0];
+
+                const updatedProject = { ...project };
+                if (isDragging.type === 'promised') updatedProject.promisedDate = dateIso;
+                else if (isDragging.type === 'freight') updatedProject.freightDate = dateIso;
+                else if (isDragging.type === 'delivery') updatedProject.deliveryDate = dateIso;
+
+                await updateProject(updatedProject);
+            }
+        }
+
+        setIsDragging(null);
+    };
+
     const renderProjectRow = (project: Project) => {
         const startPos = getDayPosition(project.contractDate);
         const endPos = getDayPosition(project.promisedDate);
@@ -88,7 +142,8 @@ const GanttChartView: React.FC = () => {
                 </div>
 
                 {/* Timeline Grid for this project */}
-                <div className="relative h-10 flex" style={{ width: `${containerWidth}px` }}>
+                {/* Timeline Grid for this project */}
+                <div className="relative h-10 flex" style={{ '--timeline-width': `${containerWidth}px` } as React.CSSProperties}>
                     {/* Horizontal grid lines */}
                     {timelineDates.map((date, idx) => (
                         <div key={idx} className={`w-10 h-full border-r border-slate-100/30 shrink-0 ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-slate-50/30' : ''}`}></div>
@@ -97,12 +152,12 @@ const GanttChartView: React.FC = () => {
                     {/* Progress Bar */}
                     {barVisible && (
                         <div
-                            className={`absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full ${getStatusColor(project.currentStatus)} shadow-sm hover:h-4 hover:z-30 transition-all cursor-help group/bar z-10`}
+                            onMouseDown={(e) => handleDragStart(e, project.id, 'promised', project.promisedDate)}
+                            className={`absolute top-1/2 -translate-y-1/2 h-2.5 rounded-full ${getStatusColor(project.currentStatus)} shadow-sm hover:h-4 hover:z-30 transition-all cursor-move group/bar z-10 active:opacity-70`}
                             style={{
-                                left: `${startPos * 40}px`,
-                                width: `${(endPos - startPos + 1) * 40}px`,
-                                minWidth: '10px'
-                            }}
+                                '--bar-left': `${startPos * 40}px`,
+                                '--bar-width': `${(endPos - startPos + 1) * 40}px`
+                            } as React.CSSProperties}
                         >
                             {/* Critical Alert Indicator */}
                             {project.promisedDate && new Date(project.promisedDate) < new Date() && project.currentStatus !== 'Finalizada' && (
@@ -120,7 +175,11 @@ const GanttChartView: React.FC = () => {
 
                     {/* Milestones (Smaller) */}
                     {freightPos >= 0 && freightPos < viewWindowDays && (
-                        <div className="absolute top-1/2 -translate-y-1/2 z-20" style={{ left: `${freightPos * 40 + 20}px` }}>
+                        <div 
+                            onMouseDown={(e) => handleDragStart(e, project.id, 'freight', project.freightDate || '')}
+                            className="absolute top-1/2 -translate-y-1/2 z-20 cursor-move active:scale-125 transition-transform" 
+                            style={{ '--milestone-left': `${freightPos * 40 + 20}px` } as React.CSSProperties}
+                        >
                             <div className="w-5 h-5 -ml-2.5 bg-blue-600 text-white rounded-md shadow flex items-center justify-center border border-white opacity-80 hover:opacity-100 hover:scale-110 transition-all">
                                 <Truck size={10} />
                             </div>
@@ -128,7 +187,11 @@ const GanttChartView: React.FC = () => {
                     )}
 
                     {deliveryPos >= 0 && deliveryPos < viewWindowDays && (
-                        <div className="absolute top-1/2 -translate-y-1/2 z-20" style={{ left: `${deliveryPos * 40 + 20}px` }}>
+                        <div 
+                            onMouseDown={(e) => handleDragStart(e, project.id, 'delivery', project.deliveryDate || '')}
+                            className="absolute top-1/2 -translate-y-1/2 z-20 cursor-move active:scale-125 transition-transform" 
+                            style={{ '--milestone-left': `${deliveryPos * 40 + 20}px` } as React.CSSProperties}
+                        >
                             <div className="w-5 h-5 -ml-2.5 bg-emerald-600 text-white rounded-md shadow flex items-center justify-center border border-white opacity-80 hover:opacity-100 hover:scale-110 transition-all">
                                 <Calendar size={10} />
                             </div>
@@ -243,7 +306,12 @@ const GanttChartView: React.FC = () => {
                 </div>
 
                 {/* Grid Body */}
-                <div className="overflow-x-auto overflow-y-auto max-h-[70vh] custom-scrollbar relative">
+                <div 
+                    className="overflow-x-auto overflow-y-auto max-h-[70vh] custom-scrollbar relative"
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                >
                     {/* Today Line (Minimalist) */}
                     <div 
                         className="absolute top-0 bottom-0 w-px bg-amber-500/50 z-20 pointer-events-none" 

@@ -482,3 +482,26 @@
     letter-spacing: 0.05em;
   }
 }
+
+/* Gantt Chart Dynamic Styles */
+[style*="--timeline-width"] {
+  width: var(--timeline-width);
+}
+
+[style*="--bar-left"] {
+  left: var(--bar-left);
+}
+
+[style*="--bar-width"] {
+  width: var(--bar-width);
+  min-width: 10px;
+}
+
+[style*="--milestone-left"] {
+  left: var(--milestone-left);
+}
+
+/* Dynamic Color Helpers */
+.bg-dynamic {
+  background-color: var(--dynamic-color);
+}
