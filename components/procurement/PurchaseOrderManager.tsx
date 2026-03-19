@@ -42,6 +42,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     items: [] as QuotationItem[] 
   });
   const [searchMaterial, setSearchMaterial] = useState('');
+  const [discount, setDiscount] = useState(0);
 
   const filteredOrders = useMemo(() => {
     if (showHistory) {
@@ -221,7 +222,8 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
 
   const finalizeEntryAndInjectCost = async () => {
     if (!entryModalData) return;
-    const totalCost = entryModalData.items.reduce((acc, item) => acc + ((item.materialValue || 0) * item.quantity), 0);
+    const subtotal = entryModalData.items.reduce((acc, item) => acc + ((item.materialValue || 0) * item.quantity), 0);
+    const totalCost = Math.max(0, subtotal - discount);
     const supplierName = suppliers.find(s => s.id === entryModalData.supplierId)?.name || 'Fornecedor';
 
     const originalOrder = purchaseOrders.find(p => p.id === entryModalData.id);
@@ -265,7 +267,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     if (project) {
         const newExp = {
             id: `nf-${Date.now()}`,
-            description: `NF: ${entryModalData.id} - ${supplierName}`,
+            description: `NF: ${entryModalData.id} - ${supplierName}${discount > 0 ? ` (Desc. R$${discount})` : ''}`,
             value: totalCost,
             date: new Date().toISOString().split('T')[0],
             category: 'Material'
@@ -279,6 +281,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     }
 
     setEntryModalData(null);
+    setDiscount(0);
     alert(`FATURAMENTO CONCLUÍDO!`);
   };
 
@@ -500,11 +503,38 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                 </label>
                             </div>
                         </div>
-                        <div className="text-center md:text-right w-full md:w-auto">
-                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Total Estimado</p>
-                            <p className="text-5xl font-black text-slate-900 italic tracking-tighter leading-none">
-                                R$ {entryModalData.items.reduce((acc, i) => acc + ((i.materialValue || 0) * i.quantity), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
+                        <div className="flex flex-col items-center md:items-end gap-2 w-full md:w-auto">
+                            <div className="text-center md:text-right">
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Subtotal</p>
+                                <p className="text-xl font-bold text-slate-400 italic">
+                                    R$ {entryModalData.items.reduce((acc, i) => acc + ((i.materialValue || 0) * i.quantity), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                            <div className="text-center md:text-right">
+                                <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Total Final com Desconto</p>
+                                <p className="text-5xl font-black text-slate-900 italic tracking-tighter leading-none">
+                                    R$ {Math.max(0, entryModalData.items.reduce((acc, i) => acc + ((i.materialValue || 0) * i.quantity), 0) - discount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-amber-50/50 p-8 rounded-[40px] border border-amber-100/50">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-amber-600 tracking-widest ml-4 flex items-center gap-2">
+                                <DollarSign size={14} /> Aplicar Desconto (R$)
+                            </label>
+                            <input 
+                                title="Desconto da NF"
+                                type="number" 
+                                className="w-full bg-white p-6 rounded-[24px] border-none shadow-xl outline-none font-black text-2xl text-amber-600 focus:ring-4 focus:ring-amber-500/20 transition-all"
+                                value={discount || ''}
+                                placeholder="0,00"
+                                onChange={e => setDiscount(Number(e.target.value))}
+                            />
+                        </div>
+                        <div className="flex items-center p-6 text-slate-500 text-xs font-bold leading-tight italic">
+                            O valor de desconto será subtraído do total da nota no momento da injeção de custo na obra.
                         </div>
                     </div>
 
