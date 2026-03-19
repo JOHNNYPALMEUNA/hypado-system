@@ -9,8 +9,8 @@ CREATE OR REPLACE FUNCTION update_status_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Only update if the currentStatus value actually changed
-    IF (OLD.currentStatus IS DISTINCT FROM NEW.currentStatus) THEN
-        NEW.status_updated_at = NOW();
+    IF (OLD."currentStatus" IS DISTINCT FROM NEW."currentStatus") THEN
+        NEW."status_updated_at" = NOW();
     END IF;
     RETURN NEW;
 END;
