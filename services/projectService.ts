@@ -47,20 +47,20 @@ export const mapProjectToDB = (project: Project) => {
         environmentsDetails: project.environmentsDetails || [],
         expenses: project.expenses || [],
         history: project.history || [],
-        qualityReport: project.qualityReport || null,
-        outsourcedServices: project.outsourcedServices || [],
+        quality_report: project.qualityReport || null,
+        outsourced_services: project.outsourcedServices || [],
         attachments: project.attachments || [],
-        projectPdfUrl: project.projectPdfUrl,
-        preAssemblyDone: project.preAssemblyDone,
-        freightOrganized: project.freightOrganized,
-        clientScheduled: project.clientScheduled,
-        deliveryPath: project.deliveryPath,
-        freightCarrierId: project.freightCarrierId,
-        freightDate: project.freightDate,
-        deliveryDate: project.deliveryDate,
-        architectId: project.architectId,
-        installerId: project.installerId,
-        productionCentral: project.productionCentral
+        project_pdf_url: project.projectPdfUrl,
+        pre_assembly_done: project.preAssemblyDone,
+        freight_organized: project.freightOrganized,
+        client_scheduled: project.clientScheduled,
+        delivery_path: project.deliveryPath,
+        freight_carrier_id: project.freightCarrierId,
+        freight_scheduling_date: project.freightDate,
+        client_delivery_date: project.deliveryDate,
+        architect_id: project.architectId,
+        installer_id: project.installerId,
+        production_central: project.productionCentral
     };
 };
 
