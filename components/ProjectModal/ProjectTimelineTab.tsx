@@ -15,8 +15,13 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
     const { timelineEvents, dailyLogs } = useData();
 
     const unifiedTimeline = useMemo(() => {
+        // Safe check for data sources
+        const safeHistory = history || [];
+        const safeTimelineEvents = timelineEvents || [];
+        const safeDailyLogs = dailyLogs || [];
+
         // 1. History from project object (Status Changes)
-        const historyEvents = history.map(h => ({
+        const historyEvents = safeHistory.map(h => ({
             type: 'status_change',
             title: h.status,
             description: `Transição para a fase de ${h.status}.`,
@@ -26,8 +31,8 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
         }));
 
         // 2. Timeline Events from DB (System logs)
-        const sysEvents = timelineEvents
-            .filter(e => e.relatedId === projectId && e.relatedType === 'PROJECT')
+        const sysEvents = safeTimelineEvents
+            .filter(e => e && e.relatedId === projectId && e.relatedType === 'PROJECT')
             .map(e => ({
                 type: 'system',
                 title: e.eventType === 'STATUS_CHANGE' ? `Status: ${e.newValue}` : e.eventType,
@@ -38,8 +43,8 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
             }));
 
         // 3. Daily Logs (Occurrences / Bottlenecks)
-        const occurrences = dailyLogs
-            .filter(l => l.projectId === projectId)
+        const occurrences = safeDailyLogs
+            .filter(l => l && l.projectId === projectId)
             .map(l => ({
                 type: 'occurrence',
                 title: l.category,
@@ -50,13 +55,16 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
                 author: l.author
             }));
 
-        // Combine and Sort (Newest first for "History" style, or Oldest first for "Timeline" style)
-        // User requested tracking date OS was uploaded + process by process.
-        // Let's use Oldest First for a progressive flow, but keep the icons clear.
+        // Combine and Sort
         const combined = [...historyEvents, ...sysEvents, ...occurrences]
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            .filter(ev => ev.timestamp) // Ensure we have a timestamp to sort and display
+            .sort((a, b) => {
+                const timeA = new Date(a.timestamp).getTime();
+                const timeB = new Date(b.timestamp).getTime();
+                return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+            });
 
-        // Remove duplicates (e.g. if a status change is in both history and sysEvents)
+        // Remove duplicates
         const unique = combined.filter((ev, idx, self) => 
             idx === self.findIndex((t) => (
                 t.timestamp === ev.timestamp && t.title === ev.title
