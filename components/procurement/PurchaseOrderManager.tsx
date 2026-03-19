@@ -165,6 +165,60 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     }
   };
 
+  const handleAnalyzeForNewQuotation = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzing(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const mimeType = file.type;
+        const libraryContext = materials.map(m => m.name).join(', ');
+
+        const result = await analyzeReceipt(base64, libraryContext, mimeType);
+
+        if (result && result.items) {
+          const matchedItems: QuotationItem[] = [];
+          
+          result.items.forEach((r: any) => {
+            const match = materials.find(m => 
+              m.name.toLowerCase().includes(r.name.toLowerCase()) || 
+              r.name.toLowerCase().includes(m.name.toLowerCase())
+            );
+            
+            if (match) {
+              matchedItems.push({
+                productId: match.id,
+                name: match.name,
+                quantity: r.quantity || 1,
+                unit: match.unit || 'un',
+                materialValue: r.unitPrice || 0
+              });
+            }
+          });
+
+          if (matchedItems.length > 0) {
+            setNewQuotation(prev => ({
+              ...prev,
+              items: matchedItems
+            }));
+            alert(`SUCESSO: ${matchedItems.length} itens identificados e adicionados!`);
+          } else {
+            alert('A IA não conseguiu encontrar materiais correspondentes na sua biblioteca.');
+          }
+        }
+        setIsAnalyzing(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Erro AI:", error);
+      alert("Falha no processamento da IA.");
+      setIsAnalyzing(false);
+    }
+  };
+
   const finalizeEntryAndInjectCost = async () => {
     if (!entryModalData) return;
     const totalCost = entryModalData.items.reduce((acc, item) => acc + ((item.materialValue || 0) * item.quantity), 0);
@@ -310,26 +364,31 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                   </div>
 
                   <div className="flex-1 overflow-hidden flex">
-                      {/* Left: Configuration */}
-                      <div className="w-1/3 p-10 border-r border-slate-100 overflow-y-auto space-y-8 bg-slate-50/50">
-                          <div className="space-y-4">
-                              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">1. Selecione a Obra</label>
+                      {/* Left: Configuration & Selected Items */}
+                      <div className="w-[35%] p-10 border-r border-slate-100 overflow-y-auto space-y-8 bg-slate-50/50">
+                          <div className="space-y-6">
+                              <div className="flex items-center justify-between">
+                                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Dados do Pedido</label>
+                                  <label className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-black uppercase text-[8px] tracking-widest cursor-pointer hover:bg-emerald-600 transition-all shadow-lg active:scale-95">
+                                      {isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Camera size={12} />}
+                                      {isAnalyzing ? 'Analisando...' : 'Importar NF (IA)'}
+                                      <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleAnalyzeForNewQuotation} disabled={isAnalyzing} />
+                                  </label>
+                              </div>
+                              
                               <select 
                                   title="Selecione a Obra"
-                                  className="w-full p-6 rounded-[32px] bg-white border-none shadow-xl outline-none font-bold text-slate-900 focus:ring-4 focus:ring-amber-500/20"
+                                  className="w-full p-6 rounded-[24px] bg-white border border-slate-100 shadow-sm outline-none font-bold text-slate-900 focus:ring-4 focus:ring-amber-500/20"
                                   value={newQuotation.projectId}
                                   onChange={e => setNewQuotation({...newQuotation, projectId: e.target.value})}
                               >
                                   <option value="">Escolher Obra...</option>
                                   {projects.map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
                               </select>
-                          </div>
 
-                          <div className="space-y-4">
-                              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">2. Escolha o Fornecedor</label>
                               <select 
                                   title="Escolha o Fornecedor"
-                                  className="w-full p-6 rounded-[32px] bg-white border-none shadow-xl outline-none font-bold text-slate-900 focus:ring-4 focus:ring-amber-500/20"
+                                  className="w-full p-6 rounded-[24px] bg-white border border-slate-100 shadow-sm outline-none font-bold text-slate-900 focus:ring-4 focus:ring-amber-500/20"
                                   value={newQuotation.supplierId}
                                   onChange={e => setNewQuotation({...newQuotation, supplierId: e.target.value})}
                               >
@@ -338,19 +397,37 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                               </select>
                           </div>
 
-                          <div className="p-8 bg-slate-900 rounded-[32px] border border-white/5 shadow-2xl space-y-6">
-                              <h5 className="text-white font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
-                                  <CheckCircle2 size={16} className="text-emerald-500" /> Resumo do Pedido
-                              </h5>
-                              <div className="space-y-3">
-                                  <div className="flex justify-between items-center text-slate-400 text-xs font-bold uppercase">
-                                     <span>Itens Totais</span>
-                                     <span className="text-white text-lg">{newQuotation.items.reduce((acc, i) => acc + i.quantity, 0)}</span>
-                                  </div>
+                          <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Itens Selecionados ({newQuotation.items.length})</label>
+                              <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
+                                  {newQuotation.items.map((item, idx) => (
+                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group shadow-sm">
+                                          <div>
+                                              <p className="text-[10px] font-black uppercase italic leading-none">{item.name}</p>
+                                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{item.quantity} {item.unit}</p>
+                                          </div>
+                                          <button 
+                                              onClick={() => setNewQuotation(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                          >
+                                              <Trash2 size={14} />
+                                          </button>
+                                      </div>
+                                  ))}
+                                  {newQuotation.items.length === 0 && (
+                                      <div className="py-8 text-center text-slate-300 text-[10px] font-bold uppercase italic border-2 border-dashed border-slate-100 rounded-3xl">Clique nos itens à direita</div>
+                                  )}
+                              </div>
+                          </div>
+
+                          <div className="p-8 bg-slate-900 rounded-[40px] border border-white/5 shadow-2xl space-y-6 sticky bottom-0">
+                              <div className="flex justify-between items-center text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                                 <span>Total de Itens</span>
+                                 <span className="text-white text-xl">{newQuotation.items.reduce((acc, i) => acc + i.quantity, 0)}</span>
                               </div>
                               <button 
                                   onClick={handleCreateQuotation}
-                                  className="w-full py-5 bg-amber-500 text-foreground rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-emerald-500 transition-all active:scale-95"
+                                  className="w-full py-5 bg-amber-500 text-foreground rounded-[20px] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-emerald-500 transition-all active:scale-95"
                               >
                                   Gerar Requisição
                               </button>
@@ -364,24 +441,26 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                 <input 
                                     type="text" 
                                     placeholder="Buscar material na biblioteca..." 
-                                    className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-slate-100/50 border-none outline-none font-bold text-lg"
+                                    className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-slate-100/50 border-none outline-none font-bold text-lg focus:bg-white focus:shadow-inner transition-all"
                                     value={searchMaterial}
                                     onChange={e => setSearchMaterial(e.target.value)}
                                 />
                           </div>
                           
-                          <div className="flex-1 overflow-y-auto p-10 grid grid-cols-2 gap-4">
+                          <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-2 gap-4">
                               {materials.filter(m => m.name.toLowerCase().includes(searchMaterial.toLowerCase())).map(m => (
                                   <button 
                                       key={m.id}
                                       onClick={() => addItemToQuotation(m)}
-                                      className="flex items-center justify-between p-6 rounded-[24px] border border-slate-100 hover:border-amber-500 hover:bg-amber-50 transition-all text-left"
+                                      className="flex items-center justify-between p-6 rounded-[24px] border border-slate-50 hover:border-amber-500 hover:bg-amber-50 transition-all text-left shadow-sm group"
                                   >
                                       <div>
-                                          <p className="font-black text-slate-900 uppercase italic leading-none">{m.name}</p>
+                                          <p className="font-black text-slate-900 uppercase italic leading-none group-hover:text-amber-600 transition-colors">{m.name}</p>
                                           <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">{m.category} • {m.unit}</p>
                                       </div>
-                                      <Plus size={24} className="text-amber-500" />
+                                      <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-amber-500 group-hover:text-white transition-all">
+                                          <Plus size={20} />
+                                      </div>
                                   </button>
                               ))}
                           </div>
