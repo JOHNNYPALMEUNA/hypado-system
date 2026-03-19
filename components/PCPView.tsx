@@ -285,7 +285,8 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           partsCount: envParts
         },
         commissionValue: Number(calculatedCommission.toFixed(2)),
-        authorizedMdoValue: Number(calculatedCommission.toFixed(2))
+        authorizedMdoValue: Number(calculatedCommission.toFixed(2)),
+        isMdoAuthorized: true
       };
     });
 
