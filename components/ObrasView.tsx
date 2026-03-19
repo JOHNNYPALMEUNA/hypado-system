@@ -40,7 +40,7 @@ const ObrasView: React.FC<Props> = ({
    projects, setProjects, clients, setClients, availableEnvironments,
    company, installers, materialCategories, purchaseOrders, dailyLogs, addAssistance, assistances
 }) => {
-   const { addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole } = useData();
+   const { addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent } = useData();
    // ... existing code ...
 
 
@@ -333,6 +333,10 @@ const ObrasView: React.FC<Props> = ({
       reader.onloadend = () => {
          const base64 = reader.result as string;
          setFormData(prev => ({ ...prev, projectPdfUrl: base64 }));
+         
+         if (editingProjectId) {
+            logEvent(editingProjectId, 'PROJECT', 'UPDATED', 'PDF', 'PDF Anexado (OS)');
+         }
       };
       reader.readAsDataURL(file);
    };
@@ -534,6 +538,10 @@ const ObrasView: React.FC<Props> = ({
 
       if (editingProjectId) {
          const existingProject = projects.find(p => p.id === editingProjectId);
+         if (existingProject && existingProject.currentStatus !== projectData.currentStatus) {
+            logEvent(editingProjectId, 'PROJECT', 'STATUS_CHANGE', existingProject.currentStatus, projectData.currentStatus);
+         }
+         
          const newHistory = existingProject && existingProject.currentStatus !== projectData.currentStatus
             ? [...existingProject.history, { status: projectData.currentStatus, timestamp: new Date().toISOString() }]
             : (existingProject?.history || []);

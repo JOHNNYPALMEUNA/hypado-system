@@ -151,7 +151,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                     )}
 
                     {activeModalTab === 'memorial' && (
-                        <ProjectTimelineTab history={formData.history || []} />
+                        <ProjectTimelineTab projectId={formData.id} history={formData.history || []} />
                     )}
 
                     {activeModalTab === 'equipe' && (

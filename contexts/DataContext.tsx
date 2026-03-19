@@ -63,6 +63,7 @@ interface DataContextType {
     isIdle: boolean;
     userRole: UserRole | null;
     currentUserEmail: string | null;
+    currentUserId: string | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -233,6 +234,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
     const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
@@ -494,6 +496,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
                 setUserRole(null);
                 setCurrentUserEmail(null);
+                setCurrentUserId(null);
                 setClients([]);
                 setProjects([]);
                 setInstallers([]);
@@ -1089,7 +1092,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 event_type: eventType,
                 old_value: oldValue,
                 new_value: newValue,
-                user_id: 'System User' // Replace with actual user when Auth is ready
+                user_id: currentUserId || null // Use actual user ID if available
             }]);
 
             if (error) console.error('Error logging event:', error);
@@ -1193,7 +1196,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             logEvent,
             isIdle,
             userRole,
-            currentUserEmail
+            currentUserEmail,
+            currentUserId
         }}>
             {children}
         </DataContext.Provider>
