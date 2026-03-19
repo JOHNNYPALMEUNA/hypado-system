@@ -67,10 +67,10 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     }
   }, [showFreightModal, projects]); // Added projects to dependency array
 
-  const advance = (projectId: string, nextStatus: ProductionStatus, extraData: Partial<Project> = {}) => {
+  const advance = async (projectId: string, nextStatus: ProductionStatus, extraData: Partial<Project> = {}) => {
     const p = projects.find(proj => proj.id === projectId);
     if (p) {
-      updateProject({
+      await updateProject({
         ...p,
         ...extraData as any,
         currentStatus: nextStatus,
@@ -308,17 +308,13 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     }
   };
 
-  const setLogisticsPath = (projectId: string, path: 'Workshop' | 'Direct') => {
-    const p = projects.find(proj => proj.id === projectId);
-    if (p) {
-      updateProject({
-        ...p,
-        ...pendingProjectData as any,
-        deliveryPath: path,
-        currentStatus: 'Produção',
-        history: [...(p.history || []), { status: 'Produção', timestamp: new Date().toISOString() }]
-      } as Project);
-    }
+  const setLogisticsPath = async (projectId: string, path: 'Workshop' | 'Direct') => {
+    // Standardize: Use the same advance() function used in other parts of the system
+    await advance(projectId, 'Produção', {
+      ...pendingProjectData as any,
+      deliveryPath: path
+    });
+    
     setPendingProjectData(null);
     setShowLogisticsModal(null);
   };

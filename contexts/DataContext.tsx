@@ -523,8 +523,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // We use the service to handle the DB update consistently.
             await projectService.update(project);
             await fetchProjects();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating project:', error);
+            alert(`ERRO AO ATUALIZAR OBRA: ${error.message || JSON.stringify(error)}`);
             throw error;
         }
     };
