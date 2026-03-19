@@ -73,60 +73,70 @@ const GanttChartView: React.FC = () => {
         const freightPos = getDayPosition(project.freightDate);
         const deliveryPos = getDayPosition(project.deliveryDate);
 
-        const containerWidth = viewWindowDays * 40; // 40px per day
-
-        // Ensure positions are within view bounds for rendering the bar partially
-        const visibleStart = Math.max(0, startPos);
-        const visibleEnd = Math.min(viewWindowDays - 1, endPos);
-
+        const containerWidth = viewWindowDays * 40;
         const barVisible = endPos >= 0 && startPos < viewWindowDays;
 
         return (
-            <div key={project.id} className="flex border-b border-slate-100 hover:bg-muted/50 transition-colors group">
+            <div key={project.id} className="flex border-b border-slate-100 hover:bg-slate-50/80 transition-colors group">
                 {/* Project Info (Sticky Column) */}
-                <div className="sticky left-0 z-20 w-64 bg-card group-hover:bg-muted/50 p-4 border-r border-border shrink-0 shadow-sm">
-                    <p className="text-xs font-black text-foreground uppercase italic truncate">{project.workName}</p>
-                    <p className="text-[10px] text-slate-400 font-bold truncate">{project.clientName}</p>
+                <div className="sticky left-0 z-20 w-64 bg-card group-hover:bg-white p-4 border-r border-slate-100 shrink-0 shadow-[4px_0_12px_rgba(0,0,0,0.03)]">
+                    <p className="text-xs font-black text-foreground uppercase italic truncate group-hover:text-primary transition-colors">{project.workName}</p>
+                    <p className="text-[10px] text-slate-400 font-bold truncate opacity-80 group-hover:opacity-100 transition-opacity">{project.clientName}</p>
                     <div className="flex items-center gap-2 mt-2">
-                        <span className={`w-2 h-2 rounded-full ${getStatusColor(project.currentStatus)}`}></span>
-                        <span className="text-[9px] font-black uppercase text-muted-foreground tracking-tighter">{project.currentStatus}</span>
+                        <span className="text-[8px] font-black uppercase text-slate-400 tracking-tighter bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 shadow-sm">Entrega: {formatDate(project.promisedDate)}</span>
                     </div>
                 </div>
 
                 {/* Timeline Grid for this project */}
-                <div className="relative h-20 flex" style={{ width: `${containerWidth}px` }}>
-                    {/* Horizontal grid lines / background days */}
-                    {timelineDates.map((_, idx) => (
-                        <div key={idx} className={`w-10 h-full border-r border-slate-100 shrink-0 ${_.getDay() === 0 || _.getDay() === 6 ? 'bg-muted/50/50' : ''}`}></div>
+                <div className="relative h-16 flex" style={{ width: `${containerWidth}px` }}>
+                    {/* Horizontal grid lines */}
+                    {timelineDates.map((date, idx) => (
+                        <div key={idx} className={`w-10 h-full border-r border-slate-100/50 shrink-0 ${date.getDay() === 0 || date.getDay() === 6 ? 'bg-slate-50/40' : ''}`}></div>
                     ))}
-
-                    {/* Today Line */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-red-500/30 z-10 pointer-events-none" style={{ left: `${Math.abs(startOffset) * 100 / viewWindowDays}%` }}>
-                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full"></div>
-                    </div>
 
                     {/* Progress Bar */}
                     {barVisible && (
                         <div
-                            className={`absolute top-1/2 -translate-y-1/2 h-8 rounded-full border-2 border-white shadow-sm flex items-center px-3 ${getStatusColor(project.currentStatus)} opacity-80 hover:opacity-100 transition-opacity cursor-help group/bar`}
+                            className={`absolute top-1/2 -translate-y-1/2 h-6 rounded-xl border border-white/20 shadow-sm flex items-center px-3 ${getStatusColor(project.currentStatus)} bg-gradient-to-r from-white/20 to-transparent hover:scale-[1.01] transition-all cursor-help group/bar z-10`}
                             style={{
                                 left: `${startPos * 40}px`,
                                 width: `${(endPos - startPos + 1) * 40}px`,
                                 minWidth: '40px'
                             }}
                         >
-                            <span className="text-[10px] font-black text-white uppercase italic truncate">
-                                {project.currentStatus}
+                            {/* Critical Alert Indicator */}
+                            {project.promisedDate && new Date(project.promisedDate) < new Date() && project.currentStatus !== 'Finalizada' && (
+                                <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white animate-pulse shadow-md z-30 flex items-center justify-center">
+                                    <AlertTriangle size={8} className="text-white" />
+                                </div>
+                            )}
+
+                            <span className="text-[9px] font-black text-white uppercase italic truncate drop-shadow-md">
+                                {project.workName.substring(0, 15)}...
                             </span>
 
                             {/* Bar Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white p-3 rounded-2xl text-[10px] font-bold opacity-0 group-hover/bar:opacity-100 pointer-events-none transition-opacity z-50 shadow-2xl">
-                                <p className="text-amber-400 mb-1">PROJETADO</p>
-                                <p>Contrato: {formatDate(project.contractDate)}</p>
-                                <p>Limite: {formatDate(project.promisedDate)}</p>
-                                <div className="mt-2 pt-2 border-t border-white/10 flex justify-between">
-                                    <span>Status:</span>
-                                    <span className="text-amber-400">{project.currentStatus}</span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.3)] text-white p-4 rounded-[24px] text-[11px] font-bold opacity-0 group-hover/bar:opacity-100 pointer-events-none transition-all duration-300 z-50 transform translate-y-2 group-hover/bar:translate-y-0 border border-white/10">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-amber-400 uppercase tracking-widest text-[9px]">Análise de Prazo PCP</span>
+                                    <span className="bg-white/10 px-2 py-0.5 rounded-full text-[8px] font-black">{project.id.substring(0,8)}</span>
+                                </div>
+                                <div className="space-y-2 text-slate-300">
+                                    <div className="flex justify-between items-center group/item">
+                                        <span className="flex items-center gap-1.5 opacity-60"><Calendar size={12} /> Contrato:</span>
+                                        <span className="text-white bg-white/5 px-2 py-0.5 rounded-md">{formatDate(project.contractDate)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center group/item">
+                                        <span className="flex items-center gap-1.5 opacity-60"><Clock size={12} /> Limite:</span>
+                                        <span className={`px-2 py-0.5 rounded-md ${project.promisedDate && new Date(project.promisedDate) < new Date() ? 'text-red-400 bg-red-400/10' : 'text-white bg-white/5'}`}>{formatDate(project.promisedDate)}</span>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center">
+                                    <span className="text-[9px] text-slate-500 uppercase">Fase do Fluxo:</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className={`w-2 h-2 rounded-full ${getStatusColor(project.currentStatus)}`}></div>
+                                        <span className="text-amber-400 font-black italic tracking-tighter uppercase">{project.currentStatus}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -135,14 +145,13 @@ const GanttChartView: React.FC = () => {
                     {/* Milestones */}
                     {freightPos >= 0 && freightPos < viewWindowDays && (
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 z-30 group/freight"
+                            className="absolute top-1/2 -translate-y-1/2 z-20 group/freight"
                             style={{ left: `${freightPos * 40 + 20}px` }}
                         >
-                            <div className="w-8 h-8 -ml-4 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center border-2 border-white hover:scale-125 transition-transform cursor-pointer">
+                            <div className="w-8 h-8 -ml-4 bg-blue-600 text-white rounded-[10px] shadow-lg flex items-center justify-center border-2 border-white hover:scale-125 transition-all cursor-pointer">
                                 <Truck size={14} />
                             </div>
-                            {/* Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-blue-600 text-white p-2 rounded-xl text-[9px] font-black text-center opacity-0 group-hover/freight:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl uppercase italic">
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-36 bg-blue-600 text-white p-2 rounded-xl text-[10px] font-black text-center opacity-0 group-hover/freight:opacity-100 pointer-events-none transition-all z-50 shadow-2xl uppercase italic border border-white/20">
                                 Frete: {formatDate(project.freightDate)}
                             </div>
                         </div>
@@ -150,14 +159,13 @@ const GanttChartView: React.FC = () => {
 
                     {deliveryPos >= 0 && deliveryPos < viewWindowDays && (
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 z-30 group/delivery"
+                            className="absolute top-1/2 -translate-y-1/2 z-20 group/delivery"
                             style={{ left: `${deliveryPos * 40 + 20}px` }}
                         >
-                            <div className="w-8 h-8 -ml-4 bg-emerald-600 text-white rounded-xl shadow-lg flex items-center justify-center border-2 border-white hover:scale-125 transition-transform cursor-pointer">
+                            <div className="w-8 h-8 -ml-4 bg-emerald-600 text-white rounded-[10px] shadow-lg flex items-center justify-center border-2 border-white hover:scale-125 transition-all cursor-pointer">
                                 <Calendar size={14} />
                             </div>
-                            {/* Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-emerald-600 text-white p-2 rounded-xl text-[9px] font-black text-center opacity-0 group-hover/delivery:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl uppercase italic">
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-36 bg-emerald-600 text-white p-2 rounded-xl text-[10px] font-black text-center opacity-0 group-hover/delivery:opacity-100 pointer-events-none transition-all z-50 shadow-2xl uppercase italic border border-white/20">
                                 Entrega: {formatDate(project.deliveryDate)}
                             </div>
                         </div>
@@ -209,26 +217,26 @@ const GanttChartView: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-2xl shadow-xl">
+                    <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-2xl shadow-xl border border-white/10">
                         <button
                             onClick={() => setStartOffset(prev => prev - 7)}
-                            className="p-2 text-white hover:bg-card/10 rounded-xl transition-colors"
+                            className="p-2 text-white hover:bg-white/10 rounded-xl transition-colors active:scale-90"
                             aria-label="Voltar uma semana"
                         >
-                            <ChevronLeft size={20} />
+                            <ChevronLeft size={18} />
                         </button>
                         <button
                             onClick={() => setStartOffset(-14)}
-                            className="px-4 py-2 text-[10px] font-black text-amber-500 uppercase tracking-widest hover:bg-card/10 rounded-xl transition-colors"
+                            className="px-4 py-2 text-[10px] font-black text-amber-500 uppercase tracking-widest hover:bg-white/10 rounded-xl transition-colors"
                         >
-                            Hoje
+                            HOJE
                         </button>
                         <button
                             onClick={() => setStartOffset(prev => prev + 7)}
-                            className="p-2 text-white hover:bg-card/10 rounded-xl transition-colors"
+                            className="p-2 text-white hover:bg-white/10 rounded-xl transition-colors active:scale-90"
                             aria-label="Avançar uma semana"
                         >
-                            <ChevronRight size={20} />
+                            <ChevronRight size={18} />
                         </button>
                     </div>
                 </div>
@@ -270,10 +278,39 @@ const GanttChartView: React.FC = () => {
                 </div>
 
                 {/* Grid Body */}
-                <div className="overflow-x-auto overflow-y-auto max-h-[60vh] custom-scrollbar">
+                <div className="overflow-x-auto overflow-y-auto max-h-[65vh] custom-scrollbar relative">
+                    {/* Persistent Today Line across all rows */}
+                    <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10 pointer-events-none group/today" 
+                        style={{ left: `${256 + (Math.abs(startOffset) * 40)}px` }}
+                    >
+                        <div className="absolute top-0 -left-1.5 w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                            <div className="w-1 h-1 bg-white rounded-full"></div>
+                        </div>
+                    </div>
+
                     {filteredProjects.length > 0 ? (
-                        <div className="flex flex-col">
-                            {filteredProjects.map(renderProjectRow)}
+                        <div className="flex flex-col min-w-max">
+                            {['Venda', 'Projeto', 'Corte', 'Produção', 'Entrega', 'Instalação', 'Vistoria', 'Finalizada'].map(status => {
+                                const projectsInStatus = filteredProjects.filter(p => p.currentStatus === status);
+                                if (projectsInStatus.length === 0) return null;
+
+                                return (
+                                    <div key={status} className="flex flex-col">
+                                        {/* Status Header Row */}
+                                        <div className="flex bg-slate-50/80 sticky top-0 z-20 backdrop-blur-sm border-b border-slate-100">
+                                            <div className="sticky left-0 z-30 w-64 bg-slate-100/50 p-3 pl-6 border-r border-slate-200 flex items-center gap-2 shrink-0">
+                                                <div className={`w-2 h-2 rounded-full ${getStatusColor(status as any)}`}></div>
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{status}</span>
+                                                <span className="ml-auto bg-white/80 px-2 py-0.5 rounded-full text-[8px] font-bold text-slate-400 border border-slate-200">{projectsInStatus.length}</span>
+                                            </div>
+                                            <div className="flex-1 h-10 border-r border-slate-100 italic flex items-center px-4 text-[9px] text-slate-300 font-medium">Cronograma de Atividades - {status}</div>
+                                        </div>
+                                        
+                                        {projectsInStatus.map(renderProjectRow)}
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="p-20 text-center flex flex-col items-center gap-4">
