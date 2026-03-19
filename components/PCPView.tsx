@@ -48,6 +48,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showAssemblyModal, setShowAssemblyModal] = useState<string | null>(null);
   const [assemblySearch, setAssemblySearch] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [pendingProjectData, setPendingProjectData] = useState<Partial<Project> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const centralSuppliers = useMemo(() => suppliers.filter(s => s.type === 'Serviço (Corte/Fitação)'), [suppliers]);
@@ -259,6 +260,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
     extraData.environmentsDetails = updatedEnvironments;
 
+    setPendingProjectData(extraData);
     setShowLogisticsModal(showCentralModal);
     setShowCentralModal(null);
   };
@@ -310,11 +312,13 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     if (p) {
       updateProject({
         ...p,
+        ...pendingProjectData as any,
         deliveryPath: path,
         currentStatus: 'Produção',
         history: [...(p.history || []), { status: 'Produção', timestamp: new Date().toISOString() }]
       } as Project);
     }
+    setPendingProjectData(null);
     setShowLogisticsModal(null);
   };
 
