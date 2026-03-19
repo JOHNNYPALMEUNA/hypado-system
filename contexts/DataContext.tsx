@@ -519,9 +519,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 );
             }
 
-            const { error } = await supabase.from('projects').update(payload).eq('id', project.id);
-            // The logEvent logic should ideally be moved into the projectService.update or handled by a separate event logging service.
-            // For now, removing it as per the instruction's implied change to use service calls.
+            // The logEvent logic is handled above. 
+            // We use the service to handle the DB update consistently.
             await projectService.update(project);
             await fetchProjects();
         } catch (error) {
