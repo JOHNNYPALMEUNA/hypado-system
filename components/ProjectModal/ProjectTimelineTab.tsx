@@ -32,7 +32,7 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
 
         // 2. Timeline Events from DB (System logs)
         const sysEvents = safeTimelineEvents
-            .filter(e => e && e.relatedId === projectId && e.relatedType === 'PROJECT')
+            .filter(e => e && String(e.relatedId) === String(projectId) && e.relatedType === 'PROJECT')
             .map(e => ({
                 type: 'system',
                 title: e.eventType === 'STATUS_CHANGE' ? `Status: ${e.newValue}` : e.eventType,
@@ -44,7 +44,7 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
 
         // 3. Daily Logs (Occurrences / Bottlenecks)
         const occurrences = safeDailyLogs
-            .filter(l => l && l.projectId === projectId)
+            .filter(l => l && String(l.projectId) === String(projectId))
             .map(l => ({
                 type: 'occurrence',
                 title: l.category,
@@ -57,12 +57,8 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
 
         // Combine and Sort
         const combined = [...historyEvents, ...sysEvents, ...occurrences]
-            .filter(ev => ev.timestamp) // Ensure we have a timestamp to sort and display
-            .sort((a, b) => {
-                const timeA = new Date(a.timestamp).getTime();
-                const timeB = new Date(b.timestamp).getTime();
-                return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
-            });
+            .filter(ev => ev.timestamp) 
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); // Newest first for better UX
 
         // Remove duplicates
         const unique = combined.filter((ev, idx, self) => 

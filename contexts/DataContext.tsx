@@ -69,6 +69,7 @@ interface DataContextType {
     userRole: UserRole | null;
     currentUserEmail: string | null;
     currentUserId: string | null;
+    timelineEvents: TimelineEvent[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -498,6 +499,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const payload = mapProjectToDB(project);
             const { error } = await supabase.from('projects').insert([payload]);
             if (error) throw error;
+            
+            // Log Event: Project Creation
+            await logEvent(project.id, 'PROJECT', 'CREATED', undefined, project.currentStatus);
+            
             setProjects(prev => [...prev, project]);
         } catch (error: any) {
             console.error('Error adding project:', error);
@@ -1040,7 +1045,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isIdle,
             userRole,
             currentUserEmail,
-            currentUserId
+            currentUserId,
+            timelineEvents
         }}>
             {children}
         </DataContext.Provider>
