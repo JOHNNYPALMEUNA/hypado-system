@@ -119,7 +119,14 @@ export async function analyzeReceipt(base64Image: string, context?: string, mime
     Retorne APENAS um JSON no seguinte formato:
     {
       "items": [
-        { "name": "Nome do item na nota", "quantity": 0, "unitPrice": 0.00, "totalPrice": 0.00 }
+        { 
+          "name": "Nome do item na nota", 
+          "quantity": 0, 
+          "unitPrice": 0.00, 
+          "totalPrice": 0.00,
+          "category": "CHAPAS" | "FERRAGENS" | "PESSOAL" | "OUTROS",
+          "unit": "un" | "m" | "par" | "chapa" | "barra"
+        }
       ],
       "totalValue": 0.00,
       "description": "Resumo da nota (Fornecedor e data)"

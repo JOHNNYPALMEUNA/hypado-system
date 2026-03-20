@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Plus, Search, ShoppingCart, Clock, CheckCircle2, 
   FileSearch, Trash2, Printer, Camera, Upload, 
-  RefreshCw, DollarSign, X, MessageSquare, Sparkles 
+  RefreshCw, DollarSign, X, MessageSquare, Sparkles, Edit2 
 } from 'lucide-react';
 import { Quotation, Project, Supplier, Material, QuotationItem, Company } from '../../types';
 import { analyzeReceipt } from '../../geminiService';
@@ -18,6 +18,8 @@ interface PurchaseOrderManagerProps {
   deleteQuotation: (id: string) => Promise<void>;
   updateProject: (p: Project) => Promise<void>;
   company: Company;
+  addMaterial: (m: Material) => Promise<void>;
+  materialCategories: string[];
   showHistory?: boolean;
 }
 
@@ -31,11 +33,15 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   deleteQuotation,
   updateProject,
   company,
+  addMaterial,
+  materialCategories,
   showHistory = false
 }) => {
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
+  const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
   const [entryModalData, setEntryModalData] = useState<Quotation | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [pendingNewMaterials, setPendingNewMaterials] = useState<any[]>([]);
   const [newQuotation, setNewQuotation] = useState({ 
     projectId: '', 
     supplierId: '', 
@@ -79,18 +85,43 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
       return;
     }
     const project = projects.find(p => p.id === newQuotation.projectId);
-    const quotation: Quotation = {
-      id: `PED-${Date.now().toString().slice(-4)}`,
-      projectId: newQuotation.projectId,
-      workName: project?.workName || 'Obra',
-      supplierId: newQuotation.supplierId,
-      status: 'Cotação',
-      date: new Date().toISOString(),
-      items: newQuotation.items
-    };
-    await addQuotation(quotation);
+
+    if (editingQuotationId) {
+        const order = purchaseOrders.find(o => o.id === editingQuotationId);
+        if (order) {
+            await updateQuotation({
+                ...order,
+                projectId: newQuotation.projectId,
+                supplierId: newQuotation.supplierId,
+                items: newQuotation.items,
+                workName: project?.workName || 'Obra'
+            });
+        }
+    } else {
+        const quotation: Quotation = {
+          id: `PED-${Date.now().toString().slice(-4)}`,
+          projectId: newQuotation.projectId,
+          workName: project?.workName || 'Obra',
+          supplierId: newQuotation.supplierId,
+          status: 'Cotação',
+          date: new Date().toISOString(),
+          items: newQuotation.items
+        };
+        await addQuotation(quotation);
+    }
     setIsQuotationModalOpen(false);
+    setEditingQuotationId(null);
     setNewQuotation({ projectId: '', supplierId: '', items: [] });
+  };
+
+  const handleEditQuotation = (order: Quotation) => {
+      setEditingQuotationId(order.id);
+      setNewQuotation({
+          projectId: order.projectId,
+          supplierId: order.supplierId,
+          items: order.items
+      });
+      setIsQuotationModalOpen(true);
   };
 
   const handleSendPurchaseOrder = (order: Quotation) => {
@@ -182,6 +213,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
 
         if (result && result.items) {
           const matchedItems: QuotationItem[] = [];
+          const missingItems: any[] = [];
           
           result.items.forEach((r: any) => {
             const match = materials.find(m => 
@@ -197,17 +229,32 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                 unit: match.unit || 'un',
                 materialValue: r.unitPrice || 0
               });
+            } else {
+              // Item não encontrado na biblioteca
+              missingItems.push({
+                name: r.name,
+                quantity: r.quantity || 1,
+                unit: r.unit || 'un',
+                category: r.category || 'OUTROS',
+                materialValue: r.unitPrice || 0
+              });
             }
           });
 
-          if (matchedItems.length > 0) {
+          if (matchedItems.length > 0 || missingItems.length > 0) {
             setNewQuotation(prev => ({
               ...prev,
-              items: matchedItems
+              items: [...prev.items, ...matchedItems]
             }));
-            alert(`SUCESSO: ${matchedItems.length} itens identificados e adicionados!`);
+            
+            if (missingItems.length > 0) {
+                setPendingNewMaterials(missingItems);
+                alert(`IA detectou ${missingItems.length} materiais novos que não estão na biblioteca. Caso deseje, clique em "Cadastrar Novos" para adicioná-los.`);
+            } else {
+                alert(`SUCESSO: ${matchedItems.length} itens identificados e adicionados!`);
+            }
           } else {
-            alert('A IA não conseguiu encontrar materiais correspondentes na sua biblioteca.');
+            alert('A IA não conseguiu encontrar informações úteis na nota.');
           }
         }
         setIsAnalyzing(false);
@@ -218,6 +265,38 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
       alert("Falha no processamento da IA.");
       setIsAnalyzing(false);
     }
+  };
+
+  const registerMissingMaterials = async () => {
+    if (pendingNewMaterials.length === 0) return;
+    
+    const confirmedItems: QuotationItem[] = [];
+    
+    for (const item of pendingNewMaterials) {
+        const newId = `mat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        const newMat: Material = {
+            id: newId,
+            name: item.name,
+            category: item.category,
+            unit: item.unit,
+            costPrice: item.materialValue
+        };
+        await addMaterial(newMat);
+        confirmedItems.push({
+            productId: newId,
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            materialValue: item.materialValue
+        });
+    }
+    
+    setNewQuotation(prev => ({
+        ...prev,
+        items: [...prev.items, ...confirmedItems]
+    }));
+    setPendingNewMaterials([]);
+    alert(`${confirmedItems.length} novos materiais cadastrados e adicionados ao pedido!`);
   };
 
   const finalizeEntryAndInjectCost = async () => {
@@ -326,6 +405,13 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                         <MessageSquare size={20} />
                     </button>
                     <button 
+                        onClick={() => handleEditQuotation(q)}
+                        className="p-4 bg-amber-50 text-amber-600 rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm"
+                        title="Editar Requisição"
+                    >
+                        <Edit2 size={20} />
+                    </button>
+                    <button 
                         onClick={() => setEntryModalData({ ...q })} 
                         className="px-8 py-5 bg-slate-900 text-white rounded-[24px] font-black uppercase text-[10px] tracking-widest flex items-center gap-3 hover:bg-emerald-600 transition-all shadow-xl"
                     >
@@ -357,11 +443,11 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                   <div className="bg-slate-900 p-10 flex justify-between items-center shrink-0">
                       <div>
                           <h4 className="text-3xl font-black uppercase italic text-white tracking-widest flex items-center gap-4">
-                              <ShoppingCart size={32} className="text-amber-500" /> Nova Requisição
+                              <ShoppingCart size={32} className="text-amber-500" /> {editingQuotationId ? 'Editar Requisição' : 'Nova Requisição'}
                           </h4>
                           <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] mt-2">Montagem de cotação e envio automatizado</p>
                       </div>
-                      <button title="Fechar Modal" onClick={() => setIsQuotationModalOpen(false)} className="bg-white/10 p-4 rounded-full text-white hover:bg-white/20 transition-all">
+                      <button title="Fechar Modal" onClick={() => { setIsQuotationModalOpen(false); setEditingQuotationId(null); setPendingNewMaterials([]); }} className="bg-white/10 p-4 rounded-full text-white hover:bg-white/20 transition-all">
                           <X size={32} />
                       </button>
                   </div>
@@ -432,9 +518,30 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                   onClick={handleCreateQuotation}
                                   className="w-full py-5 bg-amber-500 text-foreground rounded-[20px] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:bg-emerald-500 transition-all active:scale-95"
                               >
-                                  Gerar Requisição
+                                  {editingQuotationId ? 'Salvar Alterações' : 'Gerar Requisição'}
                               </button>
                           </div>
+
+                          {pendingNewMaterials.length > 0 && (
+                              <div className="p-8 bg-amber-50 rounded-[40px] border border-amber-200 space-y-4 animate-in fade-in zoom-in-95">
+                                  <div className="flex items-center gap-2 text-amber-700 font-black uppercase text-[10px] tracking-widest">
+                                      <Sparkles size={16} /> Novos Materiais Detectados (IA)
+                                  </div>
+                                  <div className="space-y-2">
+                                      {pendingNewMaterials.map((m, i) => (
+                                          <div key={i} className="text-[10px] font-bold text-slate-600 bg-white/50 p-3 rounded-xl border border-amber-100 uppercase italic">
+                                              {m.name} ({m.quantity} {m.unit})
+                                          </div>
+                                      ))}
+                                  </div>
+                                  <button 
+                                    onClick={registerMissingMaterials}
+                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[8px] tracking-[0.2em] hover:bg-amber-600 transition-all shadow-lg"
+                                  >
+                                      Cadastrar e Adicionar ao Pedido
+                                  </button>
+                              </div>
+                          )}
                       </div>
 
                       {/* Right: Item Selection */}

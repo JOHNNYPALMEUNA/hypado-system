@@ -89,6 +89,8 @@ const ProcurementView: React.FC<Props> = ({
             deleteQuotation={deleteQuotation}
             updateProject={updateProject}
             company={company}
+            addMaterial={addMaterial}
+            materialCategories={materialCategories}
           />
         )}
 
