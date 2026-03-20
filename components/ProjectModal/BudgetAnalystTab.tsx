@@ -91,8 +91,10 @@ const BudgetAnalystTab: React.FC<BudgetAnalystTabProps> = ({ project }) => {
             const result = await analyzeBudget(project);
             setAnalysis(result);
             setHasAnalyzed(true);
-        } catch (err) {
-            setAnalysis('Erro ao conectar com a IA. Tente novamente.');
+        } catch (err: any) {
+            console.error("Erro na análise:", err);
+            const errorMsg = err?.message || 'Erro de conexão com o servidor de IA.';
+            setAnalysis(`❌ **Não foi possível gerar a análise.**\n\nMotivo: ${errorMsg}\n\nPor favor, verifique se todos os valores da obra estão preenchidos corretamente e tente novamente.`);
             setHasAnalyzed(true);
         } finally {
             setIsLoading(false);
