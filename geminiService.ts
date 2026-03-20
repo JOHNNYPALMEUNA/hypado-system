@@ -608,17 +608,20 @@ export async function analyzeBudget(project: any): Promise<string> {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const totalRevenue = Number(project.value || 0);
-    const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
+    const expenses = Array.isArray(project.expenses) ? project.expenses : (project.expenses ? Object.values(project.expenses) : []);
+    const totalExpenses = expenses.reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
     const grossMargin = totalRevenue - totalExpenses;
     const marginPct = totalRevenue > 0 ? ((grossMargin / totalRevenue) * 100).toFixed(1) : "0";
 
-    const expensesByCategory = (project.expenses || []).reduce((acc: any, curr: any) => {
+    const expensesByCategory = expenses.reduce((acc: any, curr: any) => {
       const cat = curr.category || 'Outros';
       acc[cat] = (acc[cat] || 0) + (Number(curr.value) || 0);
       return acc;
     }, {});
 
-    const environments = (project.environmentsDetails || []).map((e: any) => ({
+    const rawEnvs = project.environmentsDetails;
+    const environmentsArray = Array.isArray(rawEnvs) ? rawEnvs : (rawEnvs ? Object.values(rawEnvs) : []);
+    const environments = environmentsArray.map((e: any) => ({
       nome: e.name || 'Sem nome',
       valor: Number(e.value || 0),
       percentualServico: Number(e.servicePercentage || 0),
