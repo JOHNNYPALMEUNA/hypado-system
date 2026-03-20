@@ -745,11 +745,12 @@ export async function analyzeWorkProgress(renderBase64: string | null, photosBas
       6. Responda em português de forma clara e profissional.
       
       FORMATO DA RESPOSTA:
+      - **RESUMO DO PROJETO (PDF/Render)**: [Breve resumo do que foi identificado no plano técnico/PDF, cômodos detectados e principais especificações]
       - **AVANÇO ESTIMADO**: [XX]%
-      - **ANÁLISE POR AMBIENTE**: [Breve resumo do que está pronto em cada cômodo visível]
+      - **ANÁLISE POR AMBIENTE**: [Resumo do progresso em cada cômodo]
       - **DETALHES DE MONTAGEM**: [O que já está visível e concluído tecnicamente]
       - **PRÓXIMOS PASSOS / PENDÊNCIAS**: [O que falta para atingir o resultado do projeto]
-      - **ALERTAS**: [Se houver algo fora do padrão ou divergente do projeto]
+      - **ALERTAS**: [Divergências ou pontos de atenção]
       
       Seja preciso e técnico. Max 300 palavras.
     `;
