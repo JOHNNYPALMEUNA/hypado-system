@@ -95,7 +95,8 @@ const ObrasView: React.FC<Props> = ({
       currentStatus: 'Projeto' as ProductionStatus,
       checklist: [] as ChecklistItem[],
       cloudFolderLink: '', // New field
-      projectPdfUrl: '' // PDF Upload
+      projectPdfUrl: '', // PDF Upload
+      architectId: '' // Designer ID
    });
 
    // CEP Usage
@@ -243,7 +244,7 @@ const ObrasView: React.FC<Props> = ({
          outsourcedServices: [], value: '', contractDate: new Date().toISOString().split('T')[0],
          promisedDate: '', installerId: '', workAddress: '', currentStatus: 'Projeto', expenses: [],
          checklist: INITIAL_CHECKLIST.items.map(i => ({ ...i, passed: null })),
-         projectPdfUrl: ''
+         projectPdfUrl: '', architectId: ''
       });
       setIsModalOpen(true);
       setActiveModalTab('geral');
@@ -297,7 +298,8 @@ const ObrasView: React.FC<Props> = ({
          expenses: os.expenses || [], // FIX: Loading expenses
          cloudFolderLink: os.cloudFolderLink || '',
          attachments: os.attachments || [], // Load attachments
-         projectPdfUrl: os.projectPdfUrl || ''
+         projectPdfUrl: os.projectPdfUrl || '',
+         architectId: os.architectId || ''
       });
       setIsModalOpen(true);
    };

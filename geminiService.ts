@@ -725,3 +725,69 @@ export async function analyzePCP(project: any, timelineEvents: any[]): Promise<s
     return `Não foi possível gerar a análise de PCP. Erro: ${error?.message || 'Conexão interrompida'}.`;
   }
 }
+
+/**
+ * Analisa o avanço da obra comparando um Render 3D com fotos reais.
+ */
+export async function analyzeWorkProgress(renderBase64: string, photosBase64: string[]): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `
+      ESTIMATIVA DE AVANÇO DE OBRA (CARPINTARIA/MARCENARIA)
+      
+      INSTRUÇÕES:
+      1. A PRIMEIRA imagem é o PROJETO 3D (RENDER) - o objetivo final.
+      2. As IMAGENS SEGUINTES são FOTOS REAIS da obra em andamento.
+      3. Compare o Projeto com o Real e estime o percentual de conclusão (0% a 100%).
+      4. Identifique o que já foi montado (ex: caixaria, frentes, puxadores, tamponamentos) e o que falta.
+      5. Responda em português de forma clara e profissional.
+      
+      FORMATO DA RESPOSTA:
+      - **AVANÇO ESTIMADO**: [XX]%
+      - **ANÁLISE DE MONTAGEM**: [O que já está visível e concluído]
+      - **PRÓXIMOS PASSOS / PENDÊNCIAS**: [O que falta para atingir o resultado do render]
+      - **ALERTAS**: [Se houver algo fora do padrão ou divergente do projeto]
+      
+      Seja preciso e técnico. Max 200 palavras.
+    `;
+
+    // Preparar as partes para o modelo (Texto + Render + Fotos)
+    const parts: any[] = [{ text: prompt }];
+
+    // Adicionar Render
+    if (renderBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: renderBase64.includes(',') ? renderBase64.split(',')[1] : renderBase64
+        }
+      });
+    }
+
+    // Adicionar Fotos da Obra
+    photosBase64.forEach((photo, index) => {
+      if (photo) {
+        parts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: photo.includes(',') ? photo.split(',')[1] : photo
+          }
+        });
+      }
+    });
+
+    const result = await withRetry(() => model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: { 
+        temperature: 0.3,
+        maxOutputTokens: 800
+      }
+    }), 2);
+
+    return result.response.text();
+  } catch (error: any) {
+    console.error("Erro Work Progress AI:", error);
+    return `Não foi possível analisar o avanço da obra. Erro: ${error?.message || 'Verifique as imagens'}.`;
+  }
+}

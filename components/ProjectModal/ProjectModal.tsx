@@ -11,6 +11,8 @@ import EquipeTab from './EquipeTab';
 import ProjectTimelineTab from './ProjectTimelineTab';
 import BudgetAnalystTab from './BudgetAnalystTab';
 import PCPAnalystTab from './PCPAnalystTab';
+import WorkProgressAnalystTab from './WorkProgressAnalystTab';
+import { Camera } from 'lucide-react';
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -91,11 +93,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         { id: 'qualidade', label: 'Auditoria', icon: <ShieldCheck size={16} /> },
         { id: 'analyst', label: 'IA Financeira', icon: <Brain size={16} /> },
         { id: 'pcp_analyst', label: 'IA PCP', icon: <Gauge size={16} /> },
+        { id: 'work_progress', label: 'IA Avanço', icon: <Camera size={16} /> },
         { id: 'cpc', label: 'CPC Relatório', icon: <TrendingUp size={16} /> }
     ];
 
     const tabs = allTabs.filter(tab => {
-        if (tab.id === 'cpc' || tab.id === 'analyst' || tab.id === 'pcp_analyst') return userRole === 'owner';
+        if (tab.id === 'cpc' || tab.id === 'analyst' || tab.id === 'pcp_analyst' || tab.id === 'work_progress') return userRole === 'owner';
         return true;
     });
 
@@ -178,6 +181,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
                     {activeModalTab === 'analyst' && <BudgetAnalystTab project={editingProject} />}
                     {activeModalTab === 'pcp_analyst' && <PCPAnalystTab project={editingProject} />}
+                    {activeModalTab === 'work_progress' && <WorkProgressAnalystTab project={editingProject} />}
 
                     {activeModalTab === 'cpc' && (
                         <CPCTab
