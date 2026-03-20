@@ -125,16 +125,16 @@ const ConstructionDiaryView: React.FC = () => {
                                 <h2 className="text-xl font-black text-foreground uppercase tracking-tight flex items-center gap-2">
                                     <Hammer size={20} className="text-emerald-600" /> Obras em Instalação
                                 </h2>
-                                <button
-                                    onClick={() => {
-                                        setIsManualEntry(true);
-                                        setSelectedProject(null);
-                                        setShowLogModal(true);
-                                    }}
-                                    className="bg-slate-900 hover:bg-emerald-500 text-white hover:text-foreground px-6 py-3 rounded-xl font-black tracking-widest uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
-                                >
-                                    <Plus size={16} /> Ocorrência Avulsa (S/ Projeto)
-                                </button>
+                                    <button
+                                        onClick={() => {
+                                            setIsManualEntry(true);
+                                            setSelectedProject(null);
+                                            setShowLogModal(true);
+                                        }}
+                                        className="bg-slate-900 hover:bg-emerald-500 text-white hover:text-foreground px-6 py-3 rounded-xl font-black tracking-widest uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                                    >
+                                        <Plus size={16} /> Acompanhamento Avulso (S/ Projeto)
+                                    </button>
                             </div>
 
                             {/* Search */}
@@ -167,7 +167,7 @@ const ConstructionDiaryView: React.FC = () => {
                                             }}
                                             className="w-full bg-slate-900 text-white py-3 rounded-xl font-black tracking-widest uppercase text-xs hover:bg-emerald-500 hover:text-foreground transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                                         >
-                                            <Plus size={16} /> Registrar Ocorrência
+                                            <Plus size={16} /> Registrar Acompanhamento
                                         </button>
                                     </div>
                                 ))}

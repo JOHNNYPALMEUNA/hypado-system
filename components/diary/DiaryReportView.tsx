@@ -11,6 +11,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
+import { MessageCircle, Calendar } from 'lucide-react';
 import { DailyLog, Project } from '../../types';
 
 interface DiaryReportViewProps {
@@ -19,6 +20,39 @@ interface DiaryReportViewProps {
 }
 
 const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }) => {
+  const [reportDate, setReportDate] = React.useState(new Date().toISOString().split('T')[0]);
+
+  // Filter logs for the selected date
+  const filteredLogsForReport = dailyLogs.filter(l => l.date === reportDate);
+
+  const handleWhatsAppShare = () => {
+    if (filteredLogsForReport.length === 0) {
+      alert('Nenhuma ocorrência registrada nesta data para compartilhar.');
+      return;
+    }
+
+    const dateFormatted = new Date(reportDate + 'T12:00:00').toLocaleDateString();
+    let message = `*RESUMO DIÁRIO DE OBRAS - ${dateFormatted}*\n\n`;
+    message += `Total de Ocorrências: ${filteredLogsForReport.length}\n`;
+    message += `-----------------------------------\n\n`;
+
+    filteredLogsForReport.forEach((log, idx) => {
+      const proj = projects.find(p => p.id === log.projectId);
+      message += `*${idx + 1}. ${proj?.workName || log.workName || 'Obra Avulsa'}*\n`;
+      message += `📌 Categoria: ${log.category}\n`;
+      message += `📝 Relato: ${log.description}\n`;
+      if (log.reworkDetails && log.reworkDetails.length > 0) {
+        message += `⚠️ Peça: ${log.reworkDetails[0].partName} (${log.reworkDetails[0].width}x${log.reworkDetails[0].height})\n`;
+      }
+      message += `👷 Status: ${log.status}\n\n`;
+    });
+
+    message += `_Gerado via Hypado System_`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  };
+
   // 1. Data by Category
   const categories = Array.from(new Set(dailyLogs.map(l => l.category)));
   const categoryData = categories.map(cat => ({
@@ -39,6 +73,36 @@ const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+      {/* WhatsApp Summary Section */}
+      <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+        <div className="relative z-10 text-center md:text-left">
+          <h3 className="text-xl font-black text-white uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
+            <MessageCircle className="text-emerald-400" size={24} /> Compartilhar Resumo (Diretoria)
+          </h3>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Envie o resumo das ocorrências do dia anterior/selecionado via WhatsApp</p>
+        </div>
+        <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
+          <div className="flex-1 md:w-48 relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
+            <input 
+              type="date"
+              title="Data do Relatório"
+              placeholder="aaaa-mm-dd"
+              className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
+              value={reportDate}
+              onChange={e => setReportDate(e.target.value)}
+            />
+          </div>
+          <button 
+             onClick={handleWhatsAppShare}
+             className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center gap-2"
+          >
+            <MessageCircle size={18} /> Enviar WhatsApp
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Category Chart */}

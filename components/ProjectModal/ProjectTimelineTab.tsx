@@ -32,7 +32,10 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
 
         // 2. Timeline Events from DB (System logs)
         const sysEvents = safeTimelineEvents
-            .filter(e => e && String(e.relatedId) === String(projectId) && e.relatedType === 'PROJECT')
+            .filter(e => {
+                const match = e && String(e.relatedId) === String(projectId) && e.relatedType === 'PROJECT';
+                return match;
+            })
             .map(e => ({
                 type: 'system',
                 title: e.eventType === 'STATUS_CHANGE' ? `Status: ${e.newValue}` : e.eventType,
@@ -55,10 +58,34 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
                 author: l.author
             }));
 
+        // 4. Force Initial Event (If it's in a status, it must have started)
+        const initialPoint = {
+            type: 'status_change',
+            title: 'Início da OS',
+            description: 'Ordem de serviço registrada no sistema.',
+            timestamp: (historyEvents[0]?.timestamp) || new Date().toISOString(), // Fallback
+            status: 'Projeto' as any,
+            severity: 'info'
+        };
+
         // Combine and Sort
-        const combined = [...historyEvents, ...sysEvents, ...occurrences]
+        const combined = [...historyEvents, ...sysEvents, ...occurrences];
+        
+        // Add initial point if no status changes recorded yet
+        if (combined.length === 0) {
+            combined.push(initialPoint);
+        }
+
+        console.log(`DEBUG TIMELINE [${projectId}]:`, {
+            historyLen: historyEvents.length,
+            sysLen: sysEvents.length,
+            logsLen: occurrences.length,
+            total: combined.length
+        });
+
+        const sorted = combined
             .filter(ev => ev.timestamp) 
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()); // Newest first for better UX
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         // Remove duplicates
         const unique = combined.filter((ev, idx, self) => 

@@ -14,11 +14,15 @@ interface CPCTabProps {
 }
 
 const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => {
-    const { userRole, updateProject } = useData();
+    const { userRole, updateProject, refundRequests } = useData();
 
     // 1. Calculate Financials
+    const projectRefunds = (refundRequests || [])
+        .filter(r => String(r.projectId) === String(project.id));
+    
+    const totalRefunds = projectRefunds.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const totalRevenue = project.value || 0;
-    const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
+    const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0) + totalRefunds;
     const grossMargin = totalRevenue - totalExpenses;
     const marginPercentage = totalRevenue > 0 ? ((grossMargin / totalRevenue) * 100) : 0;
 
@@ -49,6 +53,10 @@ const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => 
         acc[cat] = (acc[cat] || 0) + (curr.value || 0);
         return acc;
     }, {});
+
+    if (totalRefunds > 0) {
+        expensesByCategory['Financeiro / Reembolsos'] = totalRefunds;
+    }
 
     // 3. Find Architect & Installer
     const assignedInstaller = installers.find(i => i.id === project.installerId);
@@ -162,6 +170,26 @@ const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => 
                                                         <Trash2 size={18} />
                                                     </button>
                                                 </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* LISTA DE REEMBOLSOS / DIÁRIAS (READ ONLY) */}
+                            {totalRefunds > 0 && (
+                                <div className="mt-8 border-t border-dashed border-slate-100 pt-6">
+                                    <h6 className="text-[10px] font-black uppercase text-indigo-600 mb-4 tracking-widest flex items-center gap-2">
+                                        <DollarSign size={12} /> Despesas Reembolsáveis (Financeiro)
+                                    </h6>
+                                    <div className="space-y-2">
+                                        {projectRefunds.map(r => (
+                                            <div key={r.id} className="flex justify-between items-center p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50 text-xs text-indigo-900 font-bold">
+                                                <div className="flex-1">
+                                                    <p>{r.description || r.category}</p>
+                                                    <p className="text-[10px] text-indigo-400 uppercase font-black">{r.collaboratorName} • {new Date(r.date).toLocaleDateString()}</p>
+                                                </div>
+                                                <span className="font-black text-indigo-600 ml-2">{formatCurrency(r.amount)}</span>
                                             </div>
                                         ))}
                                     </div>
