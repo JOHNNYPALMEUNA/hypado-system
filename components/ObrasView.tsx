@@ -96,7 +96,8 @@ const ObrasView: React.FC<Props> = ({
       checklist: [] as ChecklistItem[],
       cloudFolderLink: '', // New field
       projectPdfUrl: '', // PDF Upload
-      architectId: '' // Designer ID
+      architectId: '', // Designer ID
+      renderImageUrl: '' // 3D Render Image
    });
 
    // CEP Usage
@@ -244,7 +245,7 @@ const ObrasView: React.FC<Props> = ({
          outsourcedServices: [], value: '', contractDate: new Date().toISOString().split('T')[0],
          promisedDate: '', installerId: '', workAddress: '', currentStatus: 'Projeto', expenses: [],
          checklist: INITIAL_CHECKLIST.items.map(i => ({ ...i, passed: null })),
-         projectPdfUrl: '', architectId: ''
+         projectPdfUrl: '', architectId: '', renderImageUrl: ''
       });
       setIsModalOpen(true);
       setActiveModalTab('geral');
@@ -282,6 +283,7 @@ const ObrasView: React.FC<Props> = ({
          contractDate: os.contractDate,
          promisedDate: os.promisedDate,
          installerId: os.installerId || '',
+         architectId: os.architectId || '',
          workAddress: os.workAddress,
          // Address Fields
          addressCep: os.addressCep || '',
@@ -299,7 +301,7 @@ const ObrasView: React.FC<Props> = ({
          cloudFolderLink: os.cloudFolderLink || '',
          attachments: os.attachments || [], // Load attachments
          projectPdfUrl: os.projectPdfUrl || '',
-         architectId: os.architectId || ''
+         renderImageUrl: os.renderImageUrl || ''
       });
       setIsModalOpen(true);
    };
@@ -520,6 +522,7 @@ const ObrasView: React.FC<Props> = ({
          cloudFolderLink: (formData as any).cloudFolderLink,
          attachments: (formData as any).attachments || [],
          projectPdfUrl: (formData as any).projectPdfUrl,
+         renderImageUrl: formData.renderImageUrl,
          materialsDelivered: editingProjectId ? projects.find(p => p.id === editingProjectId)?.materialsDelivered : false
       };
 

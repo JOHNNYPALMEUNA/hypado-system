@@ -229,6 +229,7 @@ export interface Project {
   projectPdfUrl?: string; // URL to the project PDF
   modules?: SelectedModule[];
   architectId?: string; // ID of the architect/designer
+  renderImageUrl?: string; // URL to the 3D Render image for AI comparison
 }
 
 export interface Product {

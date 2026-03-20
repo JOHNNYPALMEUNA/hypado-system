@@ -1,16 +1,39 @@
-import React, { useState } from 'react';
-import { Camera, Image as ImageIcon, Sparkles, Loader2, CheckCircle2, Play, Trash2, Plus, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Camera, Image as ImageIcon, Sparkles, Loader2, CheckCircle2, Play, Trash2, Plus, X, RefreshCw, Save } from 'lucide-react';
 import { analyzeWorkProgress } from '../../geminiService';
+import { useData } from '../../contexts/DataContext';
 
 interface WorkProgressAnalystTabProps {
     project: any;
 }
 
 const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project }) => {
-    const [renderImage, setRenderImage] = useState<string | null>(null);
+    const { dailyLogs, updateProject } = useData();
+    const [renderImage, setRenderImage] = useState<string | null>(project.renderImageUrl || null);
     const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
     const [analysis, setAnalysis] = useState<string | null>(null);
+    const [completionPercentage, setCompletionPercentage] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSavingRender, setIsSavingRender] = useState(false);
+
+    // Sync render image with project if it changes externally
+    useEffect(() => {
+        if (project.renderImageUrl) {
+            setRenderImage(project.renderImageUrl);
+        }
+    }, [project.renderImageUrl]);
+
+    // Load photos from Daily Logs
+    useEffect(() => {
+        const fetchDiaryPhotos = () => {
+            const projectLogs = dailyLogs.filter(log => log.projectId === project.id);
+            const photos = projectLogs
+                .filter(log => log.photoUrl)
+                .map(log => log.photoUrl as string);
+            setProgressPhotos(photos);
+        };
+        fetchDiaryPhotos();
+    }, [dailyLogs, project.id]);
 
     const handleRenderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -20,24 +43,35 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
         reader.readAsDataURL(file);
     };
 
-    const handlePhotosUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []) as File[];
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onloadend = () => setProgressPhotos(prev => [...prev, reader.result as string]);
-            reader.readAsDataURL(file);
-        });
+    const handleSaveRender = async () => {
+        if (!renderImage) return;
+        setIsSavingRender(true);
+        try {
+            await updateProject({ ...project, renderImageUrl: renderImage });
+            alert("Imagem do projeto (Render) salva com sucesso!");
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao salvar imagem.");
+        } finally {
+            setIsSavingRender(false);
+        }
     };
 
     const handleAnalyze = async () => {
         if (!renderImage || progressPhotos.length === 0) {
-            alert("Por favor, selecione o Render e pelo menos uma foto da obra.");
+            alert("Por favor, garanta que o Render está presente e que existam fotos no Diário de Obra.");
             return;
         }
         setIsLoading(true);
         try {
             const result = await analyzeWorkProgress(renderImage, progressPhotos);
             setAnalysis(result);
+            
+            // Extract percentage
+            const match = result.match(/AVANÇO ESTIMADO\*\*:\s*(\d+)%/i);
+            if (match) {
+                setCompletionPercentage(parseInt(match[1]));
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -66,33 +100,60 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            {/* Header section */}
+            {/* Header section with Stats */}
             <div className="bg-card p-8 rounded-[40px] border border-border shadow-sm">
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                        <Camera size={24} />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                            <Camera size={24} />
+                        </div>
+                        <div>
+                            <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">IA Avanço de Obra</h4>
+                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Controle visual de montagem vs projeto</p>
+                        </div>
                     </div>
-                    <div>
-                        <h4 className="text-xl font-black text-slate-900 uppercase italic tracking-tight">IA Avanço de Obra</h4>
-                        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Controle visual de montagem vs projeto</p>
+                    
+                    <div className="flex items-center gap-2">
+                         <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-2">
+                            <ImageIcon size={14} className="text-slate-400" />
+                            <span className="text-[10px] font-black uppercase text-slate-500">{progressPhotos.length} Fotos no Diário</span>
+                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Render Image Source */}
                     <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Projeto 3D (Render / Objetivo)</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Projeto 3D (Objetivo Final)</label>
+                            {renderImage && renderImage !== project.renderImageUrl && (
+                                <button 
+                                    onClick={handleSaveRender}
+                                    disabled={isSavingRender}
+                                    className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-700 transition-colors"
+                                >
+                                    {isSavingRender ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                    Fixar Render no Projeto
+                                </button>
+                            )}
+                        </div>
                         <div className={`relative aspect-video rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center overflow-hidden h-48 bg-muted/20 ${renderImage ? 'border-primary' : 'border-slate-200 hover:border-primary/50'}`}>
                             {renderImage ? (
                                 <>
                                     <img src={renderImage} alt="Render" className="w-full h-full object-cover" />
-                                    <button 
-                                        onClick={() => setRenderImage(null)}
-                                        className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-xl shadow-lg hover:scale-110 transition-all z-10"
-                                        title="Remover Render"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                        <label className="cursor-pointer p-3 bg-white text-slate-900 rounded-2xl shadow-xl hover:scale-110 transition-all">
+                                            <RefreshCw size={18} />
+                                            <input type="file" title="Trocar Render" accept="image/*" className="hidden" onChange={handleRenderUpload} />
+                                        </label>
+                                        <button 
+                                            onClick={() => setRenderImage(null)}
+                                            className="p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:scale-110 transition-all"
+                                            title="Remover Render"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </>
                             ) : (
                                 <label className="cursor-pointer flex flex-col items-center w-full h-full justify-center">
@@ -104,27 +165,23 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
                         </div>
                     </div>
 
-                    {/* Progress Photos Source */}
+                    {/* Progress Photos Source (from Daily Logs) */}
                     <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Fotos Atuais (Progresso)</label>
-                        <div className="grid grid-cols-3 gap-3">
-                            {progressPhotos.map((photo, idx) => (
-                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm group">
-                                    <img src={photo} alt="Progresso" className="w-full h-full object-cover" />
-                                    <button 
-                                        onClick={() => setProgressPhotos(prev => prev.filter((_, i) => i !== idx))}
-                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                        title="Remover Foto"
-                                    >
-                                        <X size={12} />
-                                    </button>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Progresso Real (Via Diário de Obra)</label>
+                        <div className="grid grid-cols-3 gap-3 h-48 content-start overflow-y-auto pr-2 custom-scrollbar">
+                            {progressPhotos.length > 0 ? (
+                                progressPhotos.map((photo, idx) => (
+                                    <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm bg-muted/20">
+                                        <img src={photo} alt="Progresso" className="w-full h-full object-cover" />
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-3 flex flex-col items-center justify-center h-full bg-slate-50 border border-slate-100 rounded-3xl p-6 text-center">
+                                    <ImageIcon size={24} className="text-slate-300 mb-2" />
+                                    <p className="text-[10px] font-black uppercase text-slate-400">Nenhuma foto encontrada no Diário de Obra</p>
+                                    <p className="text-[9px] text-slate-400 mt-1 uppercase italic tracking-tighter">O montador deve registrar o progresso no Diário.</p>
                                 </div>
-                            ))}
-                            <label className="cursor-pointer aspect-square rounded-2xl border-2 border-dashed border-slate-200 hover:border-primary/50 flex flex-col items-center justify-center transition-all bg-muted/20 group">
-                                <Plus size={24} className="text-slate-300 group-hover:text-primary transition-colors" />
-                                <span className="text-[8px] font-black uppercase text-slate-400 group-hover:text-primary transition-colors">Adicionar</span>
-                                <input type="file" title="Adicionar Fotos" accept="image/*" multiple className="hidden" onChange={handlePhotosUpload} />
-                            </label>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -145,7 +202,7 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
                             <Play size={20} className="text-primary group-hover:text-white" />
                         )}
                         <span className="text-white font-black uppercase tracking-widest text-sm">
-                            {isLoading ? 'Analisando Imagens...' : 'Analisar Avanço agora'}
+                            {isLoading ? 'Cruzando Projeto vs Real...' : 'Analisar Avanço agora'}
                         </span>
                     </div>
                 </button>
@@ -154,22 +211,36 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
             {/* AI Results */}
             {analysis && (
                 <div className="bg-card rounded-[40px] border border-border overflow-hidden shadow-xl animate-in zoom-in-95 duration-500">
-                    <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-8 flex items-center gap-6">
-                        <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-white backdrop-blur-md border border-white/30">
-                            <Sparkles size={32} />
+                    <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-8 flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                            <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center text-white backdrop-blur-md border border-white/30">
+                                <Sparkles size={32} />
+                            </div>
+                            <div>
+                                <h5 className="text-white font-black text-xl uppercase italic tracking-tight">Veredicto de Montagem</h5>
+                                <p className="text-emerald-50 text-[10px] font-bold uppercase tracking-widest">O que falta para chegar no render:</p>
+                            </div>
                         </div>
-                        <div>
-                            <h5 className="text-white font-black text-xl uppercase italic tracking-tight">Resultado do Avanço</h5>
-                            <p className="text-emerald-50 text-[10px] font-bold uppercase tracking-widest">Análise Baseada em Visão Computacional</p>
-                        </div>
+
+                        {completionPercentage !== null && (
+                            <div className="text-right">
+                                <span className="text-4xl font-black text-white italic">{completionPercentage}%</span>
+                                <div className="w-32 h-2 bg-white/20 rounded-full mt-2 overflow-hidden">
+                                    <div 
+                                        className="h-full bg-white rounded-full transition-all duration-1000" 
+                                        style={{ width: `${completionPercentage}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="p-10 bg-white">
                         <div className="max-w-3xl mx-auto">
                             {renderMarkdown(analysis)}
                         </div>
-                        <div className="mt-10 pt-8 border-t border-slate-100 flex items-center gap-3 text-emerald-600">
+                        <div className="mt-10 pt-8 border-t border-slate-100 flex items-center gap-3 text-emerald-600 font-bold uppercase text-[9px] tracking-widest italic">
                             <CheckCircle2 size={18} />
-                            <p className="text-[10px] font-black uppercase tracking-widest italic">O resultado é uma estimativa baseada nas fotos fornecidas.</p>
+                            <span>Análise Visual concluída com sucesso.</span>
                         </div>
                     </div>
                 </div>
