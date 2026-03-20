@@ -5,6 +5,7 @@ import { useData } from '../../contexts/DataContext';
 
 interface WorkProgressAnalystTabProps {
     project: any;
+    handlePdfDelete?: () => void;
 }
 
 interface PhotoWithMeta {
@@ -12,7 +13,10 @@ interface PhotoWithMeta {
     environment?: string;
 }
 
-const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project }) => {
+const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ 
+    project,
+    handlePdfDelete
+}) => {
     const { dailyLogs, updateProject } = useData();
     const [renderImage, setRenderImage] = useState<string | null>(project.renderImageUrl || null);
     const [progressPhotos, setProgressPhotos] = useState<PhotoWithMeta[]>([]);
@@ -221,6 +225,21 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
                                                 <input type="file" title="Subir Render" accept="image/*" className="hidden" onChange={handleRenderUpload} />
                                             </label>
                                         </div>
+                                    )}
+
+                                    {handlePdfDelete && (
+                                        <button
+                                            onClick={() => {
+                                                if (confirm('Deseja remover o PDF do projeto e cancelar a leitura da IA?')) {
+                                                    handlePdfDelete();
+                                                    setPdfSummary(null);
+                                                }
+                                            }}
+                                            className="mt-2 text-[8px] font-black uppercase text-red-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                                            title="Remover PDF"
+                                        >
+                                            <Trash2 size={10} /> Remover PDF do Projeto
+                                        </button>
                                     )}
                                 </div>
                             ) : (

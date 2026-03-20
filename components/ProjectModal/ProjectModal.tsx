@@ -31,6 +31,7 @@ interface ProjectModalProps {
 
     // Handlers
     handlePdfUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handlePdfDelete: () => void;
     handleCopyClientAddress: () => void;
     handleFetchAddress: () => void;
     generateWhatsappOrder: (envName: string) => void;
@@ -67,6 +68,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     outsourcedCategories,
     materialCategories,
     handlePdfUpload,
+    handlePdfDelete,
     handleCopyClientAddress,
     handleFetchAddress,
     generateWhatsappOrder,
@@ -144,6 +146,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             outsourcedCategories={outsourcedCategories}
                             materialCategories={materialCategories}
                             handlePdfUpload={handlePdfUpload}
+                            handlePdfDelete={handlePdfDelete}
                             handleCopyClientAddress={handleCopyClientAddress}
                             handleFetchAddress={handleFetchAddress}
                             generateWhatsappOrder={generateWhatsappOrder}
@@ -181,7 +184,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
                     {activeModalTab === 'analyst' && <BudgetAnalystTab project={editingProject} />}
                     {activeModalTab === 'pcp_analyst' && <PCPAnalystTab project={editingProject} />}
-                    {activeModalTab === 'work_progress' && <WorkProgressAnalystTab project={editingProject} />}
+                    {activeModalTab === 'work_progress' && (
+                        <WorkProgressAnalystTab 
+                            project={formData} 
+                            handlePdfDelete={handlePdfDelete}
+                        />
+                    )}
 
                     {activeModalTab === 'cpc' && (
                         <CPCTab

@@ -13,6 +13,7 @@ interface GeralTabProps {
     outsourcedCategories: string[];
     materialCategories: string[];
     handlePdfUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handlePdfDelete: () => void;
     handleCopyClientAddress: () => void;
     handleFetchAddress: () => void;
     generateWhatsappOrder: (envName: string) => void;
@@ -31,6 +32,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
     outsourcedCategories,
     materialCategories,
     handlePdfUpload,
+    handlePdfDelete,
     handleCopyClientAddress,
     handleFetchAddress,
     generateWhatsappOrder,
@@ -67,14 +69,29 @@ const GeralTab: React.FC<GeralTabProps> = ({
                             </span>
                         </label>
                         {(formData as any).projectPdfUrl && (
-                            <a
-                                href={(formData as any).projectPdfUrl}
-                                download="projeto.pdf"
-                                className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
-                                title="Baixar PDF"
-                            >
-                                <ArrowRight size={16} className="rotate-90" />
-                            </a>
+                            <div className="flex items-center gap-1">
+                                <a
+                                    href={(formData as any).projectPdfUrl}
+                                    download="projeto.pdf"
+                                    className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                    title="Baixar PDF"
+                                >
+                                    <ArrowRight size={16} className="rotate-90" />
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (confirm('Deseja remover o PDF do projeto deste dossiê?')) {
+                                            handlePdfDelete();
+                                        }
+                                    }}
+                                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                                    title="Remover PDF"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

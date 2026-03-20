@@ -345,6 +345,13 @@ const ObrasView: React.FC<Props> = ({
       reader.readAsDataURL(file);
    };
 
+   const handlePdfDelete = () => {
+      setFormData(prev => ({ ...prev, projectPdfUrl: undefined }));
+      if (editingProjectId) {
+         logEvent(editingProjectId, 'PROJECT', 'UPDATED', 'PDF', 'PDF Removido (OS)');
+      }
+   };
+
    const removeAttachment = (index: number) => {
       setFormData(prev => ({
          ...prev,
@@ -809,6 +816,7 @@ const ObrasView: React.FC<Props> = ({
             outsourcedCategories={outsourcedCategories}
             materialCategories={materialCategories}
             handlePdfUpload={handlePdfUpload}
+            handlePdfDelete={handlePdfDelete}
             handleDelete={handleDelete}
             handleCancel={handleCancel}
             handleCopyClientAddress={handleCopyClientAddress}
