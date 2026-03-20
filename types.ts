@@ -378,6 +378,7 @@ export interface DailyLog {
     reason: string;
   }[];
   status: 'Pendente' | 'Em Produção' | 'Pronto' | 'Concluído' | 'Registrado';
+  environment?: string; // New field for environment mapping
   createdAt: string;
 }
 

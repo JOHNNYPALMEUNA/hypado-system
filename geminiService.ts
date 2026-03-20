@@ -727,9 +727,9 @@ export async function analyzePCP(project: any, timelineEvents: any[]): Promise<s
 }
 
 /**
- * Analisa o avanço da obra comparando um Render 3D com fotos reais.
+ * Analisa o avanço da obra comparando um Render 3D (ou PDF do projeto) com fotos reais.
  */
-export async function analyzeWorkProgress(renderBase64: string, photosBase64: string[]): Promise<string> {
+export async function analyzeWorkProgress(renderBase64: string | null, photosBase64: string[], pdfBase64?: string): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -737,25 +737,37 @@ export async function analyzeWorkProgress(renderBase64: string, photosBase64: st
       ESTIMATIVA DE AVANÇO DE OBRA (CARPINTARIA/MARCENARIA)
       
       INSTRUÇÕES:
-      1. A PRIMEIRA imagem é o PROJETO 3D (RENDER) - o objetivo final.
-      2. As IMAGENS SEGUINTES são FOTOS REAIS da obra em andamento.
-      3. Compare o Projeto com o Real e estime o percentual de conclusão (0% a 100%).
+      1. SÃO FORNECIDAS IMAGENS E/OU UM PDF DE PROJETO como "Objetivo Final".
+      2. As DEMAIS IMAGENS são FOTOS REAIS da obra em andamento.
+      3. Compare o Projeto (Render ou PDF) com o Real e estime o percentual de conclusão (0% a 100%).
       4. Identifique o que já foi montado (ex: caixaria, frentes, puxadores, tamponamentos) e o que falta.
-      5. Responda em português de forma clara e profissional.
+      5. Tente agrupar a análise por AMBIENTE se as fotos permitirem identificação.
+      6. Responda em português de forma clara e profissional.
       
       FORMATO DA RESPOSTA:
       - **AVANÇO ESTIMADO**: [XX]%
-      - **ANÁLISE DE MONTAGEM**: [O que já está visível e concluído]
-      - **PRÓXIMOS PASSOS / PENDÊNCIAS**: [O que falta para atingir o resultado do render]
+      - **ANÁLISE POR AMBIENTE**: [Breve resumo do que está pronto em cada cômodo visível]
+      - **DETALHES DE MONTAGEM**: [O que já está visível e concluído tecnicamente]
+      - **PRÓXIMOS PASSOS / PENDÊNCIAS**: [O que falta para atingir o resultado do projeto]
       - **ALERTAS**: [Se houver algo fora do padrão ou divergente do projeto]
       
-      Seja preciso e técnico. Max 200 palavras.
+      Seja preciso e técnico. Max 300 palavras.
     `;
 
-    // Preparar as partes para o modelo (Texto + Render + Fotos)
+    // Preparar as partes para o modelo (Texto + Design + Fotos)
     const parts: any[] = [{ text: prompt }];
 
-    // Adicionar Render
+    // Adicionar PDF se disponível (Fonte Primária de Verdade)
+    if (pdfBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: "application/pdf",
+          data: pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64
+        }
+      });
+    }
+
+    // Adicionar Render se disponível (Fonte Secundária)
     if (renderBase64) {
       parts.push({
         inlineData: {
@@ -766,7 +778,7 @@ export async function analyzeWorkProgress(renderBase64: string, photosBase64: st
     }
 
     // Adicionar Fotos da Obra
-    photosBase64.forEach((photo, index) => {
+    photosBase64.forEach((photo) => {
       if (photo) {
         parts.push({
           inlineData: {
@@ -780,14 +792,14 @@ export async function analyzeWorkProgress(renderBase64: string, photosBase64: st
     const result = await withRetry(() => model.generateContent({
       contents: [{ role: 'user', parts }],
       generationConfig: { 
-        temperature: 0.3,
-        maxOutputTokens: 800
+        temperature: 0.2,
+        maxOutputTokens: 1000
       }
     }), 2);
 
     return result.response.text();
   } catch (error: any) {
     console.error("Erro Work Progress AI:", error);
-    return `Não foi possível analisar o avanço da obra. Erro: ${error?.message || 'Verifique as imagens'}.`;
+    return `Não foi possível analisar o avanço da obra. Erro: ${error?.message || 'Verifique as imagens/PDF'}.`;
   }
 }

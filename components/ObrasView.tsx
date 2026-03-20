@@ -327,9 +327,9 @@ const ObrasView: React.FC<Props> = ({
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // Limit to 2MB (Supabase default request size is often 5-6MB, base64 increases size)
-      if (file.size > 2 * 1024 * 1024) {
-         alert('O arquivo é muito grande! Por favor, envie um PDF com menos de 2MB ou use o link de pasta na nuvem.');
+      // Limit to 5MB
+      if (file.size > 5 * 1024 * 1024) {
+         alert('O arquivo é muito grande! Por favor, envie um PDF com menos de 5MB.');
          return;
       }
 

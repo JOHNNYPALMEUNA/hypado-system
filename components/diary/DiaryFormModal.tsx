@@ -36,6 +36,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
   const [photoUrl, setPhotoUrl] = useState('');
   const [specificProjectId, setSpecificProjectId] = useState('');
   const [workName, setWorkName] = useState('');
+  const [environment, setEnvironment] = useState('');
 
   // Rework details
   const [partName, setPartName] = useState('');
@@ -74,6 +75,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
     setQuantity('1');
     setMissingMaterialName('');
     setAbsentInstallerId('');
+    setEnvironment('');
   };
 
   const handleSaveLog = async () => {
@@ -92,6 +94,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
       description: description,
       photoUrl: photoUrl || undefined,
       status: (category === 'Falta de Peça' || category === 'Peça Danificada' || category === 'Falta de Material') ? 'Pendente' : 'Registrado',
+      environment: environment || undefined,
       createdAt: new Date().toISOString()
     };
 
@@ -151,6 +154,24 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
                 value={workName}
                 onChange={e => setWorkName(e.target.value)}
               />
+            </div>
+          )}
+
+          {selectedProject && selectedProject.environments && selectedProject.environments.length > 0 && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="block text-sm font-bold text-foreground mb-2 italic">Ambiente Relacionado (Opcional)</label>
+              <select
+                title="Selecionar Ambiente"
+                className="w-full p-4 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold bg-muted/20"
+                value={environment}
+                onChange={e => setEnvironment(e.target.value)}
+              >
+                <option value="">Selecione o cômodo...</option>
+                {selectedProject.environments.map(env => (
+                  <option key={env} value={env}>{env}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase italic tracking-tighter text-right">Mapeie a foto para análise por ambiente</p>
             </div>
           )}
 
