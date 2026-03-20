@@ -37,6 +37,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showOutsourcedModal, setShowOutsourcedModal] = useState<string | null>(null);
   const [showLogisticsModal, setShowLogisticsModal] = useState<string | null>(null);
   const [showPreAssemblyModal, setShowPreAssemblyModal] = useState<string | null>(null);
+  const [tempPreAssemblyTeam, setTempPreAssemblyTeam] = useState<string[]>([]);
   const [showFreightModal, setShowFreightModal] = useState<string | null>(null);
   const [showDeliveryModal, setShowDeliveryModal] = useState<string | null>(null);
   const [tempDate, setTempDate] = useState<string>('');
@@ -67,6 +68,13 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
       setTempFreightDate(p?.freightDate?.split('T')[0] || '');
     }
   }, [showFreightModal, projects]); // Added projects to dependency array
+
+  useEffect(() => {
+    if (showPreAssemblyModal) {
+      const p = projects.find(proj => proj.id === showPreAssemblyModal);
+      setTempPreAssemblyTeam(p?.preAssemblyTeam || []);
+    }
+  }, [showPreAssemblyModal, projects]);
 
   const advance = async (projectId: string, nextStatus: ProductionStatus, extraData: Partial<Project> = {}) => {
     const p = projects.find(proj => proj.id === projectId);
@@ -835,7 +843,6 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         </div>
       )}
 
-      {/* MODAL: PRÉ-MONTAGEM (TEAM) */}
       {showPreAssemblyModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setShowPreAssemblyModal(null)} />
@@ -844,17 +851,17 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 italic">Quem realizou o serviço na oficina?</p>
             <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
               {installers.filter(i => i.role === 'Marceneiro' || i.role === 'Ajudante').map(inst => {
-                const project = projects.find(p => p.id === showPreAssemblyModal);
-                const isSelected = project?.preAssemblyTeam?.includes(inst.id);
+                const isSelected = tempPreAssemblyTeam.includes(inst.id);
                 return (
                   <button
                     key={inst.id}
                     onClick={() => {
-                      const currentTeam = project?.preAssemblyTeam || [];
-                      const nextTeam = isSelected ? currentTeam.filter(id => id !== inst.id) : [...currentTeam, inst.id];
-                      updateLogistics(showPreAssemblyModal, { preAssemblyTeam: nextTeam });
+                      const nextTeam = isSelected 
+                        ? tempPreAssemblyTeam.filter(id => id !== inst.id) 
+                        : [...tempPreAssemblyTeam, inst.id];
+                      setTempPreAssemblyTeam(nextTeam);
                     }}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isSelected ? 'bg-slate-900 border-slate-900 text-white' : 'bg-muted/50 border-slate-100 text-muted-foreground hover:border-border'}`}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isSelected ? 'bg-slate-900 border-slate-900 text-white shadow-lg scale-[1.02]' : 'bg-muted/50 border-slate-100 text-muted-foreground hover:border-border'}`}
                   >
                     <div className="flex items-center gap-3 text-left">
                       <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center overflow-hidden">
@@ -884,9 +891,11 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
             
             <button
               onClick={() => {
-                const project = projects.find(p => p.id === showPreAssemblyModal);
-                if (project && (project.preAssemblyTeam || []).length > 0) {
-                  updateLogistics(showPreAssemblyModal, { preAssemblyDone: true });
+                if (tempPreAssemblyTeam.length > 0) {
+                  updateLogistics(showPreAssemblyModal, { 
+                    preAssemblyTeam: tempPreAssemblyTeam,
+                    preAssemblyDone: true 
+                  });
                   setShowPreAssemblyModal(null);
                 } else {
                   alert("Selecione ao menos um profissional.");

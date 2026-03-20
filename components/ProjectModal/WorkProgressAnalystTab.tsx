@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Sparkles, Loader2, CheckCircle2, Play, Trash2, Plus, X, RefreshCw, Save, FileText } from 'lucide-react';
-import { analyzeWorkProgress } from '../../geminiService';
+import { analyzeWorkProgress, analyzeProjectPDF } from '../../geminiService';
 import { useData } from '../../contexts/DataContext';
 
 interface WorkProgressAnalystTabProps {
@@ -20,6 +20,8 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
     const [completionPercentage, setCompletionPercentage] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSavingRender, setIsSavingRender] = useState(false);
+    const [pdfSummary, setPdfSummary] = useState<string | null>(null);
+    const [isReadingPdf, setIsReadingPdf] = useState(false);
 
     // Sync render image with project if it changes externally
     useEffect(() => {
@@ -32,12 +34,21 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
     useEffect(() => {
         const fetchDiaryPhotos = () => {
             const projectLogs = dailyLogs.filter(log => log.projectId === project.id);
-            const photos: PhotoWithMeta[] = projectLogs
-                .filter(log => log.photoUrl)
-                .map(log => ({
-                    url: log.photoUrl as string,
-                    environment: log.environment
-                }));
+            const photos: PhotoWithMeta[] = [];
+            
+            projectLogs.forEach(log => {
+                // Check for multiple photos
+                if (log.photoUrls && log.photoUrls.length > 0) {
+                    log.photoUrls.forEach(url => {
+                        photos.push({ url, environment: log.environment });
+                    });
+                } 
+                // Fallback to single photo for compatibility
+                else if (log.photoUrl) {
+                    photos.push({ url: log.photoUrl, environment: log.environment });
+                }
+            });
+            
             setProgressPhotos(photos);
         };
         fetchDiaryPhotos();
@@ -86,6 +97,20 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
             console.error(error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleReadPdf = async () => {
+        if (!project.projectPdfUrl) return;
+        setIsReadingPdf(true);
+        try {
+            const result = await analyzeProjectPDF(project.projectPdfUrl, project.workName);
+            setPdfSummary(result);
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao ler PDF do projeto.");
+        } finally {
+            setIsReadingPdf(false);
         }
     };
 
@@ -174,12 +199,29 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
                             ) : project.projectPdfUrl ? (
                                 <div className="flex flex-col items-center text-center p-6">
                                     <FileText size={48} className="text-emerald-500 mb-2" />
-                                    <p className="text-[10px] font-black uppercase text-emerald-600">PDF Usado como Base</p>
-                                    <p className="text-[8px] text-muted-foreground mt-1 uppercase italic">A IA lerá as pranchas técnicas diretamente do PDF.</p>
-                                    <label className="mt-4 cursor-pointer px-4 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase hover:bg-slate-800 transition-all">
-                                        Adicionar Render Opcional
-                                        <input type="file" title="Subir Render" accept="image/*" className="hidden" onChange={handleRenderUpload} />
-                                    </label>
+                                    <p className="text-[10px] font-black uppercase text-emerald-600">PDF USADO COMO BASE</p>
+                                    <p className="text-[8px] text-muted-foreground mt-1 uppercase italic">A IA LERÁ AS PRANCHAS TÉCNICAS DIRETAMENTE DO PDF.</p>
+                                    
+                                    {!pdfSummary ? (
+                                        <button 
+                                            onClick={handleReadPdf}
+                                            disabled={isReadingPdf}
+                                            className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-lg shadow-emerald-200"
+                                        >
+                                            {isReadingPdf ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                            {isReadingPdf ? 'Lendo PDF...' : 'Confirmar Leitura do PDF (IA)'}
+                                        </button>
+                                    ) : (
+                                        <div className="mt-4 flex flex-col items-center gap-2">
+                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-600 uppercase">
+                                                <CheckCircle2 size={12} /> Leitura Confirmada
+                                            </div>
+                                            <label className="cursor-pointer px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase hover:bg-slate-200 transition-all">
+                                                Adicionar Render Opcional
+                                                <input type="file" title="Subir Render" accept="image/*" className="hidden" onChange={handleRenderUpload} />
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <label className="cursor-pointer flex flex-col items-center w-full h-full justify-center">
@@ -218,6 +260,24 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({ project
                     </div>
                 </div>
             </div>
+
+            {/* AI PDF Summary / Project Confirmation */}
+            {pdfSummary && (
+                <div className="bg-emerald-50/30 border border-emerald-100 rounded-[32px] p-8 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm border border-emerald-100">
+                            <FileText size={20} />
+                        </div>
+                        <div>
+                            <h5 className="text-[12px] font-black text-emerald-900 uppercase tracking-tight">O que a IA entendeu do Projeto:</h5>
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest italic">Base técnica extraída do PDF</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                        {renderMarkdown(pdfSummary)}
+                    </div>
+                </div>
+            )}
 
             {/* Analysis Button */}
             <div className="flex justify-center">

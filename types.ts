@@ -368,6 +368,7 @@ export interface DailyLog {
   category: 'Falta de Peça' | 'Peça Danificada' | 'Falta de Material' | 'Erro de Projeto' | 'Erro de Fabricação' | 'Serviço de Terceiros' | 'Montador Ausente' | 'Cliente Ausente' | 'Atraso Frete' | 'Peça Extra' | 'Registro Diário' | 'Outros';
   description: string;
   photoUrl?: string;
+  photoUrls?: string[];
   reworkDetails?: {
     partName: string;
     width: number;

@@ -6,7 +6,9 @@ import {
   AlertTriangle, 
   AlertOctagon, 
   Camera, 
-  CheckCircle2 
+  CheckCircle2,
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { Project, DailyLog, Installer } from '../../types';
 
@@ -33,7 +35,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
 }) => {
   const [category, setCategory] = useState<DailyLog['category']>('Registro Diário');
   const [description, setDescription] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [specificProjectId, setSpecificProjectId] = useState('');
   const [workName, setWorkName] = useState('');
   const [environment, setEnvironment] = useState('');
@@ -66,7 +68,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
     setShowLogModal(false);
     setCategory('Registro Diário');
     setDescription('');
-    setPhotoUrl('');
+    setPhotos([]);
     setPartName('');
     setWidth('');
     setHeight('');
@@ -92,7 +94,8 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
       author: currentUserEmail || 'Usuário',
       category: category,
       description: description,
-      photoUrl: photoUrl || undefined,
+      photoUrl: photos.length > 0 ? photos[0] : undefined,
+      photoUrls: photos.length > 0 ? photos : undefined,
       status: (category === 'Falta de Peça' || category === 'Peça Danificada' || category === 'Falta de Material') ? 'Pendente' : 'Registrado',
       environment: environment || undefined,
       createdAt: new Date().toISOString()
@@ -122,6 +125,23 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
     } catch (err) {
       console.error('Error saving log:', err);
     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotos(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file as File);
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
   if (!showLogModal) return null;
@@ -311,18 +331,36 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
           )}
 
           <div>
-            <label className="block text-sm font-bold text-foreground mb-2">Link da Foto (Opcional)</label>
-            <div className="flex gap-2">
-              <div className="bg-muted p-3 rounded-xl flex items-center justify-center text-slate-400">
-                <Camera size={20} />
-              </div>
-              <input
-                className="flex-1 p-3 rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Cole o link da foto de evidência..."
-                value={photoUrl}
-                onChange={e => setPhotoUrl(e.target.value)}
-              />
+            <label className="block text-sm font-bold text-foreground mb-4">Fotos da Ocorrência (Opcional)</label>
+            <div className="grid grid-cols-4 gap-4">
+              {photos.map((photo, index) => (
+                <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm group">
+                  <img src={photo} alt={`Upload ${index}`} className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => removePhoto(index)}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    title="Remover Foto"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+              
+              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-emerald-600">
+                <Plus size={24} />
+                <span className="text-[10px] font-black uppercase">Adicionar</span>
+                <input 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handlePhotoUpload} 
+                />
+              </label>
             </div>
+            <p className="text-[10px] text-muted-foreground mt-3 font-bold uppercase italic tracking-tighter">
+              Dica: Você pode selecionar várias imagens de uma vez.
+            </p>
           </div>
         </div>
 

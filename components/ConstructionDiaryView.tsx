@@ -54,7 +54,7 @@ const ConstructionDiaryView: React.FC = () => {
     // Filter Logic
     const activeProjects = useMemo(() => {
         return projects.filter(p => 
-            p.currentStatus === 'Em Instalação' && 
+            (p.currentStatus === 'Instalação' || p.currentStatus === 'Vistoria') && 
             p.workName.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [projects, searchTerm]);

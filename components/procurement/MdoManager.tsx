@@ -89,6 +89,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
       projectId: selectedOSId,
       installerId: installerId,
       adminPhone: company.phone?.replace(/\D/g, '') || '',
+      address: selectedOS.workAddress, // Added address
     };
     
     const encodedData = window.btoa(unescape(encodeURIComponent(JSON.stringify(proposalData))));
@@ -227,7 +228,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                         onChange={e => setSelectedOSId(e.target.value)}
                     >
                         <option value="">Selecione uma OS para Gestão...</option>
-                        {projects.filter(p => p.currentStatus !== 'Concluído').map(p => (
+                        {projects.filter(p => !['Finalizada', 'Cancelada'].includes(p.currentStatus)).map(p => (
                             <option key={p.id} value={p.id}>{p.workName} ({p.clientName})</option>
                         ))}
                     </select>
@@ -347,7 +348,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                 onChange={e => setNewDiaryEntry({...newDiaryEntry, projectId: e.target.value})}
                             >
                                 <option value="">Vincular custo à obra...</option>
-                                {projects.filter(p => p.currentStatus !== 'Concluído').map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
+                                {projects.filter(p => !['Finalizada', 'Cancelada'].includes(p.currentStatus)).map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">

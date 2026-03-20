@@ -727,6 +727,49 @@ export async function analyzePCP(project: any, timelineEvents: any[]): Promise<s
 }
 
 /**
+ * Analisa um PDF de projeto e retorna um resumo estruturado dos ambientes e especificações.
+ */
+export async function analyzeProjectPDF(pdfBase64: string, projectName: string): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `
+      Analise este PDF de projeto de marcenaria/carpintaria para a obra: ${projectName}.
+      Sua tarefa é extrair os dados técnicos para que possamos usá-los como base de acompanhamento de obra.
+
+      RETORNE UM RESUMO ESTRUTURADO EM PORTUGUÊS:
+      1. **RESUMO DO PROJETO**: [Descreva brevemente o que identificou no PDF]
+      2. **AMBIENTES DETECTADOS**: [Lista de cômodos/áreas citadas]
+      3. **ESPECIFICAÇÕES TÉCNICAS**: [Principais materiais, espessuras, cores citadas]
+      4. **MÓDULOS/PEÇAS PRINCIPAIS**: [Destaque os itens maiores ou mais complexos]
+      5. **NOTAS DE MONTAGEM**: [Qualquer instrução de instalação encontrada nas pranchas]
+
+      Seja direto, técnico e use Markdown.
+    `;
+
+    const parts: any[] = [
+      { text: prompt },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64
+        }
+      }
+    ];
+
+    const result = await withRetry(() => model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: { temperature: 0.1 }
+    }), 2);
+    
+    return result.response.text();
+  } catch (error: any) {
+    console.error("Erro PDF AI:", error);
+    return `Não foi possível analisar o PDF. Erro: ${error?.message || 'Arquivo inválido ou erro de conexão'}.`;
+  }
+}
+
+/**
  * Analisa o avanço da obra comparando um Render 3D (ou PDF do projeto) com fotos reais.
  */
 export async function analyzeWorkProgress(renderBase64: string | null, photosBase64: string[], pdfBase64?: string): Promise<string> {

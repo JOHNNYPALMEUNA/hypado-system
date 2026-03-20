@@ -60,7 +60,8 @@ export const mapProjectToDB = (project: Project) => {
         client_delivery_date: project.deliveryDate,
         architect_id: project.architectId,
         installer_id: project.installerId,
-        production_central: project.productionCentral
+        production_central: project.productionCentral,
+        pre_assembly_team: project.preAssemblyTeam || []
     };
 };
 
