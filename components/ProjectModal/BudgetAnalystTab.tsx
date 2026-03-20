@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Brain, Sparkles, DollarSign, TrendingUp, TrendingDown, Award,
-    RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Loader2
+    RefreshCw, BarChart3, AlertTriangle, CheckCircle2, Loader2, Clock
 } from 'lucide-react';
 import { analyzeBudget } from '../../geminiService';
 import { formatCurrency } from '../../utils';
@@ -65,10 +65,17 @@ const BudgetAnalystTab: React.FC<BudgetAnalystTabProps> = ({ project }) => {
     const [hasAnalyzed, setHasAnalyzed] = useState(false);
 
     // Financial calculations
-    const totalRevenue = project.value || 0;
-    const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
+    const totalRevenue = Number(project.value || 0);
+    const expenses = Array.isArray(project.expenses) ? project.expenses : (project.expenses ? Object.values(project.expenses) : []);
+    const totalExpenses = expenses.reduce((acc: number, curr: any) => acc + (Number(curr.value) || 0), 0);
     const grossMargin = totalRevenue - totalExpenses;
     const marginPct = totalRevenue > 0 ? (grossMargin / totalRevenue) * 100 : 0;
+
+    // Timing calculations
+    const registrationDate = project.registrationDate || project.contractDate;
+    const leadTimeDays = registrationDate 
+        ? Math.floor((new Date().getTime() - new Date(registrationDate).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
 
     const getMarginColor = (pct: number) => {
         if (pct >= 45) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: '🟢 Excelente' };
@@ -78,9 +85,9 @@ const BudgetAnalystTab: React.FC<BudgetAnalystTabProps> = ({ project }) => {
 
     const marginStyle = getMarginColor(marginPct);
 
-    const expensesByCategory = (project.expenses || []).reduce((acc: any, curr: any) => {
+    const expensesByCategory = expenses.reduce((acc: any, curr: any) => {
         const cat = curr.category || 'Outros';
-        acc[cat] = (acc[cat] || 0) + (curr.value || 0);
+        acc[cat] = (acc[cat] || 0) + (Number(curr.value) || 0);
         return acc;
     }, {});
 
@@ -157,6 +164,16 @@ const BudgetAnalystTab: React.FC<BudgetAnalystTabProps> = ({ project }) => {
                         <span className={`text-2xl font-black ${marginStyle.text}`}>{marginPct.toFixed(1)}%</span>
                     </div>
                     <span className={`text-[9px] font-bold mt-1 block ${marginStyle.text}`}>{marginStyle.label}</span>
+                </div>
+
+                <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
+                    <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest block mb-2">Lead Time</span>
+                    <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-slate-400 shrink-0" />
+                        <span className="text-lg font-black text-slate-700 truncate">
+                            {leadTimeDays !== null ? `${leadTimeDays} dias` : 'N/A'}
+                        </span>
+                    </div>
                 </div>
             </div>
 

@@ -619,42 +619,47 @@ export async function analyzeBudget(project: any): Promise<string> {
       return acc;
     }, {});
 
+    const history = Array.isArray(project.history) ? project.history : [];
+    const registrationDate = project.registrationDate || project.contractDate || (history.length > 0 ? history[0].timestamp : null);
+    
+    // Identify potential financial leaks based on timing
+    const currentStatus = project.currentStatus || 'N/A';
+    const isDelayedAtInstallation = currentStatus === 'Instalação' && history.some(h => h.status === 'Instalação' && (new Date().getTime() - new Date(h.timestamp).getTime()) > 10 * 24 * 60 * 60 * 1000);
+
     const rawEnvs = project.environmentsDetails;
     const environmentsArray = Array.isArray(rawEnvs) ? rawEnvs : (rawEnvs ? Object.values(rawEnvs) : []);
     const environments = environmentsArray.map((e: any) => ({
       nome: e.name || 'Sem nome',
       valor: Number(e.value || 0),
-      percentualServico: Number(e.servicePercentage || 0),
       status: e.currentStatus || 'N/A'
     }));
 
     const prompt = `
-      Você é um ANALISTA DE ORÇAMENTO especialista em marcenaria e móveis planejados.
-      Analise os dados financeiros desta OS (Ordem de Serviço) e forneça um diagnóstico profissional.
+      Você é um ANALISTA FINANCEIRO E DE NEGÓCIOS especialista em alta gestão de marcenarias.
+      Analise os dados desta OS (Ordem de Serviço) e forneça um diagnóstico estratégico de rentabilidade.
       
       DADOS DA OBRA:
-      - Nome da Obra: "${project.workName || 'N/A'}"
-      - Cliente: "${project.clientName || 'N/A'}"
-      - Status Atual: "${project.currentStatus || 'N/A'}"
-      - Receita Total Contratada: R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-      - Custo Total Lançado: R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-      - Margem Bruta: R$ ${grossMargin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-      - Margem %: ${marginPct}%
+      - Nome: "${project.workName || 'N/A'}" | Status: "${currentStatus}"
+      - Receita: R$ ${totalRevenue.toLocaleString('pt-BR')} | Custos: R$ ${totalExpenses.toLocaleString('pt-BR')}
+      - Margem Bruta: R$ ${grossMargin.toLocaleString('pt-BR')} (${marginPct}%)
+      - Data de Registro: ${registrationDate ? new Date(registrationDate).toLocaleDateString('pt-BR') : 'N/A'}
       
       CUSTOS POR CATEGORIA:
       ${JSON.stringify(expensesByCategory, null, 2)}
       
-      AMBIENTES / MÓDULOS:
-      ${JSON.stringify(environments, null, 2)}
+      HISTÓRICO DE STATUS (TEMPO):
+      ${JSON.stringify(history.map(h => ({ status: h.status, data: h.timestamp })), null, 2)}
+
+      ALERTA DE SISTEMA: ${isDelayedAtInstallation ? "⚠️ OBRA PARADA NA INSTALAÇÃO HÁ MAIS DE 10 DIAS. Risco de aumento de custo de MDO." : "Fluxo de tempo parece normal."}
       
-      INSTRUÇÕES:
-      1. **Diagnóstico de Rentabilidade**: A margem de ${marginPct}% é boa, razoável ou crítica para uma marcenaria? Benchmark do setor é 35-50%.
-      2. **Pontos de Atenção Financeiros**: Identifique as categorias de custo que mais impactam a margem.
-      3. **Projeção de Risco**: Existe risco de prejuízo? A que percentual de estouro de custo isso acontece?
-      4. **Recomendações**: 2-3 ações práticas para melhorar ou proteger a margem desta obra.
-      5. **Veredicto Final**: Em uma frase clara, dê o veredicto desta OS (🟢 Lucrativa / 🟡 Atenção / 🔴 Crítica).
+      INSTRUÇÕES DE ANÁLISE:
+      1. **Saúde Financeira**: Julgue a margem de ${marginPct}%. (Ref: <30% Crítico, 30-45% Médio, >45% Excelente).
+      2. **Correlação Tempo x Custo**: Verifique se o tempo gasto nas etapas está compatível com o custo lançado. Ex: Muitos custos de "Terceiros" ou "MDO" em obra antiga sugere retrabalho.
+      3. **Detecção de Anomalias**: Identifique categorias que fogem do padrão (Ex: Ferragens > 20% da receita, MDF > 25% da receita).
+      4. **Ações de Proteção de Caixa**: 3 recomendações táticas (Ex: "Reter última parcela", "Negociar frete", "Auditar desperdício de MDF").
+      5. **Veredicto Estratégico**: Em uma frase, defina a saúde do projeto (🟢 Saudável / 🟡 Atenção / 🔴 Risco de Prejuízo).
       
-      Formato: Use Markdown com títulos, bullets e emojis. Seja direto e profissional. Max 300 palavras.
+      Formato: Markdown profissional, direto e agressivo na busca por lucro. Max 250 palavras.
     `;
 
     const result = await withRetry(() => model.generateContent({
@@ -669,5 +674,54 @@ export async function analyzeBudget(project: any): Promise<string> {
       return "⚠️ Limite de cota atingido. O Google restringe o uso gratuito. Tente novamente em 1 minuto.";
     }
     return `Não foi possível gerar a análise. Erro: ${error?.message || 'Conexão interrompida'}. Tente novamente.`;
+  }
+}
+
+export async function analyzePCP(project: any, timelineEvents: any[]): Promise<string> {
+  try {
+    if (!project) throw new Error("Dados da obra não encontrados.");
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const history = Array.isArray(project.history) ? project.history : [];
+    const events = timelineEvents.filter(e => String(e.relatedId) === String(project.id));
+    
+    const registrationDate = project.registrationDate || project.contractDate || history[0]?.timestamp;
+
+    const prompt = `
+      Você é um ANALISTA DE PCP (Planejamento e Controle de Produção) especialista em marcenaria.
+      Analise o histórico de tempo e transições desta OS (Ordem de Serviço) e forneça um diagnóstico de eficiência.
+      
+      DADOS DA OBRA:
+      - Nome: "${project.workName || 'N/A'}"
+      - Status Atual: "${project.currentStatus || 'N/A'}"
+      - Data de Registro: ${registrationDate ? new Date(registrationDate).toLocaleDateString('pt-BR') : 'N/A'}
+      - Prazo Prometido: ${project.promisedDate ? new Date(project.promisedDate).toLocaleDateString('pt-BR') : 'N/A'}
+      
+      HISTÓRICO DE STATUS:
+      ${JSON.stringify(history, null, 2)}
+      
+      EVENTOS DO SISTEMA (LOGS):
+      ${JSON.stringify(events.map(e => ({ tipo: e.eventType, de: e.oldValue, para: e.newValue, data: e.createdAt })), null, 2)}
+      
+      INSTRUÇÕES:
+      1. **Análise de Lead Time**: Quanto tempo a obra levou em cada etapa? Quais etapas estão acima da média (Benchmark: Projeto 3d, Corte 2d, Produção 5d, Instalação 3d)?
+      2. **Gargalos Identificados**: Onde a obra "ficou presa"? Houve muitas idas e vindas?
+      3. **Previsão de Entrega**: Com base no ritmo atual, a obra será entregue no prazo (${project.promisedDate ? new Date(project.promisedDate).toLocaleDateString('pt-BR') : 'N/A'})?
+      4. **Recomendações de Agilidade**: 3 ações para acelerar o processo se houver atraso.
+      5. **Veredicto de Eficiência**: (🟢 Fluxo Ágil / 🟡 Alerta de Atraso / 🔴 Processo Interrompido).
+      
+      Formato: Use Markdown com títulos, bullets e emojis. Seja direto, técnico e "pé no chão". Max 300 palavras.
+    `;
+
+    const result = await withRetry(() => model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.5 }
+    }), 2);
+    
+    return result.response.text();
+  } catch (error: any) {
+    console.error("Erro PCP AI:", error);
+    return `Não foi possível gerar a análise de PCP. Erro: ${error?.message || 'Conexão interrompida'}.`;
   }
 }

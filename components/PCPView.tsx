@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Project, ProductionStatus, Quotation, Installer, OutsourcedService, Expense, Supplier, SelectedModule, MdfPart } from '../types';
 import {
-  ArrowRight, Clock, Box, PenTool, CheckCircle2, Truck,
-  X, ChevronRight, Lock, Unlock,
-  Factory as FactoryIcon, GlassWater, Scissors, DollarSign, Building2, AlertTriangle, Save, Hammer as Screwdriver,
-  User, Layers, FileText, Upload, Sparkles, Check, ExternalLink, Search, ArrowLeft
+  ArrowRight, Box, PenTool, CheckCircle2, Truck,
+  ChevronRight, Lock, Unlock,
+  Factory as FactoryIcon, GlassWater, Scissors, DollarSign, Building2, AlertTriangle, Hammer as Screwdriver,
+  User, Layers, FileText, Upload, Sparkles, Check, ExternalLink, Search, ArrowLeft, Gauge, ShieldCheck, Brain, TrendingUp, Clock, X, Save, Users
 } from 'lucide-react';
 
 
@@ -49,6 +49,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [assemblySearch, setAssemblySearch] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [pendingProjectData, setPendingProjectData] = useState<Partial<Project> | null>(null);
+  const [transitionDate, setTransitionDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const centralSuppliers = useMemo(() => suppliers.filter(s => s.type === 'Serviço (Corte/Fitação)'), [suppliers]);
@@ -75,7 +76,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         ...p,
         ...extraData as any,
         currentStatus: nextStatus,
-        history: [...(p.history || []), { status: nextStatus, timestamp: new Date().toISOString() }]
+        history: [...(p.history || []), { status: nextStatus, timestamp: transitionDate ? new Date(transitionDate).toISOString() : new Date().toISOString() }]
       } as Project);
     }
     setShowCentralModal(null);
@@ -746,6 +747,17 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                     </div>
                   ))}
                 </div>
+
+                <div className="space-y-2 mt-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Data da Transição (Opcional)</label>
+                  <input 
+                    title="Data de Transição"
+                    type="date" 
+                    className="w-full bg-muted/50 border-2 border-transparent focus:border-indigo-500 p-4 rounded-2xl font-bold outline-none" 
+                    value={transitionDate}
+                    onChange={e => setTransitionDate(e.target.value)}
+                  />
+                </div>
                 
                 <button 
                   onClick={savePartsCount}
@@ -808,6 +820,17 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                 </div>
               </button>
             </div>
+
+            <div className="space-y-2 mt-12 max-w-xs mx-auto text-left">
+              <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Data da Transição (Opcional)</label>
+              <input 
+                title="Data de Transição"
+                type="date" 
+                className="w-full bg-muted/50 border-2 border-transparent focus:border-indigo-500 p-4 rounded-2xl font-bold outline-none" 
+                value={transitionDate}
+                onChange={e => setTransitionDate(e.target.value)}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -847,6 +870,18 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                 );
               })}
             </div>
+
+            <div className="space-y-2 mt-6">
+              <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Data da Transição (Opcional)</label>
+              <input 
+                title="Data de Transição"
+                type="date" 
+                className="w-full bg-muted/50 border-2 border-transparent focus:border-indigo-500 p-4 rounded-2xl font-bold outline-none" 
+                value={transitionDate}
+                onChange={e => setTransitionDate(e.target.value)}
+              />
+            </div>
+            
             <button
               onClick={() => {
                 const project = projects.find(p => p.id === showPreAssemblyModal);
@@ -897,6 +932,16 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                   className="w-full p-4 bg-muted/50 border-2 border-slate-100 rounded-2xl font-black text-sm outline-none focus:border-blue-500 transition-all"
                   value={tempFreightDate}
                   onChange={e => setTempFreightDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Data da Transição (Opcional)</label>
+                <input 
+                  title="Data de Transição"
+                  type="date" 
+                  className="w-full bg-muted/50 border-2 border-transparent focus:border-indigo-500 p-4 rounded-2xl font-bold outline-none" 
+                  value={transitionDate}
+                  onChange={e => setTransitionDate(e.target.value)}
                 />
               </div>
             </div>
@@ -984,6 +1029,16 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                   className="w-full p-4 bg-muted/50 border-2 border-slate-100 rounded-2xl font-black text-sm outline-none focus:border-emerald-500 transition-all"
                   value={tempDate}
                   onChange={e => setTempDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Data da Transição (Opcional)</label>
+                <input 
+                  title="Data de Transição"
+                  type="date" 
+                  className="w-full bg-muted/50 border-2 border-transparent focus:border-indigo-500 p-4 rounded-2xl font-bold outline-none" 
+                  value={transitionDate}
+                  onChange={e => setTransitionDate(e.target.value)}
                 />
               </div>
             </div>

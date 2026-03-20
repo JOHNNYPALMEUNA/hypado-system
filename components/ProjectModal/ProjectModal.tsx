@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    X, Save, FileText, Users, ShieldCheck, TrendingUp, Clock, Sparkles, Trash2, Layers, Brain
+    X, Save, FileText, Users, ShieldCheck, TrendingUp, Clock, Sparkles, Trash2, Layers, Brain, Gauge
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { Client, Project, Installer, Material, ProductionStatus } from '../../types';
@@ -10,6 +10,7 @@ import CPCTab from './CPCTab';
 import EquipeTab from './EquipeTab';
 import ProjectTimelineTab from './ProjectTimelineTab';
 import BudgetAnalystTab from './BudgetAnalystTab';
+import PCPAnalystTab from './PCPAnalystTab';
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -85,15 +86,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
     const allTabs = [
         { id: 'geral', label: 'Dossiê Técnico', icon: <FileText size={16} /> },
-        { id: 'memorial', label: 'Timeline PCP', icon: <Clock size={16} /> },
+        { id: 'timeline', label: 'Timeline', icon: <Clock size={16} /> },
         { id: 'equipe', label: 'Equipe', icon: <Users size={16} /> },
         { id: 'qualidade', label: 'Auditoria', icon: <ShieldCheck size={16} /> },
-        { id: 'budget', label: 'Analista IA', icon: <Brain size={16} /> },
+        { id: 'analyst', label: 'IA Financeira', icon: <Brain size={16} /> },
+        { id: 'pcp_analyst', label: 'IA PCP', icon: <Gauge size={16} /> },
         { id: 'cpc', label: 'CPC Relatório', icon: <TrendingUp size={16} /> }
     ];
 
     const tabs = allTabs.filter(tab => {
-        if (tab.id === 'cpc' || tab.id === 'budget') return userRole === 'owner';
+        if (tab.id === 'cpc' || tab.id === 'analyst' || tab.id === 'pcp_analyst') return userRole === 'owner';
         return true;
     });
 
@@ -150,7 +152,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                         />
                     )}
 
-                    {activeModalTab === 'memorial' && (
+                    {activeModalTab === 'timeline' && (
                         <ProjectTimelineTab projectId={formData.id} history={formData.history || []} />
                     )}
 
@@ -173,6 +175,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             handleSubmitAudit={handleSubmitAudit}
                         />
                     )}
+
+                    {activeModalTab === 'analyst' && <BudgetAnalystTab project={editingProject} />}
+                    {activeModalTab === 'pcp_analyst' && <PCPAnalystTab project={editingProject} />}
 
                     {activeModalTab === 'cpc' && (
                         <CPCTab

@@ -197,6 +197,7 @@ export interface Project {
   currentStatus: ProductionStatus;
   history: { status: ProductionStatus; timestamp: string }[];
   value: number;
+  registrationDate?: string; // Data de registro da OS no sistema
   expenses: Expense[];
   team: string;
   installerId?: string;
