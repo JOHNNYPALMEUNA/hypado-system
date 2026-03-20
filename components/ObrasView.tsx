@@ -502,6 +502,7 @@ const ObrasView: React.FC<Props> = ({
          promisedDate: formData.promisedDate,
          team: installers.find(i => i.id === formData.installerId)?.name || 'N/A',
          installerId: formData.installerId,
+         architectId: formData.architectId,
          workAddress: formData.workAddress,
          // Address Fields
          addressCep: formData.addressCep,

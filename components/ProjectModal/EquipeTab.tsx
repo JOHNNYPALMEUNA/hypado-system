@@ -19,49 +19,76 @@ const EquipeTab: React.FC<EquipeTabProps> = ({
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-            {/* 1. Installer Selection */}
+            {/* 1. Technical Team (Designer & Installer) */}
             <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm">
                 <h5 className="text-sm font-black uppercase text-foreground mb-6 flex items-center gap-2">
-                    <Briefcase size={18} className="text-primary" /> Atribuição de Equipe (Instalação)
+                    <Briefcase size={18} className="text-primary" /> Atribuição de Equipe Técnica
                 </h5>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Selecione o Montador Responsável</label>
-                        <select
-                            className="w-full h-14 px-6 bg-muted/50 border border-border rounded-3xl text-sm font-bold focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                            value={formData.installerId}
-                            onChange={e => setFormData({ ...formData, installerId: e.target.value })}
-                        >
-                            <option value="">A definir / Equipe Interna</option>
-                            {installers.map(inst => (
-                                <option key={inst.id} value={inst.id}>{inst.name} ({inst.city})</option>
-                            ))}
-                        </select>
-                        <p className="text-[10px] text-slate-400 italic px-2 font-medium">Ao selecionar um montador, ele terá acesso Ã s informações da obra pelo link da proposta.</p>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    {/* Designer Selection */}
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Projetista / Arquiteto Responsável</label>
+                            <select
+                                title="Selecionar Projetista"
+                                className="w-full h-14 px-6 bg-muted/50 border border-border rounded-3xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+                                value={formData.architectId || ''}
+                                onChange={e => setFormData({ ...formData, architectId: e.target.value })}
+                            >
+                                <option value="">A definir / Sem Projetista</option>
+                                {installers.filter(i => i.role === 'Projetista' || i.role === 'Arquiteto').map(inst => (
+                                    <option key={inst.id} value={inst.id}>{inst.name}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                    {selectedInstaller && (
-                        <div className="p-8 bg-primary/5 rounded-[32px] border border-primary/10 flex items-center gap-6 animate-in zoom-in-95 duration-300">
-                            <div className="w-24 h-24 rounded-full bg-card border-4 border-white shadow-xl flex items-center justify-center text-3xl font-black text-primary overflow-hidden">
-                                {selectedInstaller.avatar ? <img src={selectedInstaller.avatar} alt="Avatar" className="w-full h-full object-cover" /> : selectedInstaller.name.slice(0, 1)}
-                            </div>
-                            <div className="space-y-1">
-                                <h6 className="text-xl font-black text-foreground tracking-tighter">{selectedInstaller.name}</h6>
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold">
-                                        <Phone size={12} className="text-primary" /> {selectedInstaller.phone}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold">
-                                        <MapPin size={12} className="text-primary" /> {selectedInstaller.city}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold mt-1">
-                                        <Award size={12} /> Nível: {selectedInstaller.rating >= 4.8 ? 'Diamante' : 'Ouro'}
-                                    </div>
+                        {installers.find(i => String(i.id) === String(formData.architectId)) && (
+                            <div className="p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100 flex items-center gap-4 animate-in zoom-in-95 duration-300">
+                                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl font-black text-indigo-600 overflow-hidden">
+                                    {installers.find(i => String(i.id) === String(formData.architectId))?.avatar 
+                                        ? <img src={installers.find(i => String(i.id) === String(formData.architectId))?.avatar} alt="Avatar" className="w-full h-full object-cover" /> 
+                                        : installers.find(i => String(i.id) === String(formData.architectId))?.name.slice(0, 1)}
+                                </div>
+                                <div>
+                                    <h6 className="text-sm font-black text-slate-900">{installers.find(i => String(i.id) === String(formData.architectId))?.name}</h6>
+                                    <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Responsável pelo Projeto</p>
                                 </div>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Installer Selection */}
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Montador Responsável (Líder)</label>
+                            <select
+                                title="Selecionar Montador"
+                                className="w-full h-14 px-6 bg-muted/50 border border-border rounded-3xl text-sm font-bold focus:ring-4 focus:ring-amber-500/10 transition-all outline-none"
+                                value={formData.installerId || ''}
+                                onChange={e => setFormData({ ...formData, installerId: e.target.value })}
+                            >
+                                <option value="">A definir / Equipe Interna</option>
+                                {installers.filter(i => i.role === 'Montador' || i.role === 'Marceneiro').map(inst => (
+                                    <option key={inst.id} value={inst.id}>{inst.name} ({inst.city})</option>
+                                ))}
+                            </select>
                         </div>
-                    )}
+
+                        {installers.find(i => String(i.id) === String(formData.installerId)) && (
+                            <div className="p-6 bg-amber-50/50 rounded-3xl border border-amber-100 flex items-center gap-4 animate-in zoom-in-95 duration-300">
+                                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl font-black text-amber-600 overflow-hidden">
+                                    {installers.find(i => String(i.id) === String(formData.installerId))?.avatar 
+                                        ? <img src={installers.find(i => String(i.id) === String(formData.installerId))?.avatar} alt="Avatar" className="w-full h-full object-cover" /> 
+                                        : installers.find(i => String(i.id) === String(formData.installerId))?.name.slice(0, 1)}
+                                </div>
+                                <div>
+                                    <h6 className="text-sm font-black text-slate-900">{installers.find(i => String(i.id) === String(formData.installerId))?.name}</h6>
+                                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Responsável pela Instalação</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

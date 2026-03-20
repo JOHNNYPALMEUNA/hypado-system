@@ -32,7 +32,7 @@ const STATUS_CONFIG: Record<ProductionStatus, { label: string, icon: any, color:
 };
 
 const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcurementMDO }) => {
-  const { updateProject, suppliers, clients, userRole } = useData();
+  const { updateProject, suppliers, clients, userRole, logEvent } = useData();
   const [showCentralModal, setShowCentralModal] = useState<string | null>(null);
   const [showOutsourcedModal, setShowOutsourcedModal] = useState<string | null>(null);
   const [showLogisticsModal, setShowLogisticsModal] = useState<string | null>(null);
@@ -70,6 +70,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const advance = async (projectId: string, nextStatus: ProductionStatus, extraData: Partial<Project> = {}) => {
     const p = projects.find(proj => proj.id === projectId);
     if (p) {
+      logEvent(projectId, 'PROJECT', 'STATUS_CHANGE', p.currentStatus, nextStatus);
       await updateProject({
         ...p,
         ...extraData as any,

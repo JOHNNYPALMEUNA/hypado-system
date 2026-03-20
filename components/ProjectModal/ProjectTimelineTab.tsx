@@ -76,26 +76,43 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
             combined.push(initialPoint);
         }
 
-        console.log(`DEBUG TIMELINE [${projectId}]:`, {
-            historyLen: historyEvents.length,
-            sysLen: sysEvents.length,
-            logsLen: occurrences.length,
-            total: combined.length
-        });
-
         const sorted = combined
-            .filter(ev => ev.timestamp) 
+            .filter(ev => ev && ev.timestamp) 
             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-        // Remove duplicates
-        const unique = combined.filter((ev, idx, self) => 
+        // Remove duplicates (same title and very close timestamp)
+        const unique = sorted.filter((ev, idx, self) => 
             idx === self.findIndex((t) => (
-                t.timestamp === ev.timestamp && t.title === ev.title
+                t.title === ev.title && 
+                Math.abs(new Date(t.timestamp).getTime() - new Date(ev.timestamp).getTime()) < 1000 // 1 second tolerance
             ))
         );
 
         return unique;
     }, [projectId, history, timelineEvents, dailyLogs]);
+
+    // 5. Process Analysis (Lead Times)
+    const processAnalysis = useMemo(() => {
+        const stages = ['Venda', 'Projeto', 'Corte', 'Produção', 'Entrega', 'Instalação', 'Vistoria', 'Finalizada'];
+        const analysis = [];
+        
+        const sortedHistory = [...(history || [])].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        
+        for (let i = 0; i < sortedHistory.length - 1; i++) {
+            const current = sortedHistory[i];
+            const next = sortedHistory[i+1];
+            const diff = new Date(next.timestamp).getTime() - new Date(current.timestamp).getTime();
+            const days = (diff / (1000 * 3600 * 24)).toFixed(1);
+            
+            analysis.push({
+                from: current.status,
+                to: next.status,
+                days: days,
+                isWarning: Number(days) > 5 // Warning if stage takes more than 5 days
+            });
+        }
+        return analysis;
+    }, [history]);
 
     const getEventIcon = (ev: any) => {
         if (ev.type === 'occurrence') {
@@ -118,14 +135,32 @@ const ProjectTimelineTab: React.FC<TimelineTabProps> = ({ projectId, history }) 
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
-            {/* Bottleneck Summary */}
+            {/* Efficiency Analysis (IA Analyst) */}
+            {processAnalysis.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {processAnalysis.map((ana, i) => (
+                        <div key={i} className={`p-4 rounded-3xl border ${ana.isWarning ? 'bg-red-50/50 border-red-100' : 'bg-emerald-50/50 border-emerald-100'} transition-all`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{ana.from} → {ana.to}</span>
+                                {ana.isWarning ? <AlertCircle size={12} className="text-red-500" /> : <CheckCircle size={12} className="text-emerald-500" />}
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className={`text-2xl font-black italic ${ana.isWarning ? 'text-red-600' : 'text-emerald-600'}`}>{ana.days}</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Dias</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Bottleneck Summary (Existing) */}
             {bottlenecks.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 p-6 rounded-[32px] flex items-start gap-4 shadow-sm italic">
                     <div className="bg-amber-500/20 p-3 rounded-2xl text-amber-600">
                         <AlertCircle size={24} />
                     </div>
                     <div>
-                        <h4 className="text-amber-900 font-black uppercase text-xs tracking-widest mb-1">Análise de Gargalos (PCP)</h4>
+                        <h4 className="text-amber-900 font-black uppercase text-xs tracking-widest mb-1">Análise de Gargalos (Ocorrências)</h4>
                         <p className="text-amber-800/80 text-xs font-medium">
                             Identificamos {bottlenecks.length} ocorrência(s) que podem estar impactando o cronograma desta obra. 
                             Verifique os detalhes abaixo para otimizar o fluxo de produção.

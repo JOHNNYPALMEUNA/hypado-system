@@ -59,8 +59,8 @@ const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => 
     }
 
     // 3. Find Architect & Installer
-    const assignedInstaller = installers.find(i => i.id === project.installerId);
-    const assignedArchitect = installers.find(i => i.id === project.architectId);
+    const assignedInstaller = installers.find(i => String(i.id) === String(project.installerId));
+    const assignedArchitect = installers.find(i => String(i.id) === String(project.architectId));
 
     // 4. Calculate Duration (Days Since Contract)
     const daysInProcess = Math.ceil((new Date().getTime() - new Date(project.contractDate).getTime()) / (1000 * 3600 * 24));
