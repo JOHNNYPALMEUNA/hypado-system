@@ -82,6 +82,11 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                     type="button"
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        const pwd = prompt('Digite a senha de administrador:');
+                                        if (pwd !== 'admin') {
+                                            alert('Senha incorreta!');
+                                            return;
+                                        }
                                         if (confirm('Deseja remover o PDF do projeto deste dossiê?')) {
                                             handlePdfDelete();
                                         }
@@ -395,11 +400,17 @@ const GeralTab: React.FC<GeralTabProps> = ({
                             <button
                                 type="button"
                                 onClick={() => {
+                                    const pwd = prompt('Digite a senha de administrador:');
+                                    if (pwd !== 'admin') {
+                                        alert('Senha incorreta!');
+                                        return;
+                                    }
                                     const svcs = [...formData.outsourcedServices];
                                     svcs.splice(idx, 1);
                                     setFormData({ ...formData, outsourcedServices: svcs });
                                 }}
                                 className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remover Serviço Terceirizado"
                             >
                                 <X size={14} />
                             </button>
@@ -566,6 +577,11 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                                     <button
                                                         type="button"
                                                         onClick={() => {
+                                                            const pwd = prompt('Digite a senha de administrador:');
+                                                            if (pwd !== 'admin') {
+                                                                alert('Senha incorreta!');
+                                                                return;
+                                                            }
                                                             if (confirm('Excluir este item?')) {
                                                                 const current = [...((formData.environmentsDetails?.[envName] as any)?.modules || [])];
                                                                 current.splice(idx, 1);
@@ -652,7 +668,23 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                             <div className="space-y-3">
                                                 {(formData.environmentsDetails?.[envName]?.mdfParts || []).map((part: any, idx: number) => (
                                                     <div key={part.id} className="bg-muted/20 p-3 rounded-lg border border-border/50 text-sm space-y-2 group relative">
-                                                        <button type="button" onClick={() => { const parts = [...(formData.environmentsDetails?.[envName]?.mdfParts || [])]; parts.splice(idx, 1); updateMemorial(envName, 'mdfParts', parts); }} className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"><X size={10} /></button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { 
+                                                                const pwd = prompt('Digite a senha de administrador:');
+                                                                if (pwd !== 'admin') {
+                                                                    alert('Senha incorreta!');
+                                                                    return;
+                                                                }
+                                                                const parts = [...(formData.environmentsDetails?.[envName]?.mdfParts || [])]; 
+                                                                parts.splice(idx, 1); 
+                                                                updateMemorial(envName, 'mdfParts', parts); 
+                                                            }} 
+                                                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"
+                                                            title="Excluir Peça de MDF"
+                                                        >
+                                                            <X size={10} />
+                                                        </button>
                                                         <input className="w-full bg-transparent font-bold outline-none placeholder:text-muted-foreground/50" placeholder="Nome da Peça" value={part.partName} onChange={e => { const parts = [...(formData.environmentsDetails?.[envName]?.mdfParts || [])]; parts[idx].partName = e.target.value; updateMemorial(envName, 'mdfParts', parts); }} />
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <select className="w-full text-xs bg-transparent border-b border-dashed border-border outline-none appearance-none" value={part.brandColor} onChange={e => { const parts = [...(formData.environmentsDetails?.[envName]?.mdfParts || [])]; parts[idx].brandColor = e.target.value; updateMemorial(envName, 'mdfParts', parts); }}>
@@ -695,7 +727,23 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                             <div className="space-y-3">
                                                 {(formData.environmentsDetails?.[envName]?.hardwareItems || []).map((hw: any, idx: number) => (
                                                     <div key={hw.id} className="bg-muted/20 p-3 rounded-lg border border-border/50 text-sm space-y-2 group relative">
-                                                        <button type="button" onClick={() => { const hws = [...(formData.environmentsDetails?.[envName]?.hardwareItems || [])]; hws.splice(idx, 1); updateMemorial(envName, 'hardwareItems', hws); }} className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"><X size={10} /></button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { 
+                                                                const pwd = prompt('Digite a senha de administrador:');
+                                                                if (pwd !== 'admin') {
+                                                                    alert('Senha incorreta!');
+                                                                    return;
+                                                                }
+                                                                const hws = [...(formData.environmentsDetails?.[envName]?.hardwareItems || [])]; 
+                                                                hws.splice(idx, 1); 
+                                                                updateMemorial(envName, 'hardwareItems', hws); 
+                                                            }} 
+                                                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"
+                                                            title="Excluir Ferragem"
+                                                        >
+                                                            <X size={10} />
+                                                        </button>
                                                         <div className="flex gap-2">
                                                             <select className="flex-1 text-xs bg-transparent border-b border-dashed border-border outline-none font-bold" value={hw.category} onChange={e => { const hws = [...(formData.environmentsDetails?.[envName]?.hardwareItems || [])]; hws[idx].category = e.target.value; updateMemorial(envName, 'hardwareItems', hws); }}>
                                                                 <option value="">Categoria...</option>
@@ -741,7 +789,23 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                             <div className="space-y-3">
                                                 {(formData.environmentsDetails?.[envName]?.appliances || []).map((app: any, idx: number) => (
                                                     <div key={app.id} className="bg-muted/20 p-3 rounded-lg border border-border/50 text-sm space-y-2 group relative">
-                                                        <button type="button" onClick={() => { const apps = [...(formData.environmentsDetails?.[envName]?.appliances || [])]; apps.splice(idx, 1); updateMemorial(envName, 'appliances', apps); }} className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"><X size={10} /></button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { 
+                                                                const pwd = prompt('Digite a senha de administrador:');
+                                                                if (pwd !== 'admin') {
+                                                                    alert('Senha incorreta!');
+                                                                    return;
+                                                                }
+                                                                const apps = [...(formData.environmentsDetails?.[envName]?.appliances || [])]; 
+                                                                apps.splice(idx, 1); 
+                                                                updateMemorial(envName, 'appliances', apps); 
+                                                            }} 
+                                                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"
+                                                            title="Excluir Eletro"
+                                                        >
+                                                            <X size={10} />
+                                                        </button>
                                                         <input className="w-full bg-transparent font-bold outline-none placeholder:text-muted-foreground/50" placeholder="Nome do Item (Forno, Cooktop...)" value={app.item} onChange={e => { const apps = [...(formData.environmentsDetails?.[envName]?.appliances || [])]; apps[idx].item = e.target.value; updateMemorial(envName, 'appliances', apps); }} />
                                                         <input className="w-full text-xs bg-transparent border-b border-dashed border-border outline-none" placeholder="Marca/Modelo" value={app.brand} onChange={e => { const apps = [...(formData.environmentsDetails?.[envName]?.appliances || [])]; apps[idx].brand = e.target.value; updateMemorial(envName, 'appliances', apps); }} />
                                                         {userRole === 'owner' && (

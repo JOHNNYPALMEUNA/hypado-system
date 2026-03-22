@@ -594,7 +594,14 @@ const FinancialAuditView: React.FC = () => {
                                                             <FileText size={18} className="group-hover/btn:scale-110 transition-transform" />
                                                         </button>
                                                         <button
-                                                            onClick={() => deleteRefundRequest(request.id)}
+                                                            onClick={() => {
+                                                                const pwd = prompt('Digite a senha de administrador:');
+                                                                if (pwd !== 'admin') {
+                                                                    alert('Senha incorreta!');
+                                                                    return;
+                                                                }
+                                                                deleteRefundRequest(request.id);
+                                                            }}
                                                             className="p-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm group/btn"
                                                             title="Excluir lançamento"
                                                         >

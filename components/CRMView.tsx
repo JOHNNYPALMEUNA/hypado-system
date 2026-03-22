@@ -143,7 +143,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
     if (!editingClient) return;
     if (confirm(`Excluir cliente ${editingClient.name}?`)) {
       const pwd = prompt('Digite a senha de administrador:');
-      if (pwd !== 'adm123') {
+      if (pwd !== 'admin') {
         alert('Senha incorreta!');
         return;
       }
@@ -184,7 +184,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
           <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border overflow-hidden animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
               <h4 className="text-lg font-semibold">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</h4>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
+              <button onClick={() => setIsModalOpen(false)} title="Fechar" className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -195,17 +195,17 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
 
                 <div>
                   <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Nome Completo</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="Nome Completo" title="Nome Completo" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Telefone</label>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(00) 00000-0000" title="Telefone" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">E-mail</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="exemplo@email.com" title="E-mail" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
                   </div>
                 </div>
 
@@ -213,11 +213,11 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="col-span-1">
                       <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block flex items-center gap-1">CEP {isFetchingCep && <Loader2 size={10} className="animate-spin" />}</label>
-                      <input type="text" name="cep" value={formData.cep} onChange={handleInputChange} maxLength={8} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                      <input type="text" name="cep" value={formData.cep} onChange={handleInputChange} maxLength={8} placeholder="00000000" title="CEP" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
                     </div>
                     <div className="col-span-2">
                       <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Endereço</label>
-                      <input type="text" name="address" value={formData.address} onChange={handleInputChange} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                      <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="Rua, Número, Bairro" title="Endereço" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
                     </div>
                   </div>
                 </div>
@@ -258,7 +258,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => openModal(client)} className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                <button onClick={() => openModal(client)} title="Editar Cliente" className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
                   <Edit2 size={16} />
                 </button>
               </div>

@@ -143,6 +143,15 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     const rawValue = mdoValues[env.name] || '0';
     const declaredValue = parseFloat(rawValue) || 0;
 
+    // Record Expense for Internal Team (OS value fall-in)
+    const newExp: Expense = {
+      id: `mdo-${Date.now()}-${envName}`,
+      description: `MDO Ambiente: ${envName}`,
+      value: declaredValue,
+      date: new Date().toISOString().split('T')[0],
+      category: 'Montagem'
+    };
+
     const newEnvDetails = selectedOS.environmentsDetails.map(e => 
       e.name === envName ? { 
         ...e, 
@@ -153,8 +162,37 @@ const MdoManager: React.FC<MdoManagerProps> = ({
       } : e
     );
 
-    await updateProject({ ...selectedOS, environmentsDetails: newEnvDetails as any } as Project);
+    await updateProject({ 
+        ...selectedOS, 
+        environmentsDetails: newEnvDetails as any,
+        expenses: [...(selectedOS.expenses || []), newExp]
+    } as Project);
     alert("REGISTRO INTERNO CONCLUÍDO!");
+  };
+
+  const handleUndoAuthorization = async (envName: string) => {
+    if (!selectedOSId || !selectedOS) return;
+    const pwd = prompt('Digite a senha de administrador:');
+    if (pwd !== 'admin') {
+        alert('Senha incorreta!');
+        return;
+    }
+    if (!confirm(`Deseja desfazer o apontamento do ambiente "${envName}"? O lançamento financeiro será removido.`)) return;
+
+    const newExpenses = (selectedOS.expenses || []).filter(exp => 
+        !(exp.description.includes(`MDO Ambiente: ${envName}`) && exp.category === 'Montagem')
+    );
+
+    const newEnvDetails = selectedOS.environmentsDetails.map(env => 
+        env.name === envName ? { 
+            ...env, 
+            isMdoAuthorized: false, 
+            mdoStatus: 'Pendente' as const 
+        } : env
+    );
+
+    await updateProject({ ...selectedOS, environmentsDetails: newEnvDetails as any, expenses: newExpenses } as Project);
+    alert("APONTAMENTO REVERTIDO!");
   };
 
   const handleCalculateAICommission = async () => {
@@ -279,6 +317,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                     <input 
                                         type="number" 
                                         placeholder="Valor"
+                                        title="Valor do Ambiente"
                                         className="w-full p-4 pl-10 rounded-2xl bg-slate-50 border-none outline-none font-black text-sm text-center"
                                         value={mdoValues[env.name] !== undefined ? mdoValues[env.name] : (env.authorizedMdoValue || '')}
                                         onChange={e => setMdoValues({...mdoValues, [env.name]: e.target.value})}
@@ -287,8 +326,17 @@ const MdoManager: React.FC<MdoManagerProps> = ({
 
                                 <div className="flex gap-2">
                                     {env.isMdoAuthorized ? (
-                                        <div className="flex items-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">
-                                            <CheckCircle2 size={18} /> Autorizado
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">
+                                                <CheckCircle2 size={18} /> Autorizado
+                                            </div>
+                                            <button 
+                                                onClick={() => handleUndoAuthorization(env.name)}
+                                                className="p-4 bg-red-100 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-md group"
+                                                title="Desfazer Apontamento"
+                                            >
+                                                <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
+                                            </button>
                                         </div>
                                     ) : (
                                         <>

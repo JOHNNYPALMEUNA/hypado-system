@@ -373,6 +373,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
         {!showHistory && (
             <button 
                 onClick={() => setIsQuotationModalOpen(true)} 
+                title="Nova Requisição"
                 className="bg-amber-500 text-foreground px-8 py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-slate-900 hover:text-white transition-all"
             >
                 <Plus size={20} /> Nova Requisição Técnica
@@ -425,7 +426,14 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                       <span className="text-sm font-bold text-slate-400 italic">ID: {q.id}</span>
                   </div>
               )}
-              <button title="Excluir Pedido" onClick={() => deleteQuotation(q.id)} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
+              <button title="Excluir Pedido" onClick={() => {
+                const pwd = prompt('Digite a senha de administrador:');
+                if (pwd !== 'admin') {
+                  alert('Senha incorreta!');
+                  return;
+                }
+                deleteQuotation(q.id);
+              }} className="p-4 text-slate-300 hover:text-red-500 transition-colors">
                 <Trash2 size={20} />
               </button>
             </div>
@@ -458,7 +466,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                           <div className="space-y-6">
                               <div className="flex items-center justify-between">
                                   <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Dados do Pedido</label>
-                                  <label className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-black uppercase text-[8px] tracking-widest cursor-pointer hover:bg-emerald-600 transition-all shadow-lg active:scale-95">
+                                  <label title="Importar NF por IA" className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl font-black uppercase text-[8px] tracking-widest cursor-pointer hover:bg-emerald-600 transition-all shadow-lg active:scale-95">
                                       {isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Camera size={12} />}
                                       {isAnalyzing ? 'Analisando...' : 'Importar NF (IA)'}
                                       <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleAnalyzeForNewQuotation} disabled={isAnalyzing} />
@@ -497,6 +505,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                           </div>
                                           <button 
                                               onClick={() => setNewQuotation(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                              title="Remover Item"
                                               className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                                           >
                                               <Trash2 size={14} />
@@ -551,6 +560,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                 <input 
                                     type="text" 
                                     placeholder="Buscar material na biblioteca..." 
+                                    title="Buscar Material"
                                     className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-slate-100/50 border-none outline-none font-bold text-lg focus:bg-white focus:shadow-inner transition-all"
                                     value={searchMaterial}
                                     onChange={e => setSearchMaterial(e.target.value)}
@@ -603,7 +613,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                             </label>
                             <p className="text-sm font-bold text-slate-600 max-w-xs leading-tight">Anexe sua Nota Fiscal ou Recibo para extrair os preços reais automaticamente.</p>
                             <div className="flex gap-4">
-                                <label className="flex items-center gap-3 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest cursor-pointer hover:bg-emerald-600 transition-all shadow-xl active:scale-95 group">
+                                <label title="Importar NF / PDF por IA" className="flex items-center gap-3 bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest cursor-pointer hover:bg-emerald-600 transition-all shadow-xl active:scale-95 group">
                                     {isAnalyzing ? <RefreshCw className="animate-spin" size={18} /> : <Upload size={18} />}
                                     {isAnalyzing ? 'Processando Documento...' : 'Importar NF / PDF'}
                                     <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleAnalyzeInvoice} disabled={isAnalyzing} />

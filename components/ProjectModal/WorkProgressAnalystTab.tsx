@@ -192,7 +192,14 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                                             <input type="file" title="Trocar Render" accept="image/*" className="hidden" onChange={handleRenderUpload} />
                                         </label>
                                         <button 
-                                            onClick={() => setRenderImage(null)}
+                                            onClick={() => {
+                                                const pwd = prompt('Digite a senha de administrador:');
+                                                if (pwd !== 'admin') {
+                                                    alert('Senha incorreta!');
+                                                    return;
+                                                }
+                                                setRenderImage(null);
+                                            }}
                                             className="p-3 bg-red-500 text-white rounded-2xl shadow-xl hover:scale-110 transition-all"
                                             title="Remover Render"
                                         >
@@ -230,8 +237,13 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                                     {handlePdfDelete && (
                                         <button
                                             onClick={() => {
+                                                const pwd = prompt('Digite a senha de administrador:');
+                                                if (pwd !== 'admin') {
+                                                    alert('Senha incorreta!');
+                                                    return;
+                                                }
                                                 if (confirm('Deseja remover o PDF do projeto e cancelar a leitura da IA?')) {
-                                                    handlePdfDelete();
+                                                    handlePdfDelete?.();
                                                     setPdfSummary(null);
                                                 }
                                             }}

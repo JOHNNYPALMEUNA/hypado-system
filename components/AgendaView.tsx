@@ -64,7 +64,7 @@ const AgendaView: React.FC<Props> = ({
     const handleDeleteTask = async (id: string) => {
         if (confirm('Excluir tarefa?')) {
             const pwd = prompt('Digite a senha de administrador:');
-            if (pwd !== 'adm123') {
+            if (pwd !== 'admin') {
                 alert('Senha incorreta!');
                 return;
             }
@@ -134,6 +134,7 @@ const AgendaView: React.FC<Props> = ({
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Acompanhamento de Obras</p>
                     </div>
                     <button
+                        title="Nova Tarefa"
                         onClick={() => setIsTaskModalOpen(true)}
                         className="bg-slate-900 text-white p-3 rounded-xl hover:bg-amber-500 hover:text-foreground transition-all shadow-lg active:scale-95"
                     >
@@ -165,12 +166,13 @@ const AgendaView: React.FC<Props> = ({
                     ) : (
                         filteredTasks.map(task => (
                             <div key={task.id} className={`group flex items-start gap-4 p-4 rounded-2xl border transition-all ${task.done ? 'bg-muted/50 border-transparent opacity-60' : 'bg-card border-slate-100 hover:border-amber-200 hover:shadow-sm'}`}>
-                                <button
-                                    onClick={() => toggleTask(task)}
-                                    className={`mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-transparent hover:border-amber-500'}`}
-                                >
-                                    <CheckCircle2 size={14} />
-                                </button>
+                                    <button
+                                        onClick={() => toggleTask(task)}
+                                        title="Alternar Tarefa"
+                                        className={`mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${task.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-transparent hover:border-amber-500'}`}
+                                    >
+                                        <CheckCircle2 size={14} />
+                                    </button>
                                 <div className="flex-1">
                                     <h4 className={`font-bold text-foreground ${task.done ? 'line-through text-slate-400' : ''}`}>{task.title}</h4>
                                     <div className="flex gap-4 mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -179,7 +181,7 @@ const AgendaView: React.FC<Props> = ({
                                         {task.dueDate && <span className="flex items-center gap-1"><Clock size={10} /> {new Date(task.dueDate).toLocaleDateString()}</span>}
                                     </div>
                                 </div>
-                                <button onClick={() => handleDeleteTask(task.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => handleDeleteTask(task.id)} title="Excluir Tarefa" className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
                                     <Trash2 size={16} />
                                 </button>
                             </div>
@@ -201,7 +203,8 @@ const AgendaView: React.FC<Props> = ({
                         <a
                             href="https://calendar.google.com"
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
+                            title="Abrir Google Calendar"
                             className="p-3 text-slate-400 hover:text-blue-500 transition-colors"
                         >
                             <ExternalLink size={20} />
@@ -283,6 +286,7 @@ const AgendaView: React.FC<Props> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <select
                                     className="bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none"
+                                    title="Obra"
                                     value={newTask.projectId || ''}
                                     onChange={e => setNewTask({ ...newTask, projectId: e.target.value })}
                                 >
@@ -293,6 +297,7 @@ const AgendaView: React.FC<Props> = ({
                                 </select>
                                 <select
                                     className="bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none"
+                                    title="Prioridade"
                                     value={newTask.priority}
                                     onChange={e => setNewTask({ ...newTask, priority: e.target.value as any })}
                                 >
@@ -304,6 +309,7 @@ const AgendaView: React.FC<Props> = ({
                             <input
                                 type="date"
                                 className="w-full bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none text-muted-foreground"
+                                title="Data de Vencimento"
                                 value={newTask.dueDate || ''}
                                 onChange={e => setNewTask({ ...newTask, dueDate: e.target.value })}
                             />
@@ -333,18 +339,21 @@ const AgendaView: React.FC<Props> = ({
                                 <input
                                     type="datetime-local"
                                     className="bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none text-muted-foreground"
+                                    title="Início"
                                     value={newEvent.start || ''}
                                     onChange={e => setNewEvent({ ...newEvent, start: e.target.value })}
                                 />
                                 <input
                                     type="datetime-local"
                                     className="bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none text-muted-foreground"
+                                    title="Fim"
                                     value={newEvent.end || ''}
                                     onChange={e => setNewEvent({ ...newEvent, end: e.target.value })}
                                 />
                             </div>
                             <select
                                 className="w-full bg-muted/50 p-3 rounded-xl text-sm font-bold outline-none"
+                                title="Tipo de Evento"
                                 value={newEvent.type}
                                 onChange={e => setNewEvent({ ...newEvent, type: e.target.value as any })}
                             >

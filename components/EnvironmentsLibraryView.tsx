@@ -40,6 +40,11 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
 
   const handleDelete = (id: string) => {
     if (confirm('Deseja remover este ambiente da biblioteca? Isso não afetará obras já criadas.')) {
+      const pwd = prompt('Digite a senha de administrador:');
+      if (pwd !== 'admin') {
+        alert('Senha incorreta!');
+        return;
+      }
       setEnvironments(prev => prev.filter(e => e.id !== id));
     }
   };
@@ -116,6 +121,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 </button>
                 <button
                   onClick={() => handleDelete(env.id)}
+                  title="Excluir Ambiente"
                   className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={18} />
@@ -139,7 +145,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 <h3 className="text-lg font-black text-foreground uppercase italic">Editando: {editingEnv.name}</h3>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Defina os materiais padrão para este ambiente</p>
               </div>
-              <button onClick={() => setEditingEnv(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} /></button>
+              <button onClick={() => setEditingEnv(null)} title="Fechar" className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={20} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -167,6 +173,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                       <select
                         className="col-span-4 text-sm px-3 py-2 bg-muted/50 rounded-lg outline-none font-medium"
                         value={part.brandColor}
+                        title="Material"
                         onChange={e => {
                           const parts = [...editingEnv.memorial!.mdfParts];
                           parts[idx].brandColor = e.target.value;
@@ -181,14 +188,21 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                         ))}
                         <option value="Branco Padrão">Branco Padrão (Genérico)</option>
                       </select>
-                      <select className="col-span-2 text-sm px-1 bg-muted/50 rounded-lg outline-none" value={part.thickness} onChange={e => {
-                        const parts = [...editingEnv.memorial!.mdfParts];
-                        parts[idx].thickness = e.target.value;
-                        updateMemorial('mdfParts', parts);
-                      }}>
-                        <option value="15mm">15mm</option><option value="18mm">18mm</option><option value="25mm">25mm</option>
+                      <select
+                        className="col-span-2 text-sm px-1 bg-muted/50 rounded-lg outline-none"
+                        title="Espessura"
+                        value={part.thickness}
+                        onChange={e => {
+                          const parts = [...editingEnv.memorial!.mdfParts];
+                          parts[idx].thickness = e.target.value;
+                          updateMemorial('mdfParts', parts);
+                        }}
+                      >
+                        <option value="15mm">15mm</option>
+                        <option value="18mm">18mm</option>
+                        <option value="25mm">25mm</option>
                       </select>
-                      <button className="col-span-1 text-slate-300 hover:text-red-500 flex justify-center" onClick={() => {
+                      <button className="col-span-1 text-slate-300 hover:text-red-500 flex justify-center" title="Remover Parte" onClick={() => {
                         const parts = [...editingEnv.memorial!.mdfParts];
                         parts.splice(idx, 1);
                         updateMemorial('mdfParts', parts);
@@ -215,7 +229,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                 <div className="space-y-2">
                   {editingEnv.memorial.hardwareItems.map((hw, idx) => (
                     <div key={hw.id} className="grid grid-cols-12 gap-2">
-                      <select className="col-span-3 text-sm px-2 bg-muted/50 rounded-lg outline-none" value={hw.category} onChange={e => {
+                      <select className="col-span-3 text-sm px-2 bg-muted/50 rounded-lg outline-none" title="Categoria" value={hw.category} onChange={e => {
                         const hws = [...editingEnv.memorial!.hardwareItems];
                         hws[idx].category = e.target.value;
                         updateMemorial('hardwareItems', hws);
@@ -225,6 +239,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                       <div className="col-span-8 grid grid-cols-2 gap-2">
                         <select
                           className="col-span-2 text-sm px-3 py-2 bg-muted/50 rounded-lg outline-none font-medium"
+                          title="Material do Estoque"
                           onChange={e => {
                             const selectedMat = materials.find(m => m.id === e.target.value);
                             if (selectedMat) {
@@ -242,7 +257,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
                           ))}
                         </select>
                       </div>
-                      <button className="col-span-1 text-slate-300 hover:text-red-500 flex justify-center" onClick={() => {
+                      <button className="col-span-1 text-slate-300 hover:text-red-500 flex justify-center" title="Remover Ferragem" onClick={() => {
                         const hws = [...editingEnv.memorial!.hardwareItems];
                         hws.splice(idx, 1);
                         updateMemorial('hardwareItems', hws);

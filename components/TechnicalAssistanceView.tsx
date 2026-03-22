@@ -187,7 +187,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         if (!editingId) return;
         if (confirm('Excluir este chamado de assistência?')) {
             const pwd = prompt('Digite a senha de administrador:');
-            if (pwd !== 'adm123') {
+            if (pwd !== 'admin') {
                 alert('Senha incorreta!');
                 return;
             }
@@ -492,7 +492,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                     <Printer size={20} />
                                 </button>
                             )}
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X /></button>
+                            <button onClick={() => setIsModalOpen(false)} title="Fechar" className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X /></button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-8">
@@ -506,6 +506,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
                                         <select
                                             className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                                            title="Cliente"
                                             value={formData.clientId}
                                             onChange={handleClientChange}
                                             required
@@ -545,6 +546,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                         ) : (
                                             <select
                                                 className="w-full p-4 bg-muted/50 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                title="Projeto"
                                                 value={formData.projectId}
                                                 onChange={handleProjectChange}
                                                 required
@@ -642,6 +644,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Responsável pela Obra Original</label>
                                             <select
                                                 className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none"
+                                                title="Instalador Original"
                                                 value={formData.originalInstallerId || ''}
                                                 onChange={e => setFormData({ ...formData, originalInstallerId: e.target.value })}
                                             >
@@ -695,6 +698,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                             </div>
                                             <select
                                                 className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none"
+                                                title="Técnico da Assistência"
                                                 value={formData.technicianId || ''}
                                                 onChange={e => setFormData({ ...formData, technicianId: e.target.value })}
                                             >

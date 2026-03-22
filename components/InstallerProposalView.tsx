@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Check, X, FileText, MapPin, Calendar, DollarSign, FolderOpen, User, Building2, Phone, Layers, Search, ChevronDown, ChevronUp, Printer } from 'lucide-react';
-import { Project, Environment } from '../types';
+import { Project, Environment, Expense } from '../types';
 
 import { supabase } from '../supabaseClient';
 
@@ -150,24 +150,42 @@ const InstallerProposalView: React.FC = () => {
                 throw new Error('Formato de dados dos ambientes inválido no banco de dados.');
             }
 
+            // Create Expenses for each accepted environment
+            const newExpenses = [...(project.expenses || [])];
+            targetEnvs.forEach(envName => {
+                const env = envsList.find((e: any) => e.name === envName);
+                const value = env?.authorizedMdoValue || env?.authorized_mdo_value || 0;
+                
+                // Only add if not already present to avoid duplicates
+                const exists = newExpenses.some(exp => exp.description.includes(`MDO Ambiente: ${envName}`));
+                if (!exists && value > 0) {
+                    newExpenses.push({
+                        id: `mdo-${Date.now()}-${envName}`,
+                        description: `MDO Ambiente: ${envName}`,
+                        value: value,
+                        date: new Date().toISOString().split('T')[0],
+                        category: 'Montagem'
+                    });
+                }
+            });
+
             // Update all environments in the proposal
             const newEnvDetails = envsList.map((env: any) =>
                 targetEnvs.includes(env.name) ? {
                     ...env,
                     mdoStatus: 'Aceito',
-                    isMdoAuthorized: true
+                    mdo_status: 'Aceito', // Handle both
+                    isMdoAuthorized: true,
+                    is_mdo_authorized: true // Handle both
                 } : env
             );
 
             // Try to update using both possible column names
-            let updatePayload: any = {};
+            let updatePayload: any = {
+                expenses: newExpenses
+            };
             if (project.environmentsDetails !== undefined) updatePayload.environmentsDetails = newEnvDetails;
             if (project.environments_details !== undefined) updatePayload.environments_details = newEnvDetails;
-
-            // If neither was found in the initial select, default to environmentsDetails (camelCase)
-            if (Object.keys(updatePayload).length === 0) {
-                updatePayload = { environmentsDetails: newEnvDetails };
-            }
 
             const { error: updateError } = await supabase
                 .from('projects')
@@ -231,8 +249,11 @@ const InstallerProposalView: React.FC = () => {
                 targetEnvs.includes(env.name) ? {
                     ...env,
                     mdoStatus: 'Recusado',
+                    mdo_status: 'Recusado', // Handle both
                     isMdoAuthorized: false,
-                    rejectionReason: reason
+                    is_mdo_authorized: false, // Handle both
+                    rejectionReason: reason,
+                    rejection_reason: reason // Handle both
                 } : env
             );
 

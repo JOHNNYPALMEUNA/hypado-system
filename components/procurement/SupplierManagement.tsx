@@ -59,7 +59,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
   const handleDelete = async (id: string) => {
     if (confirm("Excluir parceiro?")) {
       const pwd = prompt('Digite a senha de administrador:');
-      if (pwd !== 'adm123') {
+      if (pwd !== 'admin') {
         alert('Senha incorreta!');
         return;
       }

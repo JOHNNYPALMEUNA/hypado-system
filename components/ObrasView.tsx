@@ -577,7 +577,7 @@ const ObrasView: React.FC<Props> = ({
       if (!editingProjectId) return;
       if (confirm('Tem certeza que deseja excluir esta obra? Todos os dados vinculados serão perdidos.')) {
          const pwd = prompt('Digite a senha de administrador:');
-         if (pwd !== 'adm123') {
+         if (pwd !== 'admin') {
             alert('Senha incorreta!');
             return;
          }
@@ -727,12 +727,13 @@ const ObrasView: React.FC<Props> = ({
 
                <button
                   onClick={openCreateModal}
+                  title="Nova OS (Manual)"
                   className="bg-card text-primary border border-primary/20 hover:border-primary px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-muted/50 transition-all shadow-sm"
                >
                   <Plus size={18} /> Nova OS (Manual)
                </button>
 
-               <label className="bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-all shadow-sm cursor-pointer">
+               <label title="Importar Contrato (IA)" className="bg-primary text-primary-foreground px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-primary/90 transition-all shadow-sm cursor-pointer">
                   <Sparkles size={18} /> Importar Contrato (IA)
                   <input
                      type="file"

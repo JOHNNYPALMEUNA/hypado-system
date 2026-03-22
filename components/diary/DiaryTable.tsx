@@ -205,6 +205,11 @@ const DiaryTable: React.FC<DiaryTableProps> = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              const pwd = prompt('Digite a senha de administrador:');
+                              if (pwd !== 'admin') {
+                                alert('Senha incorreta!');
+                                return;
+                              }
                               if (window.confirm('Tem certeza que deseja excluir permanentemente este registro?')) {
                                 deleteDailyLog(log.id);
                               }
