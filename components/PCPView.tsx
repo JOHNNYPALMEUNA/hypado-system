@@ -50,12 +50,15 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showAssemblyModal, setShowAssemblyModal] = useState<string | null>(null);
   
   // Industrial Cost States
-  const [cuttingValue, setCuttingValue] = useState<string>('');
-  const [edgingValue, setEdgingValue] = useState<string>('');
-  const [edgingMeters, setEdgingMeters] = useState<string>('');
+  const [cuttingUnitPrice, setCuttingUnitPrice] = useState<string>('');
+  const [cuttingQuantity, setCuttingQuantity] = useState<string>('');
+  const [edgingUnitPrice, setEdgingUnitPrice] = useState<string>('');
+  const [edgingQuantity, setEdgingQuantity] = useState<string>('');
   const [packingValue, setPackingValue] = useState<string>('');
   const [machiningValue, setMachiningValue] = useState<string>('');
   const [drillingValue, setDrillingValue] = useState<string>('');
+  const [showSmartImport, setShowSmartImport] = useState(false);
+  const [smartImportText, setSmartImportText] = useState('');
   const [pendingProjectData, setPendingProjectData] = useState<Partial<Project> | null>(null);
   const [transitionDate, setTransitionDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -118,12 +121,15 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         });
       }
       setProductionPartsCount(initialParts);
-      setCuttingValue('');
-      setEdgingValue('');
-      setEdgingMeters('');
+      setCuttingUnitPrice('');
+      setCuttingQuantity('');
+      setEdgingUnitPrice('');
+      setEdgingQuantity('');
       setPackingValue('');
       setMachiningValue('');
       setDrillingValue('');
+      setShowSmartImport(false);
+      setSmartImportText('');
       setShowCentralModal(projectId);
     }
     else if (currentStatus === 'Produção') {
@@ -256,8 +262,29 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     };
 
     if (userRole === 'owner') {
-        addServiceExpense(cuttingValue, 'Serviço Corte', 'Corte');
-        addServiceExpense(edgingValue, `Serviço Fitação (${edgingMeters}m)`, 'Fitação');
+        const cTotal = Number(cuttingUnitPrice) * Number(cuttingQuantity);
+        const eTotal = Number(edgingUnitPrice) * Number(edgingQuantity);
+        
+        if (cTotal > 0) {
+            newExpenses.push({
+                id: `corte-${Date.now()}-1`,
+                description: `Serviço Corte: ${centralName} (${cuttingQuantity} un x R$ ${cuttingUnitPrice})`,
+                value: cTotal,
+                date: date,
+                category: 'Corte'
+            });
+        }
+        
+        if (eTotal > 0) {
+            newExpenses.push({
+                id: `fita-${Date.now()}-2`,
+                description: `Serviço Fitação: ${centralName} (${edgingQuantity} m x R$ ${edgingUnitPrice})`,
+                value: eTotal,
+                date: date,
+                category: 'Fitação'
+            });
+        }
+
         addServiceExpense(packingValue, 'Serviço Embalagem', 'Produção');
         addServiceExpense(machiningValue, 'Serviço Usinagem', 'Produção');
         addServiceExpense(drillingValue, 'Serviço Furação', 'Produção');
@@ -757,34 +784,129 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => setShowCentralModal(null)} />
           <div className="relative bg-card w-full max-w-xl rounded-[56px] shadow-2xl p-12 animate-in zoom-in-95">
             <h4 className="text-3xl font-black uppercase italic mb-8 tracking-tighter leading-none">Processamento Industrial</h4>
-            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar p-2">
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar p-2">
               {userRole === 'owner' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2 col-span-2 md:col-span-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Custo de Corte R$</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-xl font-black outline-none focus:border-orange-500 transition-all shadow-inner" placeholder="0,00" value={cuttingValue} onChange={e => setCuttingValue(e.target.value)} />
+                <>
+                  <button 
+                    onClick={() => setShowSmartImport(!showSmartImport)}
+                    className="w-full py-3 bg-indigo-500/10 text-indigo-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center gap-2 mb-4 group"
+                  >
+                    <Brain size={14} className="group-hover:animate-pulse" /> {showSmartImport ? 'Fechar Importação Inteligente' : 'Importar Texto do Orçamento (IA)'}
+                  </button>
+
+                  {showSmartImport && (
+                    <div className="bg-indigo-50/50 p-6 rounded-[32px] border-2 border-indigo-100 mb-6 animate-in slide-in-from-top-4">
+                      <p className="text-[10px] font-black uppercase text-indigo-400 italic mb-3 flex items-center gap-2">
+                        <Sparkles size={12} /> Cole aqui o texto do seu orçamento/pedido
+                      </p>
+                      <textarea 
+                        className="w-full h-32 bg-white/80 border-2 border-indigo-100 rounded-2xl p-4 text-xs font-bold outline-none focus:border-indigo-500 transition-all resize-none shadow-inner"
+                        placeholder="Ex: DESLOCAMENTO SERRA 173 un x 3,40..."
+                        value={smartImportText}
+                        onChange={e => setSmartImportText(e.target.value)}
+                      />
+                      <button 
+                        onClick={() => {
+                          const text = smartImportText.toUpperCase();
+                          
+                          // Improved Regex Patterns based on screenshot
+                          // Structure: [Name/Desc] [Code] [Qty] SV [UnitPrice] [Total]
+                          
+                          // Corte (Deslocamento Serra)
+                          const corteMatch = text.match(/SERRA.*?(\d+)\s+SV.*?([\d,.]+)\s+[\d,.]+$/m) || 
+                                           text.match(/SERRA.*?(\d+)\s+SV.*?([\d,.]+)/);
+                          if (corteMatch) {
+                            setCuttingQuantity(corteMatch[1]);
+                            setCuttingUnitPrice(corteMatch[2].replace(',', '.'));
+                          }
+
+                          // Fitação (Aplicação de Fita)
+                          const fitaMatch = text.match(/FITA.*?(\d+)\s+SV.*?([\d,.]+)\s+[\d,.]+$/m) || 
+                                          text.match(/FITA.*?(\d+)\s+SV.*?([\d,.]+)/);
+                          if (fitaMatch) {
+                            setEdgingQuantity(fitaMatch[1]);
+                            setEdgingUnitPrice(fitaMatch[2].replace(',', '.'));
+                          }
+
+                          setShowSmartImport(false);
+                          setSmartImportText('');
+                        }}
+                        className="w-full mt-3 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-200 hover:bg-slate-900 transition-all"
+                      >
+                        Processar com IA Hypado
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-6">
+                    {/* CORTE */}
+                    <div className="bg-orange-50/30 p-6 rounded-[32px] border-2 border-orange-100/50">
+                      <div className="flex justify-between items-center mb-4 px-2">
+                        <label className="text-[10px] font-black uppercase text-orange-600 italic">Serviço de Corte (Serra)</label>
+                        {(Number(cuttingUnitPrice) * Number(cuttingQuantity)) > 0 && (
+                          <span className="text-xs font-black text-orange-600">Subtotal: R$ {(Number(cuttingUnitPrice) * Number(cuttingQuantity)).toFixed(2)}</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-slate-400 uppercase italic ml-2">Preço Unitário</p>
+                          <input type="number" className="w-full px-4 py-3 bg-white border-2 border-orange-100 rounded-2xl text-lg font-black outline-none focus:border-orange-500 transition-all" placeholder="0,00" value={cuttingUnitPrice} onChange={e => setCuttingUnitPrice(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-slate-400 uppercase italic ml-2">Quantidade (SV)</p>
+                          <input type="number" className="w-full px-4 py-3 bg-white border-2 border-orange-100 rounded-2xl text-lg font-black outline-none focus:border-orange-500 transition-all" placeholder="0" value={cuttingQuantity} onChange={e => setCuttingQuantity(e.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* FITAÇÃO */}
+                    <div className="bg-blue-50/30 p-6 rounded-[32px] border-2 border-blue-100/50">
+                      <div className="flex justify-between items-center mb-4 px-2">
+                        <label className="text-[10px] font-black uppercase text-blue-600 italic">Serviço de Fitação (Aplicação)</label>
+                        {(Number(edgingUnitPrice) * Number(edgingQuantity)) > 0 && (
+                          <span className="text-xs font-black text-blue-600">Subtotal: R$ {(Number(edgingUnitPrice) * Number(edgingQuantity)).toFixed(2)}</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-slate-400 uppercase italic ml-2">Preço Unitário</p>
+                          <input type="number" className="w-full px-4 py-3 bg-white border-2 border-blue-100 rounded-2xl text-lg font-black outline-none focus:border-blue-500 transition-all" placeholder="0,00" value={edgingUnitPrice} onChange={e => setEdgingUnitPrice(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[8px] font-bold text-slate-400 uppercase italic ml-2">Metragem/Quant.</p>
+                          <input type="number" className="w-full px-4 py-3 bg-white border-2 border-blue-100 rounded-2xl text-lg font-black outline-none focus:border-blue-500 transition-all" placeholder="0" value={edgingQuantity} onChange={e => setEdgingQuantity(e.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* OUTROS */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-muted/30 p-4 rounded-[28px] border-2 border-slate-100">
+                        <label className="text-[8px] font-black uppercase text-slate-400 italic block mb-2 text-center">Embalagem R$</label>
+                        <input type="number" className="w-full px-2 py-2 bg-transparent text-center text-sm font-black outline-none" placeholder="0,00" value={packingValue} onChange={e => setPackingValue(e.target.value)} />
+                      </div>
+                      <div className="bg-muted/30 p-4 rounded-[28px] border-2 border-slate-100">
+                        <label className="text-[8px] font-black uppercase text-slate-400 italic block mb-2 text-center">Usinagem R$</label>
+                        <input type="number" className="w-full px-2 py-2 bg-transparent text-center text-sm font-black outline-none" placeholder="0,00" value={machiningValue} onChange={e => setMachiningValue(e.target.value)} />
+                      </div>
+                      <div className="bg-muted/30 p-4 rounded-[28px] border-2 border-slate-100">
+                        <label className="text-[8px] font-black uppercase text-slate-400 italic block mb-2 text-center">Furação R$</label>
+                        <input type="number" className="w-full px-2 py-2 bg-transparent text-center text-sm font-black outline-none" placeholder="0,00" value={drillingValue} onChange={e => setDrillingValue(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {/* TOTAL GERAL BOX */}
+                    {(Number(cuttingUnitPrice) * Number(cuttingQuantity) + Number(edgingUnitPrice) * Number(edgingQuantity) + Number(packingValue) + Number(machiningValue) + Number(drillingValue)) > 0 && (
+                      <div className="bg-slate-900 p-8 rounded-[40px] text-center shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] italic mb-2 relative z-10">Total Industrial Estimado</p>
+                        <p className="text-4xl font-black text-white italic tracking-tighter relative z-10">
+                          R$ {(Number(cuttingUnitPrice) * Number(cuttingQuantity) + Number(edgingUnitPrice) * Number(edgingQuantity) + Number(packingValue) + Number(machiningValue) + Number(drillingValue)).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2 col-span-2 md:col-span-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Custo de Fitação R$</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-xl font-black outline-none focus:border-blue-500 transition-all shadow-inner" placeholder="0,00" value={edgingValue} onChange={e => setEdgingValue(e.target.value)} />
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Quantidade de Fita (Metros)</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-bold outline-none focus:border-blue-300 transition-all shadow-inner" placeholder="Pode deixar em branco se não souber" value={edgingMeters} onChange={e => setEdgingMeters(e.target.value)} />
-                  </div>
-                  <div className="space-y-2 col-span-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Embalagem R$</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-emerald-500 transition-all shadow-inner" placeholder="0,00" value={packingValue} onChange={e => setPackingValue(e.target.value)} />
-                  </div>
-                  <div className="space-y-2 col-span-1">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Usinagem R$</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-purple-500 transition-all shadow-inner" placeholder="0,00" value={machiningValue} onChange={e => setMachiningValue(e.target.value)} />
-                  </div>
-                  <div className="space-y-2 col-span-2">
-                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Furação R$</label>
-                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-red-500 transition-all shadow-inner" placeholder="0,00" value={drillingValue} onChange={e => setDrillingValue(e.target.value)} />
-                  </div>
-                </div>
+                </>
               )}
 
               <div className="bg-muted/50 p-6 rounded-[28px] border-2 border-slate-100 space-y-4">
