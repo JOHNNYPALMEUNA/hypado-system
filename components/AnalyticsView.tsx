@@ -24,17 +24,14 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
 
   // --- 1. FINANCEIRO ---
   const financialMetrics = useMemo(() => {
-    const totalSold = projects.reduce((acc, p) => acc + (p.value || 0), 0);
+    const activeProjects = projects.filter(p => p.currentStatus !== 'Cancelada');
+    const totalSold = activeProjects.reduce((acc, p) => acc + (p.value || 0), 0);
 
     // Custo estimado (Materiais + Terceiros + Despesas Extras)
-    // Nota: O cálculo exato dependeria de ter o custo de cada item do memorial, 
-    // aqui usamos os valores salvos no memorial e despesas lançadas.
-    const totalCost = projects.reduce((acc, p) => {
+    const totalCost = activeProjects.reduce((acc, p) => {
       const expenses = (p.expenses || []).reduce((eAcc, e) => eAcc + e.value, 0);
       const outsourced = (p.outsourcedServices || []).reduce((oAcc, o) => oAcc + (o.value || 0), 0);
 
-      // Custo de material do dossiê (estimado pelos valores cadastrados)
-      // Se o valor não estiver no memorial, assumimos 0
       let materialCost = 0;
       p.environmentsDetails.forEach(env => {
         materialCost += (env.memorial.mdfParts || []).reduce((mAcc, m) => mAcc + (m.value || 0), 0);
@@ -46,7 +43,7 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
     }, 0);
 
     const margin = totalSold > 0 ? ((totalSold - totalCost) / totalSold) * 100 : 0;
-    const ticketmedio = projects.length > 0 ? totalSold / projects.length : 0;
+    const ticketmedio = activeProjects.length > 0 ? totalSold / activeProjects.length : 0;
 
     return { totalSold, totalCost, margin, ticketmedio };
   }, [projects]);
@@ -88,22 +85,29 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
     return ranking.sort((a, b) => b.value - a.value).slice(0, 5); // Sort by Value Earned
   }, [installers, projects]);
 
-  // --- 7. TEMPO MÉDIO DE CICLO (Confirmado -> Finalizada) ---
+  // --- 7. TEMPO MÉDIO DE CICLO (Venda -> Finalizada) ---
   const avgCycleTime = useMemo(() => {
     let totalDays = 0;
     let count = 0;
 
     projects.forEach(p => {
-      if (p.currentStatus === 'Finalizada' && p.history) {
-        // Find earliest 'Confirmado' (Sale) and latest 'Finalizada'
-        const start = p.history.find(h => h.status === 'Confirmado')?.timestamp;
-        const end = p.history.find(h => h.status === 'Finalizada')?.timestamp;
+      if (p.currentStatus === 'Finalizada' && (p.history || p.registrationDate)) {
+        // Try to find status history or use registrationDate
+        const startTimestamp = p.history?.find(h => h.status === 'Venda')?.timestamp || p.registrationDate || p.contractDate;
+        const endTimestamp = p.history?.find(h => h.status === 'Finalizada')?.timestamp;
 
-        if (start && end) {
-          const diffTime = Math.abs(new Date(end).getTime() - new Date(start).getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
-          totalDays += diffDays;
-          count++;
+        if (startTimestamp && endTimestamp) {
+          const startDate = new Date(startTimestamp);
+          const endDate = new Date(endTimestamp);
+          
+          if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+            const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+            
+            // Sanity check: if it was finalized same day or negative (history error), count as at least 1 day
+            totalDays += Math.max(1, diffDays);
+            count++;
+          }
         }
       }
     });
