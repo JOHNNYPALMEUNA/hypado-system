@@ -42,13 +42,20 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showDeliveryModal, setShowDeliveryModal] = useState<string | null>(null);
   const [tempDate, setTempDate] = useState<string>('');
   const [tempFreightDate, setTempFreightDate] = useState<string>('');
-  const [centralServiceValue, setCentralServiceValue] = useState<string>('');
+  const [assemblySearch, setAssemblySearch] = useState('');
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [productionPartsCount, setProductionPartsCount] = useState<Record<string, number>>({});
   const [showArchitectModal, setShowArchitectModal] = useState<string | null>(null);
   const [selectedArchitectId, setSelectedArchitectId] = useState<string>('');
   const [showAssemblyModal, setShowAssemblyModal] = useState<string | null>(null);
-  const [assemblySearch, setAssemblySearch] = useState('');
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  
+  // Industrial Cost States
+  const [cuttingValue, setCuttingValue] = useState<string>('');
+  const [edgingValue, setEdgingValue] = useState<string>('');
+  const [edgingMeters, setEdgingMeters] = useState<string>('');
+  const [packingValue, setPackingValue] = useState<string>('');
+  const [machiningValue, setMachiningValue] = useState<string>('');
+  const [drillingValue, setDrillingValue] = useState<string>('');
   const [pendingProjectData, setPendingProjectData] = useState<Partial<Project> | null>(null);
   const [transitionDate, setTransitionDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,7 +118,12 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         });
       }
       setProductionPartsCount(initialParts);
-      setCentralServiceValue('');
+      setCuttingValue('');
+      setEdgingValue('');
+      setEdgingMeters('');
+      setPackingValue('');
+      setMachiningValue('');
+      setDrillingValue('');
       setShowCentralModal(projectId);
     }
     else if (currentStatus === 'Produção') {
@@ -223,21 +235,35 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
   const handleSelectCentral = (centralName: string) => {
     if (!showCentralModal) return;
-    const value = Number(centralServiceValue);
     const project = projects.find(p => p.id === showCentralModal);
     if (!project) return;
 
     const extraData: Partial<Project> = { productionCentral: centralName };
-    if (value > 0) {
-      const newExpense: Expense = {
-        id: `corte-${Date.now()}`,
-        description: `Serviço Corte: ${centralName}`,
-        value: value,
-        date: new Date().toISOString().split('T')[0],
-        category: 'Fitação'
-      };
-      extraData.expenses = [...(project.expenses || []), newExpense];
+    const newExpenses: Expense[] = [...(project.expenses || [])];
+    const date = new Date().toISOString().split('T')[0];
+
+    const addServiceExpense = (val: string, label: string, cat: string) => {
+        const v = Number(val);
+        if (v > 0) {
+            newExpenses.push({
+                id: `${cat.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                description: `${label}: ${centralName}`,
+                value: v,
+                date: date,
+                category: cat
+            });
+        }
+    };
+
+    if (userRole === 'owner') {
+        addServiceExpense(cuttingValue, 'Serviço Corte', 'Corte');
+        addServiceExpense(edgingValue, `Serviço Fitação (${edgingMeters}m)`, 'Fitação');
+        addServiceExpense(packingValue, 'Serviço Embalagem', 'Produção');
+        addServiceExpense(machiningValue, 'Serviço Usinagem', 'Produção');
+        addServiceExpense(drillingValue, 'Serviço Furação', 'Produção');
     }
+
+    extraData.expenses = newExpenses;
 
     // --- COMMISSION CALCULATION LOGIC ---
     const totalParts = Object.values(productionPartsCount).reduce((a: number, b: number) => a + b, 0) as number;
@@ -731,11 +757,33 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => setShowCentralModal(null)} />
           <div className="relative bg-card w-full max-w-xl rounded-[56px] shadow-2xl p-12 animate-in zoom-in-95">
             <h4 className="text-3xl font-black uppercase italic mb-8 tracking-tighter leading-none">Processamento Industrial</h4>
-            <div className="space-y-8">
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar p-2">
               {userRole === 'owner' && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Custo do Serviço de Corte R$</label>
-                  <input type="number" className="w-full px-8 py-5 bg-muted/50 border-2 rounded-[28px] text-3xl font-black outline-none focus:border-amber-500 transition-all shadow-inner" placeholder="0,00" value={centralServiceValue} onChange={e => setCentralServiceValue(e.target.value)} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 col-span-2 md:col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Custo de Corte R$</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-xl font-black outline-none focus:border-orange-500 transition-all shadow-inner" placeholder="0,00" value={cuttingValue} onChange={e => setCuttingValue(e.target.value)} />
+                  </div>
+                  <div className="space-y-2 col-span-2 md:col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Custo de Fitação R$</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-xl font-black outline-none focus:border-blue-500 transition-all shadow-inner" placeholder="0,00" value={edgingValue} onChange={e => setEdgingValue(e.target.value)} />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Quantidade de Fita (Metros)</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-bold outline-none focus:border-blue-300 transition-all shadow-inner" placeholder="Pode deixar em branco se não souber" value={edgingMeters} onChange={e => setEdgingMeters(e.target.value)} />
+                  </div>
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Embalagem R$</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-emerald-500 transition-all shadow-inner" placeholder="0,00" value={packingValue} onChange={e => setPackingValue(e.target.value)} />
+                  </div>
+                  <div className="space-y-2 col-span-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Usinagem R$</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-purple-500 transition-all shadow-inner" placeholder="0,00" value={machiningValue} onChange={e => setMachiningValue(e.target.value)} />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <label className="text-[10px] font-black uppercase text-slate-400 italic ml-2">Furação R$</label>
+                    <input type="number" className="w-full px-4 py-3 bg-muted/50 border-2 rounded-2xl text-lg font-black outline-none focus:border-red-500 transition-all shadow-inner" placeholder="0,00" value={drillingValue} onChange={e => setDrillingValue(e.target.value)} />
+                  </div>
                 </div>
               )}
 
