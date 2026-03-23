@@ -58,6 +58,7 @@ import RefundSettlementReportView from './components/RefundSettlementReportView'
 import PurchaseSettlementReportView from './components/PurchaseSettlementReportView';
 import PublicAssistanceReportWrapper from './components/PublicAssistanceReportWrapper';
 import PublicDailyReportView from './components/PublicDailyReportView';
+import DailyExpensesPanel from './components/DailyExpensesPanel';
 import { ErrorBoundary } from 'react-error-boundary';
 
 function ErrorFallback({ error }: { error: Error }) {
@@ -97,14 +98,11 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
   return [value, setValue];
 }
 
-// Hook personalizado para persistência no LocalStorage
 
-
-// ... imports
-
+type TabType = 'dashboard' | 'clientes' | 'obras' | 'diario' | 'factory' | 'pcp' | 'cronograma' | 'quality' | 'analytics' | 'ambientes' | 'compras' | 'config' | 'montadores' | 'assistance' | 'agenda' | 'financeiro';
 
 const AppContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'clientes' | 'obras' | 'diario' | 'factory' | 'pcp' | 'cronograma' | 'quality' | 'analytics' | 'ambientes' | 'compras' | 'config' | 'montadores' | 'assistance' | 'agenda' | 'financeiro'>('dashboard');
+  const [activeTab, setActiveTab] = useStickyState<TabType>('dashboard', 'hypado_active_tab');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceResult, setVoiceResult] = useState<string | null>(null);
@@ -117,6 +115,7 @@ const AppContent: React.FC = () => {
   const [reportId, setReportId] = useState<string | null>(null);
   const [reportDate, setReportDate] = useState<string | null>(null);
   const [isAlertCenterOpen, setIsAlertCenterOpen] = useState(false);
+  const [isDailyExpensesOpen, setIsDailyExpensesOpen] = useState(false);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -605,6 +604,14 @@ const AppContent: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setIsDailyExpensesOpen(true)}
+              className="relative p-3 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
+              aria-label="Daily Expenses"
+            >
+              <DollarSign size={24} />
+            </button>
+
+            <button
               onClick={() => setIsAlertCenterOpen(true)}
               className="relative p-3 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors"
               aria-label="Notifications"
@@ -649,9 +656,19 @@ const AppContent: React.FC = () => {
 
       {isAlertCenterOpen && (
         <AlertCenter
+          isOpen={isAlertCenterOpen}
           projects={projects}
           assistances={assistances}
           onClose={() => setIsAlertCenterOpen(false)}
+        />
+      )}
+
+      {isDailyExpensesOpen && (
+        <DailyExpensesPanel
+          isOpen={isDailyExpensesOpen}
+          onClose={() => setIsDailyExpensesOpen(false)}
+          projects={projects}
+          purchaseOrders={quotations}
         />
       )}
     </div>
