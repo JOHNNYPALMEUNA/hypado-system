@@ -248,6 +248,7 @@ export interface Product {
   code?: string;
   supplierId?: string;
   imageUrl?: string;
+  stockQuantity?: number;
 }
 
 export type Material = Product;

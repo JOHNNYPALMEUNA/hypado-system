@@ -214,6 +214,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 unit: m.unit,
                 costPrice: m.cost_price,
                 sellingPrice: m.selling_price,
+                stockQuantity: m.stock_quantity || 0,
                 code: m.code,
                 supplierId: m.supplier_id,
                 imageUrl: m.image_url
@@ -812,6 +813,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 unit: material.unit,
                 cost_price: material.costPrice,
                 selling_price: material.sellingPrice,
+                stock_quantity: material.stockQuantity || 0,
                 code: material.code,
                 supplier_id: material.supplierId,
                 image_url: material.imageUrl
@@ -838,6 +840,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 unit: material.unit,
                 cost_price: material.costPrice,
                 selling_price: material.sellingPrice,
+                stock_quantity: material.stockQuantity || 0,
                 code: material.code,
                 supplier_id: material.supplierId,
                 image_url: material.imageUrl

@@ -90,6 +90,7 @@ const ProcurementView: React.FC<Props> = ({
             updateProject={updateProject}
             company={company}
             addMaterial={addMaterial}
+            updateMaterial={updateMaterial}
             materialCategories={materialCategories}
           />
         )}

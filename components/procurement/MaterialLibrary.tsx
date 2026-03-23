@@ -23,7 +23,8 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
   const [form, setForm] = useState<Partial<Material>>({
     name: '',
     category: 'MDF',
-    unit: 'Chapa'
+    unit: 'Chapa',
+    stockQuantity: 0
   });
 
   const filteredMaterials = materials.filter(m => 
@@ -37,7 +38,7 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
       setForm(mat);
     } else {
       setEditingMaterial(null);
-      setForm({ name: '', category: 'MDF', unit: 'Chapa' });
+      setForm({ name: '', category: 'MDF', unit: 'Chapa', stockQuantity: 0 });
     }
     setIsModalOpen(true);
   };
@@ -112,9 +113,10 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
               </div>
             </div>
             <h5 className="font-black text-foreground uppercase italic leading-tight mb-1">{m.name}</h5>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2">
               <span className="text-[10px] font-black uppercase bg-slate-100 px-2 py-1 rounded-lg text-slate-500">{m.category}</span>
               <span className="text-[10px] font-black uppercase bg-emerald-50 px-2 py-1 rounded-lg text-emerald-600">UN: {m.unit}</span>
+              <span className="text-[10px] font-black uppercase bg-amber-50 px-2 py-1 rounded-lg text-amber-600">ESTOQUE: {m.stockQuantity || 0}</span>
             </div>
           </div>
         ))}
@@ -175,6 +177,20 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
                       <option value="Lata">Lata</option>
                       <option value="Caixa">Caixa</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Estoque Inicial / Atual</label>
+                     <input 
+                      title="Estoque"
+                      type="number"
+                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
+                      value={form.stockQuantity || ''}
+                      placeholder="0"
+                      onChange={e => setForm({...form, stockQuantity: Number(e.target.value)})}
+                    />
                   </div>
                 </div>
 

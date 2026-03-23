@@ -19,6 +19,7 @@ interface PurchaseOrderManagerProps {
   updateProject: (p: Project) => Promise<void>;
   company: Company;
   addMaterial: (m: Material) => Promise<void>;
+  updateMaterial: (m: Material) => Promise<void>;
   materialCategories: string[];
   showHistory?: boolean;
 }
@@ -34,6 +35,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   updateProject,
   company,
   addMaterial,
+  updateMaterial,
   materialCategories,
   showHistory = false
 }) => {
@@ -49,6 +51,13 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   });
   const [searchMaterial, setSearchMaterial] = useState('');
   const [discount, setDiscount] = useState(0);
+
+  const [isStockConsumptionModalOpen, setIsStockConsumptionModalOpen] = useState(false);
+  const [stockConsumptionData, setStockConsumptionData] = useState({
+    projectId: '',
+    items: [] as { materialId: string, name: string, quantity: number, maxQuantity: number, costPrice: number, unit: string }[]
+  });
+  const [stockSearch, setStockSearch] = useState('');
 
   const filteredOrders = useMemo(() => {
     if (showHistory) {
@@ -81,10 +90,12 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   const handleCreateQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuotation.projectId || !newQuotation.supplierId || newQuotation.items.length === 0) {
-      alert("ERRO: Selecione a obra, o fornecedor e adicione itens.");
+      alert("ERRO: Selecione a obra (ou Estoque), o fornecedor e adicione itens.");
       return;
     }
-    const project = projects.find(p => p.id === newQuotation.projectId);
+    const project = newQuotation.projectId === 'ESTOQUE' 
+        ? { workName: 'ESTOQUE DA EMPRESA' } 
+        : projects.find(p => p.id === newQuotation.projectId);
 
     if (editingQuotationId) {
         const order = purchaseOrders.find(o => o.id === editingQuotationId);
@@ -342,26 +353,97 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     };
     await updateQuotation(updatedOrder);
 
-    const project = projects.find(p => p.id === entryModalData.projectId);
-    if (project) {
-        const newExp = {
-            id: `nf-${Date.now()}`,
-            description: `NF: ${entryModalData.id} - ${supplierName}${discount > 0 ? ` (Desc. R$${discount})` : ''}`,
-            value: totalCost,
-            date: new Date().toISOString().split('T')[0],
-            category: 'Material'
-        };
+    if (entryModalData.projectId === 'ESTOQUE') {
+        for (const item of entryModalData.items) {
+            const material = materials.find(m => m.id === item.productId);
+            if (material) {
+                await updateMaterial({
+                    ...material,
+                    stockQuantity: (material.stockQuantity || 0) + item.quantity,
+                    costPrice: item.materialValue || material.costPrice
+                });
+            }
+        }
+    } else {
+        const project = projects.find(p => p.id === entryModalData.projectId);
+        if (project) {
+            const newExp = {
+                id: `nf-${Date.now()}`,
+                description: `NF: ${entryModalData.id} - ${supplierName}${discount > 0 ? ` (Desc. R$${discount})` : ''}`,
+                value: totalCost,
+                date: new Date().toISOString().split('T')[0],
+                category: 'Material'
+            };
 
-        await updateProject({
-            ...project,
-            materialsDelivered: !hasPendingItems,
-            expenses: [...(project.expenses || []), newExp]
-        } as Project);
+            await updateProject({
+                ...project,
+                materialsDelivered: !hasPendingItems,
+                expenses: [...(project.expenses || []), newExp]
+            } as Project);
+        }
     }
 
     setEntryModalData(null);
     setDiscount(0);
     alert(`FATURAMENTO CONCLUÍDO!`);
+  };
+
+  const handleAddStockItemToConsumption = (m: Material) => {
+    if ((m.stockQuantity || 0) <= 0) return;
+    setStockConsumptionData(prev => {
+        const exists = prev.items.find(i => i.materialId === m.id);
+        if (exists) {
+            if (exists.quantity >= (m.stockQuantity || 0)) return prev;
+            return {
+                ...prev,
+                items: prev.items.map(i => i.materialId === m.id ? { ...i, quantity: i.quantity + 1 } : i)
+            };
+        }
+        return {
+            ...prev,
+            items: [...prev.items, { materialId: m.id, name: m.name, quantity: 1, maxQuantity: m.stockQuantity || 0, costPrice: m.costPrice || 0, unit: m.unit }]
+        }
+    });
+  };
+
+  const handleFinalizeStockConsumption = async () => {
+      if (!stockConsumptionData.projectId || stockConsumptionData.items.length === 0) {
+          alert("Selecione a obra destino e adicione itens.");
+          return;
+      }
+
+      const project = projects.find(p => p.id === stockConsumptionData.projectId);
+      if (!project) return;
+
+      let totalCost = 0;
+
+      for (const item of stockConsumptionData.items) {
+          totalCost += item.quantity * item.costPrice;
+          const material = materials.find(m => m.id === item.materialId);
+          if (material) {
+              await updateMaterial({
+                  ...material,
+                  stockQuantity: Math.max(0, (material.stockQuantity || 0) - item.quantity)
+              });
+          }
+      }
+
+      const newExp = {
+          id: `estq-${Date.now()}`,
+          description: `Consumo de Estoque (${stockConsumptionData.items.length} itens)`,
+          value: totalCost,
+          date: new Date().toISOString().split('T')[0],
+          category: 'Material'
+      };
+
+      await updateProject({
+          ...project,
+          expenses: [...(project.expenses || []), newExp]
+      });
+
+      alert("Consumo de estoque registrado com sucesso!");
+      setIsStockConsumptionModalOpen(false);
+      setStockConsumptionData({ projectId: '', items: [] });
   };
 
   return (
@@ -371,13 +453,22 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
             {showHistory ? 'Histórico de Compras' : 'Gestão de Pedidos'}
         </h4>
         {!showHistory && (
-            <button 
-                onClick={() => setIsQuotationModalOpen(true)} 
-                title="Nova Requisição"
-                className="bg-amber-500 text-foreground px-8 py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-slate-900 hover:text-white transition-all"
-            >
-                <Plus size={20} /> Nova Requisição Técnica
-            </button>
+            <div className="flex gap-4">
+               <button 
+                  onClick={() => setIsStockConsumptionModalOpen(true)} 
+                  title="Consumir Estoque"
+                  className="bg-emerald-50 text-emerald-600 px-6 py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+              >
+                  <ShoppingCart size={20} /> Baixar p/ Obra
+              </button>
+              <button 
+                  onClick={() => setIsQuotationModalOpen(true)} 
+                  title="Nova Requisição"
+                  className="bg-amber-500 text-foreground px-8 py-4 rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl flex items-center gap-2 hover:bg-slate-900 hover:text-white transition-all"
+              >
+                  <Plus size={20} /> Nova Requisição Técnica
+              </button>
+            </div>
         )}
       </div>
 
@@ -480,6 +571,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                   onChange={e => setNewQuotation({...newQuotation, projectId: e.target.value})}
                               >
                                   <option value="">Escolher Obra...</option>
+                                  <option value="ESTOQUE">📦 ESTOQUE DA EMPRESA</option>
                                   {projects.map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
                               </select>
 
@@ -710,6 +802,137 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                         Confirmar Recebimento & Faturar
                     </button>
                 </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: CONSUMO DE ESTOQUE */}
+      {isStockConsumptionModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+              <div className="bg-card w-full max-w-6xl h-[90vh] rounded-[64px] border border-white/10 shadow-3xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500">
+                  <div className="bg-emerald-900 p-10 flex justify-between items-center shrink-0">
+                      <div>
+                          <h4 className="text-3xl font-black uppercase italic text-white tracking-widest flex items-center gap-4">
+                              <ShoppingCart size={32} className="text-emerald-400" /> Baixar Estoque p/ Obra
+                          </h4>
+                          <p className="text-emerald-100/70 text-xs font-bold uppercase tracking-[0.3em] mt-2">Transferência de custo e débito de estoque</p>
+                      </div>
+                      <button title="Fechar" onClick={() => { setIsStockConsumptionModalOpen(false); setStockConsumptionData({ projectId: '', items: [] }); }} className="bg-white/10 p-4 rounded-full text-white hover:bg-white/20 transition-all">
+                          <X size={32} />
+                      </button>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden flex">
+                      <div className="w-[35%] p-10 border-r border-slate-100 overflow-y-auto space-y-8 bg-slate-50/50">
+                          <div className="space-y-6">
+                              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Destino</label>
+                              <select 
+                                  title="Obra Destino"
+                                  className="w-full p-6 rounded-[24px] bg-white border border-slate-100 shadow-sm outline-none font-bold text-slate-900 focus:ring-4 focus:ring-emerald-500/20"
+                                  value={stockConsumptionData.projectId}
+                                  onChange={e => setStockConsumptionData({...stockConsumptionData, projectId: e.target.value})}
+                              >
+                                  <option value="">Escolher Obra...</option>
+                                  {projects.map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
+                              </select>
+                          </div>
+
+                          <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Itens Consumidos ({stockConsumptionData.items.length})</label>
+                              <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                                  {stockConsumptionData.items.map((item, idx) => (
+                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 shadow-sm">
+                                          <div className="flex justify-between items-start">
+                                              <div>
+                                                  <p className="text-[10px] font-black uppercase italic leading-none">{item.name}</p>
+                                                  <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">Máximo disponivel: {item.maxQuantity} {item.unit}</p>
+                                              </div>
+                                              <button 
+                                                  title="Remover Item"
+                                                  onClick={() => setStockConsumptionData(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                              >
+                                                  <Trash2 size={12} />
+                                              </button>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <input 
+                                                  title="Quantidade"
+                                                  type="number"
+                                                  min="1"
+                                                  max={item.maxQuantity}
+                                                  className="w-20 bg-slate-50 p-2 rounded-xl border-none outline-none font-black text-center text-xs"
+                                                  value={item.quantity}
+                                                  onChange={e => {
+                                                      const val = Math.min(item.maxQuantity, Math.max(1, Number(e.target.value)));
+                                                      const newItems = [...stockConsumptionData.items];
+                                                      newItems[idx].quantity = val;
+                                                      setStockConsumptionData({...stockConsumptionData, items: newItems});
+                                                  }}
+                                              />
+                                              <span className="text-[10px] font-bold text-slate-400 uppercase">{item.unit}</span>
+                                          </div>
+                                      </div>
+                                  ))}
+                                  {stockConsumptionData.items.length === 0 && (
+                                      <div className="py-8 text-center text-slate-300 text-[10px] font-bold uppercase italic border-2 border-dashed border-slate-100 rounded-3xl">Selecione os materiais em estoque à direita</div>
+                                  )}
+                              </div>
+                          </div>
+
+                          <div className="p-8 bg-emerald-900 rounded-[40px] border border-white/5 shadow-2xl space-y-6 sticky bottom-0">
+                               <div className="flex justify-between items-center text-emerald-100/70 text-[10px] font-black uppercase tracking-widest">
+                                  <span>Custo Transferido</span>
+                                  <span className="text-white text-xl">R$ {stockConsumptionData.items.reduce((acc, i) => acc + (i.quantity * i.costPrice), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                               </div>
+                               <button 
+                                  onClick={handleFinalizeStockConsumption}
+                                  className="w-full py-5 bg-emerald-400 text-emerald-950 rounded-[20px] font-black uppercase text-[10px] tracking-[0.2em] shadow-xl hover:bg-white transition-all active:scale-95"
+                               >
+                                  Confirmar Baixa
+                               </button>
+                          </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col bg-white">
+                          <div className="p-10 border-b border-slate-50 relative shrink-0">
+                                <Search className="absolute left-14 top-1/2 -translate-y-1/2 text-slate-400" size={24} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Buscar material no estoque..." 
+                                    className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-slate-100/50 border-none outline-none font-bold text-lg focus:bg-white focus:shadow-inner transition-all"
+                                    value={stockSearch}
+                                    onChange={e => setStockSearch(e.target.value)}
+                                />
+                          </div>
+                          
+                          <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {materials.filter(m => (m.stockQuantity || 0) > 0 && m.name.toLowerCase().includes(stockSearch.toLowerCase())).map(m => (
+                                  <button 
+                                      key={m.id}
+                                      onClick={() => handleAddStockItemToConsumption(m)}
+                                      className="flex items-center justify-between p-6 rounded-[24px] border border-slate-50 hover:border-emerald-500 hover:bg-emerald-50 transition-all text-left shadow-sm group"
+                                  >
+                                      <div>
+                                          <p className="font-black text-slate-900 uppercase italic leading-none group-hover:text-emerald-700 transition-colors">{m.name}</p>
+                                          <div className="flex gap-2 mt-2">
+                                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{m.category}</p>
+                                              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-100 px-2 rounded-md">Disp: {m.stockQuantity} {m.unit}</p>
+                                          </div>
+                                      </div>
+                                      <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                                          <Plus size={20} />
+                                      </div>
+                                  </button>
+                              ))}
+                              {materials.filter(m => (m.stockQuantity || 0) > 0).length === 0 && (
+                                  <div className="col-span-full py-10 text-center text-slate-400 font-bold uppercase italic text-[10px]">
+                                      Nenhum material com quantidade em estoque no momento.
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </div>
               </div>
           </div>
       )}
