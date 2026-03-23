@@ -45,6 +45,7 @@ interface OrderItem {
     name: string;
     quantity: number;
     unit: string;
+    brand?: string;
     // Optional extra fields that might exist
     materialValue?: number;
     productId?: string;
@@ -83,7 +84,8 @@ const minifyOrderData = (data: OrderData): any => {
         i: data.items.map(item => ({
             n: item.name,
             q: item.quantity,
-            u: item.unit
+            u: item.unit,
+            b: item.brand
         }))
     };
 };
@@ -104,7 +106,8 @@ const expandOrderStructure = (minified: any): OrderData => {
         items: (minified.i || []).map((item: any) => ({
             name: item.n || 'Item sem nome',
             quantity: item.q || 0,
-            unit: item.u || 'un'
+            unit: item.u || 'un',
+            brand: item.b
         })),
         totalItems: (minified.i || []).length
     };

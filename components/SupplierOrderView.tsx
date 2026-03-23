@@ -8,6 +8,7 @@ interface OrderItem {
     name: string;
     quantity: number;
     unit: string;
+    brand?: string;
 }
 
 interface OrderData {
@@ -149,6 +150,7 @@ const SupplierOrderView: React.FC = () => {
                                 <div key={idx} className="py-4 flex items-center justify-between gap-4">
                                     <div className="flex-1">
                                         <p className="font-bold text-foreground uppercase text-sm">{item.name}</p>
+                                        {item.brand && <p className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-widest">Marca: {item.brand}</p>}
                                     </div>
                                     <div className="text-right">
                                         <span className="block font-black text-lg text-foreground">{item.quantity}</span>

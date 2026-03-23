@@ -40,7 +40,7 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
       setForm(mat);
     } else {
       setEditingMaterial(null);
-      setForm({ name: '', category: 'MDF', unit: 'Chapa', stockQuantity: 0 });
+      setForm({ name: '', category: 'MDF', unit: 'Chapa', stockQuantity: 0, brand: '' });
     }
     setIsModalOpen(true);
   };
@@ -115,8 +115,9 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
               </div>
             </div>
             <h5 className="font-black text-foreground uppercase italic leading-tight mb-1">{m.name}</h5>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <span className="text-[10px] font-black uppercase bg-slate-100 px-2 py-1 rounded-lg text-slate-500">{m.category}</span>
+              {m.brand && <span className="text-[10px] font-black uppercase bg-blue-50 px-2 py-1 rounded-lg text-blue-500">{m.brand}</span>}
               <span className="text-[10px] font-black uppercase bg-emerald-50 px-2 py-1 rounded-lg text-emerald-600">UN: {m.unit}</span>
               <span className="text-[10px] font-black uppercase bg-amber-50 px-2 py-1 rounded-lg text-amber-600">ESTOQUE: {m.stockQuantity || 0}</span>
             </div>
@@ -138,17 +139,30 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Nome do Insumo</label>
-                  <input 
-                    title="Nome do Insumo"
-                    placeholder="Ex: MDF Branco 15mm"
-                    type="text" 
-                    required
-                    className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
-                    value={form.name}
-                    onChange={e => setForm({...form, name: e.target.value})}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Nome do Insumo</label>
+                    <input 
+                      title="Nome do Insumo"
+                      placeholder="Ex: MDF Branco 15mm"
+                      type="text" 
+                      required
+                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
+                      value={form.name}
+                      onChange={e => setForm({...form, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Marca</label>
+                    <input 
+                      title="Marca"
+                      placeholder="Ex: Eucatex, FGVTN..."
+                      type="text" 
+                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
+                      value={form.brand || ''}
+                      onChange={e => setForm({...form, brand: e.target.value})}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

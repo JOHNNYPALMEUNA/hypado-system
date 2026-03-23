@@ -267,6 +267,7 @@ export interface QuotationItem {
   name: string;
   quantity: number;
   unit: string;
+  brand?: string;
   materialValue?: number;
   serviceValue?: number;
 }
