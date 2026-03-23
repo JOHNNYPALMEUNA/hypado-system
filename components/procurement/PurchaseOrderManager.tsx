@@ -347,9 +347,10 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
       }
     }
 
-    const updatedOrder = {
+    const updatedOrder: Quotation = {
       ...entryModalData,
-      status: (entryModalData.projectId === 'ESTOQUE' ? 'Entregue' : 'Comprado') as any
+      status: (entryModalData.projectId === 'ESTOQUE' ? 'Entregue' : 'Comprado') as any,
+      receiptUrl: entryModalData.receiptUrl
     };
     await updateQuotation(updatedOrder);
 
@@ -372,7 +373,11 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                 description: `NF: ${entryModalData.id} - ${supplierName}${discount > 0 ? ` (Desc. R$${discount})` : ''}`,
                 value: totalCost,
                 date: new Date().toISOString().split('T')[0],
-                category: 'Material'
+                category: 'Material',
+                metadata: {
+                    type: 'purchase_entry',
+                    orderId: entryModalData.id
+                }
             };
 
             await updateProject({
@@ -768,6 +773,20 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                         <div className="flex items-center p-6 text-slate-500 text-xs font-bold leading-tight italic">
                             O valor de desconto será subtraído do total da nota no momento da injeção de custo na obra.
                         </div>
+                    </div>
+
+                    <div className="bg-slate-100/50 p-8 rounded-[40px] border border-slate-200/50 space-y-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4 flex items-center gap-2">
+                             Anexar Comprovante (WhatsApp/PDF/Link)
+                        </label>
+                        <input 
+                            title="Link do Comprovante"
+                            placeholder="Cole aqui o link da imagem ou PDF do comprovante..."
+                            type="text" 
+                            className="w-full bg-white p-5 rounded-[24px] border-none shadow-sm outline-none font-bold text-sm focus:ring-4 focus:ring-slate-900/10 transition-all"
+                            value={entryModalData.receiptUrl || ''}
+                            onChange={e => setEntryModalData({...entryModalData, receiptUrl: e.target.value})}
+                        />
                     </div>
 
                     <div className="space-y-4">

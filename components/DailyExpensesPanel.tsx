@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Calendar as CalendarIcon, DollarSign, ExternalLink, Factory } from 'lucide-react';
+import { X, Search, Calendar as CalendarIcon, DollarSign, ExternalLink, Factory, Eye } from 'lucide-react';
 import { Project, Quotation } from '../types';
 import { formatCurrency } from '../utils';
 
@@ -26,10 +26,12 @@ const DailyExpensesPanel: React.FC<DailyExpensesPanelProps> = ({
         .map(e => ({
           ...e,
           projectName: p.workName,
-          type: 'expense'
+          type: 'expense',
+          isInternal: e.metadata?.type === 'stock_consumption',
+          receiptUrl: purchaseOrders.find(po => po.id === e.metadata?.orderId)?.receiptUrl
         }))
     );
-  }, [projects, selectedDate]);
+  }, [projects, selectedDate, purchaseOrders]);
 
   // Aggregate stock purchases that don't have project expenses
   const dailyStockPurchases = useMemo(() => {
@@ -48,7 +50,9 @@ const DailyExpensesPanel: React.FC<DailyExpensesPanelProps> = ({
           date: po.date.split('T')[0],
           category: 'Estoque',
           projectName: 'ESTOQUE DA EMPRESA',
-          type: 'stock_purchase'
+          type: 'stock_purchase',
+          isInternal: false,
+          receiptUrl: po.receiptUrl
         };
       });
   }, [purchaseOrders, selectedDate]);
@@ -56,7 +60,9 @@ const DailyExpensesPanel: React.FC<DailyExpensesPanelProps> = ({
   const allDailyItems = [...dailyProjectExpenses, ...dailyStockPurchases]
     .sort((a, b) => b.value - a.value);
 
-  const totalSpent = allDailyItems.reduce((acc, item) => acc + item.value, 0);
+  const totalSpent = allDailyItems
+    .filter(i => !i.isInternal)
+    .reduce((acc, item) => acc + item.value, 0);
 
   if (!isOpen) return null;
 
@@ -139,9 +145,22 @@ const DailyExpensesPanel: React.FC<DailyExpensesPanelProps> = ({
                     </span>
                 </div>
                 
-                <h4 className="font-bold text-foreground leading-snug truncate pr-4" title={item.description}>
+                <h4 className="font-bold text-foreground leading-snug pr-8" title={item.description}>
                     {item.description}
+                    {item.isInternal && (
+                      <span className="block text-[8px] font-black text-amber-500 uppercase mt-1 tracking-widest bg-amber-50 w-fit px-1 rounded">Consumo de Estoque (Internal)</span>
+                    )}
                 </h4>
+
+                {item.receiptUrl && (
+                  <button 
+                    onClick={() => window.open(item.receiptUrl, '_blank')}
+                    title="Ver Comprovante"
+                    className="absolute right-4 bottom-4 p-3 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-emerald-600 transition-all scale-75 group-hover:scale-100 origin-bottom-right"
+                  >
+                    <Eye size={18} />
+                  </button>
+                )}
                 
                 <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-between text-xs font-medium text-slate-500">
                     <span className="truncate flex items-center gap-1 font-bold text-[10px] uppercase tracking-widest">

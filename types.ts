@@ -282,6 +282,7 @@ export interface Quotation {
   date: string;
   settlementId?: string;
   settlementDate?: string;
+  receiptUrl?: string;
 }
 
 export interface ChecklistItem {

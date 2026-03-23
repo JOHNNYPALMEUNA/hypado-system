@@ -178,7 +178,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchQuotations = async () => {
         const { data, error } = await supabase.from('purchase_orders').select('*');
         if (error) console.error('Error fetching quotations:', error);
-        if (data) setQuotations(data as Quotation[]);
+        if (data) {
+            const mapped = data.map((q: any) => ({
+                id: q.id,
+                projectId: q.project_id || q.projectId,
+                workName: q.work_name || q.workName,
+                supplierId: q.supplier_id || q.supplierId,
+                status: q.status,
+                items: q.items,
+                date: q.date,
+                settlementId: q.settlement_id || q.settlementId,
+                settlementDate: q.settlement_date || q.settlementDate,
+                receiptUrl: q.receipt_url || q.receiptUrl
+            }));
+            setQuotations(mapped as Quotation[]);
+        }
     };
 
     const fetchTasks = async () => {
@@ -578,7 +592,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const addQuotation = async (quotation: Quotation) => {
         try {
-            const { error } = await supabase.from('purchase_orders').insert([quotation]);
+            const dbQuotation = {
+                id: quotation.id,
+                project_id: quotation.projectId,
+                work_name: quotation.workName,
+                supplier_id: quotation.supplierId,
+                status: quotation.status,
+                items: quotation.items,
+                date: quotation.date,
+                settlement_id: quotation.settlementId,
+                settlement_date: quotation.settlementDate,
+                receipt_url: quotation.receiptUrl
+            };
+            const { error } = await supabase.from('purchase_orders').insert([dbQuotation]);
             if (error) throw error;
             setQuotations(prev => [...prev, quotation]);
         } catch (error: any) {
@@ -589,7 +615,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updateQuotation = async (quotation: Quotation) => {
         try {
-            const { error } = await supabase.from('purchase_orders').update(quotation).eq('id', quotation.id);
+            const dbQuotation = {
+                id: quotation.id,
+                project_id: quotation.projectId,
+                work_name: quotation.workName,
+                supplier_id: quotation.supplierId,
+                status: quotation.status,
+                items: quotation.items,
+                date: quotation.date,
+                settlement_id: quotation.settlementId,
+                settlement_date: quotation.settlementDate,
+                receipt_url: quotation.receiptUrl
+            };
+            const { error } = await supabase.from('purchase_orders').update(dbQuotation).eq('id', quotation.id);
             if (error) throw error;
             setQuotations(prev => prev.map(q => q.id === quotation.id ? quotation : q));
         } catch (error: any) {
