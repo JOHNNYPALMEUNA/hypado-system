@@ -35,7 +35,8 @@ const ProcurementView: React.FC<Props> = ({
   installers,
   externalActiveTab,
   setExternalActiveTab,
-  materialCategories
+  materialCategories,
+  setMaterialCategories
 }) => {
   const { 
     updateProject, 
@@ -140,6 +141,7 @@ const ProcurementView: React.FC<Props> = ({
             updateMaterial={updateMaterial}
             deleteMaterial={deleteMaterial}
             materialCategories={materialCategories}
+            setMaterialCategories={setMaterialCategories}
           />
         )}
       </div>

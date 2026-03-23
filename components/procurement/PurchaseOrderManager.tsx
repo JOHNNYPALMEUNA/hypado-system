@@ -433,7 +433,11 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
           description: `Consumo de Estoque (${stockConsumptionData.items.length} itens)`,
           value: totalCost,
           date: new Date().toISOString().split('T')[0],
-          category: 'Material'
+          category: 'Material',
+          metadata: {
+              type: 'stock_consumption',
+              items: stockConsumptionData.items
+          }
       };
 
       await updateProject({
@@ -590,18 +594,37 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                               <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Itens Selecionados ({newQuotation.items.length})</label>
                               <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
                                   {newQuotation.items.map((item, idx) => (
-                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group shadow-sm">
-                                          <div>
-                                              <p className="text-[10px] font-black uppercase italic leading-none">{item.name}</p>
-                                              <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{item.quantity} {item.unit}</p>
+                                      <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col gap-3 group shadow-sm">
+                                          <div className="flex justify-between items-start">
+                                              <div>
+                                                  <p className="text-[10px] font-black uppercase italic leading-none">{item.name}</p>
+                                              </div>
+                                              <button 
+                                                  onClick={() => setNewQuotation(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
+                                                  title="Remover Item"
+                                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                                              >
+                                                  <Trash2 size={12} />
+                                              </button>
                                           </div>
-                                          <button 
-                                              onClick={() => setNewQuotation(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }))}
-                                              title="Remover Item"
-                                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                                          >
-                                              <Trash2 size={14} />
-                                          </button>
+                                          <div className="flex items-center gap-2">
+                                              <input
+                                                  title="Quantidade"
+                                                  type="number"
+                                                  min="1"
+                                                  className="w-20 bg-slate-50 p-2 rounded-xl border-none outline-none font-black text-center text-xs"
+                                                  value={item.quantity}
+                                                  onChange={(e) => {
+                                                      const val = Math.max(1, Number(e.target.value));
+                                                      setNewQuotation(prev => {
+                                                          const newItems = [...prev.items];
+                                                          newItems[idx].quantity = val;
+                                                          return { ...prev, items: newItems };
+                                                      });
+                                                  }}
+                                              />
+                                              <span className="text-[10px] font-bold text-slate-400 uppercase">{item.unit}</span>
+                                          </div>
                                       </div>
                                   ))}
                                   {newQuotation.items.length === 0 && (

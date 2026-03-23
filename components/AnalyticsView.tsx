@@ -174,6 +174,29 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
 
   }, [purchaseOrders]);
 
+  // --- 8. RELATÓRIO DE CONSUMO DE ESTOQUE ---
+  const [stockMonthFilter, setStockMonthFilter] = React.useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+  const stockConsumptions = useMemo(() => {
+    const list: { id: string, date: string, projectName: string, items: any[], totalValue: number }[] = [];
+    projects.forEach(p => {
+      if (p.expenses) {
+        p.expenses.forEach(exp => {
+          if (exp.metadata && exp.metadata.type === 'stock_consumption' && exp.date.startsWith(stockMonthFilter)) {
+            list.push({
+               id: exp.id,
+               date: exp.date,
+               projectName: p.workName,
+               items: exp.metadata.items || [],
+               totalValue: exp.value
+            });
+          }
+        });
+      }
+    });
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [projects, stockMonthFilter]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div>
@@ -295,6 +318,72 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
         </div>
 
       </div>
+
+      {/* RELATÓRIO: Consumo de Estoque */}
+      <div className="bg-card p-8 rounded-[40px] border border-slate-100 shadow-sm mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                  <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><ShoppingCart size={18} /> Relatório de Consumo de Estoque</h4>
+                  <p className="text-xs text-slate-400 font-bold uppercase mt-1">Acompanhamento mensal de materiais baixados para as obras.</p>
+              </div>
+              <input 
+                  type="month"
+                  title="Filtro de Mês"
+                  className="p-3 rounded-2xl bg-slate-50 border-none outline-none font-bold text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                  value={stockMonthFilter}
+                  onChange={e => setStockMonthFilter(e.target.value)}
+              />
+          </div>
+
+          <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                      <tr className="border-b border-slate-100">
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Data</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Obra Destino</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-[40%]">Itens Consumidos</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Custo Transferido</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {stockConsumptions.map((cons, idx) => (
+                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-bold text-sm text-slate-600">
+                                  {new Date(cons.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                              </td>
+                              <td className="p-4">
+                                  <span className="font-black text-slate-900 uppercase italic text-sm">{cons.projectName}</span>
+                              </td>
+                              <td className="p-4">
+                                  <div className="flex flex-col gap-1">
+                                      {cons.items.map((it: any, i: number) => (
+                                          <div key={i} className="text-xs font-bold text-slate-500 flex items-center gap-2">
+                                              <span className="w-8 text-right shrink-0">{it.quantity} {it.unit}</span>
+                                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                              <span className="uppercase truncate" title={it.name}>{it.name}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </td>
+                              <td className="p-4 text-right">
+                                  <span className="font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-xl whitespace-nowrap">
+                                      R$ {cons.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </span>
+                              </td>
+                          </tr>
+                      ))}
+                      {stockConsumptions.length === 0 && (
+                          <tr>
+                              <td colSpan={4} className="p-8 text-center text-slate-400 font-bold italic uppercase text-xs">
+                                  Nenhum consumo de estoque registrado neste mês.
+                              </td>
+                          </tr>
+                      )}
+                  </tbody>
+              </table>
+          </div>
+      </div>
+
     </div>
   );
 };

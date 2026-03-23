@@ -8,6 +8,7 @@ interface MaterialLibraryProps {
   updateMaterial: (m: Material) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
   materialCategories: string[];
+  setMaterialCategories?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
@@ -15,7 +16,8 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
   addMaterial,
   updateMaterial,
   deleteMaterial,
-  materialCategories
+  materialCategories,
+  setMaterialCategories
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -152,14 +154,36 @@ const MaterialLibrary: React.FC<MaterialLibraryProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Categoria</label>
-                    <select 
-                      title="Categoria"
-                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
-                      value={form.category}
-                      onChange={e => setForm({...form, category: e.target.value})}
-                    >
-                      {materialCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
+                    <div className="flex gap-2">
+                        <select 
+                          title="Categoria"
+                          className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all cursor-pointer shadow-inner"
+                          value={form.category || ''}
+                          onChange={e => setForm({...form, category: e.target.value})}
+                        >
+                          <option value="">Selecione...</option>
+                          {materialCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                        {setMaterialCategories && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const newCategory = prompt("Digite o nome da nova categoria:");
+                                    if (newCategory && newCategory.trim()) {
+                                        const catName = newCategory.trim();
+                                        if (!materialCategories.includes(catName)) {
+                                            setMaterialCategories(prev => [...prev, catName]);
+                                        }
+                                        setForm({...form, category: catName});
+                                    }
+                                }}
+                                className="bg-slate-900 text-white px-5 rounded-[24px] flex items-center justify-center hover:bg-emerald-600 transition-colors shadow-lg"
+                                title="Adicionar Nova Categoria"
+                            >
+                                <Plus size={20} />
+                            </button>
+                        )}
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Unidade</label>

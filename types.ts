@@ -158,6 +158,7 @@ export interface Expense {
   value: number;
   date: string;
   category: string;
+  metadata?: any;
 }
 
 export interface Client {
