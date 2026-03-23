@@ -349,7 +349,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
 
     const updatedOrder = {
       ...entryModalData,
-      status: 'Comprado' as const
+      status: (entryModalData.projectId === 'ESTOQUE' ? 'Entregue' : 'Comprado') as any
     };
     await updateQuotation(updatedOrder);
 
