@@ -61,6 +61,33 @@ import PublicDailyReportView from './components/PublicDailyReportView';
 import DailyExpensesPanel from './components/DailyExpensesPanel';
 import { ErrorBoundary } from 'react-error-boundary';
 
+const SystemHappiness: React.FC = () => {
+  const [isHappy, setIsHappy] = useState(false);
+
+  React.useEffect(() => {
+    const checkHappiness = () => {
+      const lastSuccess = localStorage.getItem('lastSuccess');
+      if (lastSuccess) {
+        const diff = Date.now() - new Date(lastSuccess).getTime();
+        setIsHappy(diff < 12 * 60 * 60 * 1000);
+      }
+    };
+
+    checkHappiness();
+    const interval = setInterval(checkHappiness, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!isHappy) return null;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20 animate-bounce-slow">
+      <Sparkles size={14} className="animate-pulse" />
+      <span className="text-[10px] font-black uppercase italic tracking-widest">Sistema em Festa!</span>
+    </div>
+  );
+};
+
 function ErrorFallback({ error }: { error: Error }) {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-8 text-center font-sans">
@@ -583,8 +610,10 @@ const AppContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden md:block">
+          <div className="flex items-center gap-4">
+            <SystemHappiness />
+            <div className="flex items-center gap-2 md:gap-4">
+              <div className="relative hidden md:block">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -620,7 +649,8 @@ const AppContent: React.FC = () => {
               <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-background"></span>
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
         {/* Voice Feedback Overlay */}
         {voiceResult && (

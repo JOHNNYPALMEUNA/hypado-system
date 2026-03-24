@@ -10,6 +10,7 @@ import {
 
 import { useData } from '../contexts/DataContext';
 import { getStatusBadgeClass, formatCurrency } from '../utils';
+import Confetti from './Confetti';
 
 interface Props {
   projects: Project[];
@@ -49,6 +50,16 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showArchitectModal, setShowArchitectModal] = useState<string | null>(null);
   const [selectedArchitectId, setSelectedArchitectId] = useState<string>('');
   const [showAssemblyModal, setShowAssemblyModal] = useState<string | null>(null);
+  const [triggerConfetti, setTriggerConfetti] = useState(false);
+
+  const startCelebration = () => {
+    setTriggerConfetti(false);
+    setTimeout(() => {
+      setTriggerConfetti(true);
+      // Optional: Store last success globally for "System Happiness"
+      localStorage.setItem('lastSuccess', new Date().toISOString());
+    }, 10);
+  };
   
   // Industrial Cost States
   const [cuttingUnitPrice, setCuttingUnitPrice] = useState<string>('');
@@ -97,6 +108,9 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         currentStatus: nextStatus,
         history: [...(p.history || []), { status: nextStatus, timestamp: transitionDate ? new Date(transitionDate).toISOString() : new Date().toISOString() }]
       } as Project);
+      if (nextStatus === 'Finalizada') {
+        startCelebration();
+      }
     }
     setShowCentralModal(null);
     setShowOutsourcedModal(null);
@@ -1217,6 +1231,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                   <button
                     onClick={() => {
                       updateLogistics(showExpeditionModal, { isExpeditionReady: true });
+                      startCelebration();
                       alert("Móvel marcado como PRONTO NA EXPEDIÇÃO! 📦✨");
                     }}
                     className={`w-full py-5 rounded-3xl font-black uppercase italic tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${project.isExpeditionReady ? 'bg-indigo-100 text-indigo-600 border-2 border-indigo-200' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
@@ -1619,6 +1634,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           </div>
         );
       })()}
+      <Confetti active={triggerConfetti} />
     </div >
   );
 };
