@@ -40,6 +40,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [tempPreAssemblyTeam, setTempPreAssemblyTeam] = useState<string[]>([]);
   const [showFreightModal, setShowFreightModal] = useState<string | null>(null);
   const [showDeliveryModal, setShowDeliveryModal] = useState<string | null>(null);
+  const [showExpeditionModal, setShowExpeditionModal] = useState<string | null>(null);
   const [tempDate, setTempDate] = useState<string>('');
   const [tempFreightDate, setTempFreightDate] = useState<string>('');
   const [assemblySearch, setAssemblySearch] = useState('');
@@ -511,7 +512,8 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
               const allOutReady = (project.outsourcedServices || []).length > 0 && (project.outsourcedServices || []).every(s => s.status === 'Pronto');
 
               const isDirect = project.deliveryPath === 'Direct';
-              const logisticsComplete = project.clientScheduled && project.freightOrganized && (isDirect || project.preAssemblyDone);
+              // New Logic: Expedition is part of the required checklist
+              const logisticsComplete = project.clientScheduled && project.freightOrganized && project.isExpeditionReady && (isDirect || project.preAssemblyDone);
 
               return (
                 <tr key={project.id} className="hover:bg-muted/50/50 transition-all group">
@@ -541,16 +543,19 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                     {(project.currentStatus === 'Produção' || project.currentStatus === 'Entrega' || project.currentStatus === 'Instalação') ? (
                       <div className="flex flex-col items-center gap-2">
                         <div className="flex gap-2">
+                          <button onClick={() => setShowExpeditionModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.isExpeditionReady ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-border text-slate-300 hover:border-indigo-400 hover:text-indigo-400'}`} title="Expedição (Móvel Pronto)">
+                            <Box size={14} />
+                          </button>
                           {!isDirect && (
-                            <button onClick={() => setShowPreAssemblyModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.preAssemblyDone ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-slate-300'}`} title="Pré-montagem">
+                            <button onClick={() => setShowPreAssemblyModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.preAssemblyDone ? 'bg-indigo-400 border-indigo-400 text-white' : 'border-border text-slate-300'}`} title="Pré-montagem/Conferência">
                               <Screwdriver size={14} />
                             </button>
                           )}
+                          <button onClick={() => setShowDeliveryModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.clientScheduled ? 'bg-amber-500 border-amber-500 text-white' : 'border-border text-slate-300'}`} title="Agendado com Cliente">
+                            <Clock size={14} />
+                          </button>
                           <button onClick={() => setShowFreightModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.freightOrganized ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-slate-300'}`} title="Frete Organizado">
                             <Truck size={14} />
-                          </button>
-                          <button onClick={() => setShowDeliveryModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.clientScheduled ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-slate-300'}`} title="Agendado com Cliente">
-                            <Clock size={14} />
                           </button>
                         </div>
                         <p className="text-[8px] font-black uppercase text-slate-400 italic">{project.deliveryPath === 'Direct' ? 'Direto CLI' : 'Via Oficina'}</p>
@@ -587,7 +592,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                         <button
                           onClick={() => {
                             if (project.currentStatus === 'Produção' && !logisticsComplete) {
-                              alert(`TRAVA LOGÍSTICA: Complete o checklist logístico (${isDirect ? 'Frete, Agendamento' : 'Pré-montagem, Frete, Agendamento'}) para avançar.`);
+                              alert(`TRAVA LOGÍSTICA: Complete o checklist logístico (${isDirect ? 'Expedição, Agendamento, Frete' : 'Expedição, Pré-montagem, Agendamento, Frete'}) para avançar.`);
                               return;
                             }
                             updateStatus(project.id);
@@ -1181,6 +1186,83 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           </div>
         </div>
       )}
+
+      {/* MODAL: EXPEDIÇÃO (NOVA ETAPA SENSACIONAL) */}
+      {showExpeditionModal && (() => {
+        const project = projects.find(p => p.id === showExpeditionModal);
+        if (!project) return null;
+
+        return (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl" onClick={() => setShowExpeditionModal(null)} />
+            <div className="relative bg-card w-full max-w-md rounded-[48px] shadow-2xl p-10 animate-in zoom-in-95 border-b-8 border-indigo-500">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h4 className="text-3xl font-black uppercase italic tracking-tighter leading-none text-indigo-600">Expedição</h4>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Móvel Pronto para Entrega</p>
+                </div>
+                <div className="p-4 bg-indigo-500 text-white rounded-3xl shadow-lg shadow-indigo-500/30">
+                  <Box size={32} />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-muted/50 p-6 rounded-3xl border border-slate-100">
+                  <p className="text-[10px] font-black uppercase text-slate-400 italic mb-2">Status da Obra</p>
+                  <p className="text-xl font-black text-foreground uppercase italic">{project.workName}</p>
+                  <p className="text-sm font-bold text-muted-foreground mt-1">{project.clientName}</p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  <button
+                    onClick={() => {
+                      updateLogistics(showExpeditionModal, { isExpeditionReady: true });
+                      alert("Móvel marcado como PRONTO NA EXPEDIÇÃO! 📦✨");
+                    }}
+                    className={`w-full py-5 rounded-3xl font-black uppercase italic tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${project.isExpeditionReady ? 'bg-indigo-100 text-indigo-600 border-2 border-indigo-200' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
+                  >
+                    {project.isExpeditionReady ? <CheckCircle2 size={24} /> : <Box size={24} />}
+                    {project.isExpeditionReady ? 'Móvel na Expedição' : 'Marcar como Pronto'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const client = clients.find(c => c.name === project.clientName);
+                      if (!client?.phone) {
+                        alert("Cliente sem telefone cadastrado.");
+                        return;
+                      }
+                      const phone = client.phone.replace(/\D/g, '');
+                      
+                      const message = `*MÓVEL EM EXPEDIÇÃO - HYPADO PLANEJADOS* 📦✨\n\n` +
+                        `Olá *${client.name.split(' ')[0]}*! Tudo bem?\n\n` +
+                        `Temos uma notícia **SENSACIONAL**! 🚀\n` +
+                        `O seu projeto *${project.workName}* acabou de passar pela nossa conferência final e já está na área de **EXPEDIÇÃO**.\n\n` +
+                        `✅ Peças conferidas\n` +
+                        `✅ Qualidade garantida\n` +
+                        `✅ Tudo pronto para transformar seu ambiente!\n\n` +
+                        `Agora falta pouco! Vamos agendar o melhor dia para a sua entrega?`;
+
+                      const link = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+                      window.open(link, '_blank');
+                    }}
+                    className="w-full bg-emerald-500 text-white py-5 rounded-3xl font-black uppercase italic tracking-widest hover:bg-emerald-600 transition-all shadow-xl flex items-center justify-center gap-3"
+                  >
+                    <Sparkles size={24} className="animate-pulse" /> Notificar Cliente (Link Sensacional)
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowExpeditionModal(null)}
+                className="w-full mt-8 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Fechar Painel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* MODAL: ENTREGA (CLIENTE) */}
       {showDeliveryModal && (

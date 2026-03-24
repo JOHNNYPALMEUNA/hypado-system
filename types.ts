@@ -227,6 +227,7 @@ export interface Project {
   freightCarrierId?: string;
   freightDate?: string;
   deliveryDate?: string;
+  isExpeditionReady?: boolean;
   projectPdfUrl?: string; // URL to the project PDF
   modules?: SelectedModule[];
   architectId?: string; // ID of the architect/designer
