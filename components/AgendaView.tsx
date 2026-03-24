@@ -64,7 +64,7 @@ const AgendaView: React.FC<Props> = ({
     const handleDeleteTask = async (id: string) => {
         if (confirm('Excluir tarefa?')) {
             const pwd = prompt('Digite a senha de administrador:');
-            if (pwd !== 'admin') {
+            if (pwd !== 'admin123') {
                 alert('Senha incorreta!');
                 return;
             }

@@ -41,7 +41,7 @@ const EnvironmentsLibraryView: React.FC<Props> = ({ environments, setEnvironment
   const handleDelete = (id: string) => {
     if (confirm('Deseja remover este ambiente da biblioteca? Isso não afetará obras já criadas.')) {
       const pwd = prompt('Digite a senha de administrador:');
-      if (pwd !== 'admin') {
+      if (pwd !== 'admin123') {
         alert('Senha incorreta!');
         return;
       }

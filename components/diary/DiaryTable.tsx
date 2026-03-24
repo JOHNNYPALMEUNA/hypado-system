@@ -206,7 +206,7 @@ const DiaryTable: React.FC<DiaryTableProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               const pwd = prompt('Digite a senha de administrador:');
-                              if (pwd !== 'admin') {
+                              if (pwd !== 'admin123') {
                                 alert('Senha incorreta!');
                                 return;
                               }

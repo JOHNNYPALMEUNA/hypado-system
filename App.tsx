@@ -60,6 +60,7 @@ import PublicAssistanceReportWrapper from './components/PublicAssistanceReportWr
 import PublicDailyReportView from './components/PublicDailyReportView';
 import DailyExpensesPanel from './components/DailyExpensesPanel';
 import { ErrorBoundary } from 'react-error-boundary';
+import Confetti from './components/Confetti';
 
 const SystemHappiness: React.FC = () => {
   const [isHappy, setIsHappy] = useState(false);
@@ -143,6 +144,17 @@ const AppContent: React.FC = () => {
   const [reportDate, setReportDate] = useState<string | null>(null);
   const [isAlertCenterOpen, setIsAlertCenterOpen] = useState(false);
   const [isDailyExpensesOpen, setIsDailyExpensesOpen] = useState(false);
+  const [triggerConfetti, setTriggerConfetti] = useState(false);
+
+  React.useEffect(() => {
+    // Periodic celebration every 10 minutes
+    const interval = setInterval(() => {
+      setTriggerConfetti(false);
+      setTimeout(() => setTriggerConfetti(true), 10);
+    }, 10 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);

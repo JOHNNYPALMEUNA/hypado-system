@@ -187,7 +187,7 @@ const TechnicalAssistanceView: React.FC<Props> = ({
         if (!editingId) return;
         if (confirm('Excluir este chamado de assistência?')) {
             const pwd = prompt('Digite a senha de administrador:');
-            if (pwd !== 'admin') {
+            if (pwd !== 'admin123') {
                 alert('Senha incorreta!');
                 return;
             }

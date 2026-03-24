@@ -577,7 +577,7 @@ const ObrasView: React.FC<Props> = ({
       if (!editingProjectId) return;
       if (confirm('Tem certeza que deseja excluir esta obra? Todos os dados vinculados serão perdidos.')) {
          const pwd = prompt('Digite a senha de administrador:');
-         if (pwd !== 'admin') {
+         if (pwd !== 'admin123') {
             alert('Senha incorreta!');
             return;
          }

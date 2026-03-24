@@ -173,7 +173,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   const handleUndoAuthorization = async (envName: string) => {
     if (!selectedOSId || !selectedOS) return;
     const pwd = prompt('Digite a senha de administrador:');
-    if (pwd !== 'admin') {
+    if (pwd !== 'admin123') {
         alert('Senha incorreta!');
         return;
     }

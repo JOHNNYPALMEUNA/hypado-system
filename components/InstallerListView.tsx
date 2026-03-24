@@ -87,7 +87,7 @@ const InstallerListView: React.FC<Props> = ({ projects }) => {
     if (!editingInstaller) return;
     if (confirm(`Excluir profissional ${editingInstaller.name}?`)) {
       const pwd = prompt('Digite a senha de administrador:');
-      if (pwd !== 'admin') {
+      if (pwd !== 'admin123') {
         alert('Senha incorreta!');
         return;
       }

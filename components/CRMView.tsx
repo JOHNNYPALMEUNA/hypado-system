@@ -143,7 +143,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
     if (!editingClient) return;
     if (confirm(`Excluir cliente ${editingClient.name}?`)) {
       const pwd = prompt('Digite a senha de administrador:');
-      if (pwd !== 'admin') {
+      if (pwd !== 'admin123') {
         alert('Senha incorreta!');
         return;
       }

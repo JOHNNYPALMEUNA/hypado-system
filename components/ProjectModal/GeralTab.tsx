@@ -83,7 +83,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                     onClick={(e) => {
                                         e.preventDefault();
                                         const pwd = prompt('Digite a senha de administrador:');
-                                        if (pwd !== 'admin') {
+                                        if (pwd !== 'admin123') {
                                             alert('Senha incorreta!');
                                             return;
                                         }
@@ -401,7 +401,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                 type="button"
                                 onClick={() => {
                                     const pwd = prompt('Digite a senha de administrador:');
-                                    if (pwd !== 'admin') {
+                                    if (pwd !== 'admin123') {
                                         alert('Senha incorreta!');
                                         return;
                                     }
@@ -578,7 +578,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                                         type="button"
                                                         onClick={() => {
                                                             const pwd = prompt('Digite a senha de administrador:');
-                                                            if (pwd !== 'admin') {
+                                                            if (pwd !== 'admin123') {
                                                                 alert('Senha incorreta!');
                                                                 return;
                                                             }
@@ -672,7 +672,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                                             type="button" 
                                                             onClick={() => { 
                                                                 const pwd = prompt('Digite a senha de administrador:');
-                                                                if (pwd !== 'admin') {
+                                                                if (pwd !== 'admin123') {
                                                                     alert('Senha incorreta!');
                                                                     return;
                                                                 }
@@ -731,7 +731,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                                             type="button" 
                                                             onClick={() => { 
                                                                 const pwd = prompt('Digite a senha de administrador:');
-                                                                if (pwd !== 'admin') {
+                                                                if (pwd !== 'admin123') {
                                                                     alert('Senha incorreta!');
                                                                     return;
                                                                 }
@@ -793,7 +793,7 @@ const GeralTab: React.FC<GeralTabProps> = ({
                                                             type="button" 
                                                             onClick={() => { 
                                                                 const pwd = prompt('Digite a senha de administrador:');
-                                                                if (pwd !== 'admin') {
+                                                                if (pwd !== 'admin123') {
                                                                     alert('Senha incorreta!');
                                                                     return;
                                                                 }
