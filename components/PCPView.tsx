@@ -1230,14 +1230,19 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                 <div className="flex flex-col gap-4">
                   <button
                     onClick={() => {
-                      updateLogistics(showExpeditionModal, { isExpeditionReady: true });
-                      startCelebration();
-                      alert("Móvel marcado como PRONTO NA EXPEDIÇÃO! 📦✨");
+                      const newState = !project.isExpeditionReady;
+                      updateLogistics(showExpeditionModal, { isExpeditionReady: newState });
+                      if (newState) {
+                        startCelebration();
+                        alert("Móvel marcado como PRONTO NA EXPEDIÇÃO! 📦✨");
+                      } else {
+                        alert("Móvel removido da expedição.");
+                      }
                     }}
-                    className={`w-full py-5 rounded-3xl font-black uppercase italic tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${project.isExpeditionReady ? 'bg-indigo-100 text-indigo-600 border-2 border-indigo-200' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
+                    className={`w-full py-5 rounded-3xl font-black uppercase italic tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${project.isExpeditionReady ? 'bg-indigo-100 text-indigo-600 border-2 border-indigo-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200' : 'bg-slate-900 text-white hover:bg-indigo-600'}`}
                   >
-                    {project.isExpeditionReady ? <CheckCircle2 size={24} /> : <Box size={24} />}
-                    {project.isExpeditionReady ? 'Móvel na Expedição' : 'Marcar como Pronto'}
+                    {project.isExpeditionReady ? <X size={24} /> : <Box size={24} />}
+                    {project.isExpeditionReady ? 'Remover da Expedição' : 'Marcar como Pronto'}
                   </button>
 
                   <button
