@@ -691,7 +691,7 @@ const AppContent: React.FC = () => {
         )}
 
         <div className="flex-1 p-4 md:p-8">
-          <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
+          <div className="w-full animate-in fade-in duration-500">
             {renderContent()}
           </div>
         </div>
