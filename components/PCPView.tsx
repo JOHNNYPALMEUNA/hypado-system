@@ -508,16 +508,16 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[56px] border-2 border-slate-100 bg-card shadow-xl overflow-hidden">
+      <div className="overflow-x-auto rounded-3xl border-2 border-slate-100 bg-card shadow-xl">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted/50 border-b-2 border-slate-100">
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</th>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</th>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</th>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</th>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Status</th>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right">Controle</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Status</th>
+              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right">Controle</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -531,21 +531,21 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
               return (
                 <tr key={project.id} className="hover:bg-muted/50/50 transition-all group">
-                  <td className="px-10 py-8">
+                  <td className="px-4 md:px-10 py-8">
                     <div className="flex items-center gap-6">
-                      <div className="w-14 h-14 bg-slate-900 text-amber-500 flex items-center justify-center rounded-[20px] font-black italic shadow-lg">{project.id.slice(-2)}</div>
-                      <div>
-                        <p className="font-black text-foreground uppercase italic text-lg tracking-tighter leading-none">{project.workName}</p>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 italic">{project.clientName}</p>
+                      <div className="w-14 h-14 bg-slate-900 text-amber-500 flex items-center justify-center rounded-[20px] font-black italic shadow-lg shrink-0">{project.id.slice(-2)}</div>
+                      <div className="min-w-0">
+                        <p className="font-black text-foreground uppercase italic text-lg tracking-tighter leading-none truncate">{project.workName}</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 italic truncate">{project.clientName}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-10 py-8 text-center">
+                  <td className="px-4 md:px-10 py-8 text-center">
                     <div className={`inline-flex p-3 rounded-2xl border-2 ${project.materialsDelivered ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-500 border-red-100 animate-pulse'}`}>
                       {project.materialsDelivered ? <Unlock size={20} /> : <Lock size={20} />}
                     </div>
                   </td>
-                  <td className="px-10 py-8 text-center">
+                  <td className="px-4 md:px-10 py-8 text-center">
                     <button
                       onClick={() => setShowOutsourcedModal(project.id)}
                       className={`inline-flex p-3 rounded-2xl border-2 transition-all hover:scale-110 ${incompleteOut ? 'bg-amber-50 text-amber-500 border-amber-200 animate-bounce' : (allOutReady ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (project.outsourcedServices.length > 0 ? 'bg-indigo-50 text-indigo-500 border-indigo-100' : 'bg-muted/50 text-slate-300 border-slate-100'))}`}
@@ -553,7 +553,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                       {incompleteOut ? <AlertTriangle size={20} /> : (allOutReady ? <CheckCircle2 size={20} /> : <Clock size={20} />)}
                     </button>
                   </td>
-                  <td className="px-10 py-8 text-center">
+                  <td className="px-4 md:px-10 py-8 text-center">
                     {(project.currentStatus === 'Produção' || project.currentStatus === 'Entrega' || project.currentStatus === 'Instalação') ? (
                       <div className="flex flex-col items-center gap-2">
                         <div className="flex gap-2">
@@ -578,12 +578,12 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                       <div className="text-slate-200">—</div>
                     )}
                   </td>
-                  <td className="px-10 py-8">
+                  <td className="px-4 md:px-10 py-8">
                     <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase border shadow-lg ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest`}>
                       {project.currentStatus}
                     </span>
                   </td>
-                  <td className="px-10 py-8 text-right">
+                  <td className="px-4 md:px-10 py-8 text-right">
                     <div className="flex flex-col gap-4">
                       <button
                         onClick={() => setShowAssemblyModal(project.id)}

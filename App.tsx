@@ -24,7 +24,8 @@ import {
   RefreshCcw,
   Mic,
   Sparkles,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from 'lucide-react';
 import { MOCK_CLIENTS, MOCK_PROJECTS, MOCK_ENVIRONMENTS } from './mockData';
 import { Client, Project, Environment, Supplier, Material, Quotation, Company, Installer, TechnicalAssistance, Task, CalendarEvent } from './types';
@@ -612,6 +613,15 @@ const AppContent: React.FC = () => {
             >
               {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
+            {activeTab !== 'dashboard' && (
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="p-3 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-all group flex items-center justify-center -ml-2"
+                title="Voltar ao Dashboard"
+              >
+                <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+              </button>
+            )}
             <div>
               <h2 className="text-lg font-bold text-foreground tracking-tight">
                 {navItems.find(i => i.id === activeTab)?.label}
