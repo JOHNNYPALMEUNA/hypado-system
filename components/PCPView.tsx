@@ -508,9 +508,10 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         </div>
       </div>
 
-      <div className="rounded-[40px] border-2 border-slate-100 bg-card shadow-2xl p-4 md:p-8">
-        {/* Header - Hidden on Mobile */}
-        <div className="hidden lg:grid lg:grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] bg-muted/50 border-b-2 border-slate-100 rounded-t-[32px]">
+      <div className="rounded-[40px] border-2 border-slate-100 bg-card shadow-2xl p-4 md:p-8 overflow-x-auto">
+        <div className="min-w-[900px]">
+        {/* Header */}
+        <div className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] bg-muted/50 border-b-2 border-slate-100 rounded-t-[32px]">
           <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</div>
           <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</div>
           <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</div>
@@ -526,7 +527,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
             const logisticsComplete = project.clientScheduled && project.freightOrganized && project.isExpeditionReady && (isDirect || project.preAssemblyDone);
 
             return (
-              <div key={project.id} className="grid grid-cols-1 lg:grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] items-center py-10 gap-6 lg:gap-0 hover:bg-muted/30 transition-all group">
+              <div key={project.id} className="grid grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] items-center py-10 gap-0 hover:bg-muted/30 transition-all group">
                 {/* 1. Ordem de Serviço */}
                 <div className="px-6 lg:px-8">
                   <div className="flex items-center gap-6">
@@ -669,6 +670,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
             );
           })}
         </div>
+        </div>{/* end min-w-[900px] */}
       </div>
 
       {/* MODAL: ARCHITECT SELECTION */}
