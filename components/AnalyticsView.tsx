@@ -143,14 +143,16 @@ const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assista
   const reworkCausesData = useMemo(() => {
     if (!dailyLogs) return [];
 
-    // Filtrar apenas categorias de erro/problema (ignorando 'Outros' se desejar, ou incluir todos)
-    const counts = dailyLogs.reduce((acc, log) => {
+    // Filtrar 'Registro Diário' pois não é causa de refazimento/erro
+    const filteredLogs = dailyLogs.filter(log => log.category !== 'Registro Diário');
+
+    const counts = filteredLogs.reduce((acc, log) => {
       acc[log.category] = (acc[log.category] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     return Object.entries(counts)
-      .map(([name, value]): { name: string; value: number } => ({ name, value }))
+      .map(([name, value]): { name: string; value: number } => ({ name, value: value as number }))
       .sort((a, b) => b.value - a.value);
   }, [dailyLogs]);
 
