@@ -508,16 +508,16 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-3xl border-2 border-slate-100 bg-card shadow-xl">
+      <div className="overflow-x-auto rounded-[40px] border-2 border-slate-100 bg-card shadow-2xl p-4 md:p-8">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-muted/50 border-b-2 border-slate-100">
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</th>
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</th>
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</th>
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</th>
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Status</th>
-              <th className="px-4 md:px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right">Controle</th>
+              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</th>
+              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</th>
+              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</th>
+              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</th>
+              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Status</th>
+              <th className="sticky right-0 bg-muted/50 px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">Controle</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -578,12 +578,12 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                       <div className="text-slate-200">—</div>
                     )}
                   </td>
-                  <td className="px-4 md:px-10 py-8">
+                  <td className="px-3 md:px-6 py-8">
                     <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase border shadow-lg ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest`}>
                       {project.currentStatus}
                     </span>
                   </td>
-                  <td className="px-4 md:px-10 py-8 text-right">
+                  <td className="sticky right-0 bg-card px-3 md:px-6 py-8 text-right z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
                     <div className="flex flex-col gap-4">
                       <button
                         onClick={() => setShowAssemblyModal(project.id)}
