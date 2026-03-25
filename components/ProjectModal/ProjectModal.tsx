@@ -51,6 +51,7 @@ interface ProjectModalProps {
     // Actions
     handleDelete: () => void;
     handleCancel: () => void;
+    onStockConsumptionRequest?: (projectId: string) => void;
 }
 
 const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -83,7 +84,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     setReport,
     handleSubmitAudit,
     handleDelete,
-    handleCancel
+    handleCancel,
+    onStockConsumptionRequest
 }) => {
     const { userRole } = useData();
     if (!isOpen) return null;
@@ -196,6 +198,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
                             project={formData}
                             installers={installers}
                             setFormData={setFormData}
+                            onStockConsumptionRequest={onStockConsumptionRequest}
                         />
                     )}
 

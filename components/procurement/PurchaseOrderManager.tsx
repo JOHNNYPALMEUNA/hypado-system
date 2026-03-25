@@ -22,6 +22,8 @@ interface PurchaseOrderManagerProps {
   updateMaterial: (m: Material) => Promise<void>;
   materialCategories: string[];
   showHistory?: boolean;
+  externalStockRequest?: { projectId: string } | null;
+  onConsumeStockRequest?: () => void;
 }
 
 const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
@@ -37,7 +39,9 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   addMaterial,
   updateMaterial,
   materialCategories,
-  showHistory = false
+  showHistory = false,
+  externalStockRequest,
+  onConsumeStockRequest
 }) => {
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
@@ -58,6 +62,17 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     items: [] as { materialId: string, name: string, quantity: number, maxQuantity: number, costPrice: number, unit: string }[]
   });
   const [stockSearch, setStockSearch] = useState('');
+
+  React.useEffect(() => {
+    if (externalStockRequest && externalStockRequest.projectId) {
+      setStockConsumptionData({
+        projectId: externalStockRequest.projectId,
+        items: []
+      });
+      setIsStockConsumptionModalOpen(true);
+      if (onConsumeStockRequest) onConsumeStockRequest();
+    }
+  }, [externalStockRequest]);
 
   const filteredOrders = useMemo(() => {
     if (showHistory) {

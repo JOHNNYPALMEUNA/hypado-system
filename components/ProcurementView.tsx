@@ -8,6 +8,7 @@ import SupplierManagement from './procurement/SupplierManagement';
 import PurchaseOrderManager from './procurement/PurchaseOrderManager';
 import MdoManager from './procurement/MdoManager';
 import PurchaseHistory from './procurement/PurchaseHistory';
+import PurchaseSettlementReportView from './PurchaseSettlementReportView';
 
 interface Props {
   projects: Project[];
@@ -23,6 +24,8 @@ interface Props {
   setExternalActiveTab?: (tab: any) => void;
   materialCategories: string[];
   setMaterialCategories: React.Dispatch<React.SetStateAction<string[]>>;
+  externalStockRequest?: { projectId: string } | null;
+  onConsumeStockRequest?: () => void;
 }
 
 const ProcurementView: React.FC<Props> = ({
@@ -36,7 +39,9 @@ const ProcurementView: React.FC<Props> = ({
   externalActiveTab,
   setExternalActiveTab,
   materialCategories,
-  setMaterialCategories
+  setMaterialCategories,
+  externalStockRequest,
+  onConsumeStockRequest
 }) => {
   const { 
     updateProject, 
@@ -50,9 +55,15 @@ const ProcurementView: React.FC<Props> = ({
     deleteMaterial, 
     userRole 
   } = useData();
+  
+  const [selectedSettlementId, setSelectedSettlementId] = React.useState<string | null>(null);
 
   const activeTab = externalActiveTab || 'cotacoes';
   const setActiveTab = setExternalActiveTab || (() => { });
+
+  React.useEffect(() => {
+    setSelectedSettlementId(null);
+  }, [activeTab]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -93,14 +104,26 @@ const ProcurementView: React.FC<Props> = ({
             addMaterial={addMaterial}
             updateMaterial={updateMaterial}
             materialCategories={materialCategories}
+            externalStockRequest={externalStockRequest}
+            onConsumeStockRequest={onConsumeStockRequest}
           />
         )}
 
         {activeTab === 'concluidas' && (
-          <PurchaseHistory 
-            purchaseOrders={purchaseOrders}
-            suppliers={suppliers}
-          />
+          selectedSettlementId ? (
+            <PurchaseSettlementReportView 
+              settlementId={selectedSettlementId}
+              quotations={purchaseOrders}
+              suppliers={suppliers}
+              onBack={() => setSelectedSettlementId(null)}
+            />
+          ) : (
+            <PurchaseHistory 
+              purchaseOrders={purchaseOrders}
+              suppliers={suppliers}
+              onViewDetails={setSelectedSettlementId}
+            />
+          )
         )}
 
         {activeTab === 'apontamento' && (

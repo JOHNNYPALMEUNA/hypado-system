@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     DollarSign, Clock, ShieldCheck, TrendingUp, AlertTriangle, Users, Star, Award,
-    PenTool, Lock, Trash2, Calendar
+    PenTool, Lock, Trash2, Calendar, Plus
 } from 'lucide-react';
 import { useData } from '../../contexts/DataContext';
 import { formatCurrency } from '../../utils';
@@ -11,9 +11,10 @@ interface CPCTabProps {
     project: Project;
     installers: any[];
     setFormData: React.Dispatch<React.SetStateAction<any>>;
+    onStockConsumptionRequest?: (projectId: string) => void;
 }
 
-const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => {
+const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData, onStockConsumptionRequest }) => {
     const { userRole, updateProject, refundRequests } = useData();
 
     // 1. Calculate Financials
@@ -118,7 +119,15 @@ const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData }) => 
                         <h5 className="text-sm font-black uppercase text-foreground flex items-center gap-2">
                             <TrendingUp size={18} className="text-slate-400" /> Detalhamento de Custos
                         </h5>
-                        <p className="text-[10px] font-bold text-slate-400 bg-muted px-3 py-1 rounded-full">{project.expenses?.length || 0} Lançamentos</p>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => onStockConsumptionRequest && onStockConsumptionRequest(project.id)}
+                                className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 flex items-center gap-2 shadow-sm"
+                            >
+                                <Plus size={14} /> Baixar do Estoque
+                            </button>
+                            <p className="text-[10px] font-bold text-slate-400 bg-muted px-3 py-1 rounded-full">{project.expenses?.length || 0} Lançamentos</p>
+                        </div>
                     </div>
 
                     {userRole === 'owner' ? (

@@ -26,6 +26,7 @@ interface Props {
    dailyLogs: DailyLog[];
    addAssistance: (assistance: TechnicalAssistance) => Promise<void>;
    assistances: TechnicalAssistance[];
+   onStockConsumptionRequest?: (projectId: string) => void;
 }
 
 const INITIAL_MEMORIAL = (): MemorialDescritivo => ({
@@ -38,7 +39,8 @@ const INITIAL_MEMORIAL = (): MemorialDescritivo => ({
 
 const ObrasView: React.FC<Props> = ({
    projects, setProjects, clients, setClients, availableEnvironments,
-   company, installers, materialCategories, purchaseOrders, dailyLogs, addAssistance, assistances
+   company, installers, materialCategories, purchaseOrders, dailyLogs, addAssistance, assistances,
+   onStockConsumptionRequest
 }) => {
    const { addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent } = useData();
    // ... existing code ...

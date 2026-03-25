@@ -5,9 +5,10 @@ import { Quotation, Supplier } from '../../types';
 interface PurchaseHistoryProps {
   purchaseOrders: Quotation[];
   suppliers: Supplier[];
+  onViewDetails: (settlementId: string) => void;
 }
 
-const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ purchaseOrders, suppliers }) => {
+const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ purchaseOrders, suppliers, onViewDetails }) => {
   const groupedHistory = useMemo(() => {
     const paid = purchaseOrders.filter(q => q.status === 'Comprado' || q.status === 'Entregue');
     const groups: Record<string, any> = {};
@@ -90,7 +91,10 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ purchaseOrders, suppl
                 </div>
             </div>
             
-            <button className="mt-8 w-full py-4 bg-slate-50 text-slate-900 rounded-[20px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 hover:text-white transition-all">
+            <button 
+              onClick={() => onViewDetails(group.id)}
+              className="mt-8 w-full py-4 bg-slate-50 text-slate-900 rounded-[20px] font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-slate-900 hover:text-white transition-all"
+            >
                 Ver Detalhes do Fechamento <ArrowRight size={16} />
             </button>
           </div>

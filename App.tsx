@@ -146,6 +146,7 @@ const AppContent: React.FC = () => {
   const [isAlertCenterOpen, setIsAlertCenterOpen] = useState(false);
   const [isDailyExpensesOpen, setIsDailyExpensesOpen] = useState(false);
   const [triggerConfetti, setTriggerConfetti] = useState(false);
+  const [stockRequest, setStockRequest] = useState<{ projectId: string } | null>(null);
 
   React.useEffect(() => {
     // Periodic celebration every 10 minutes
@@ -392,6 +393,11 @@ const AppContent: React.FC = () => {
           dailyLogs={dailyLogs}
           addAssistance={addAssistance}
           assistances={assistances}
+          onStockConsumptionRequest={(pid) => {
+            setStockRequest({ projectId: pid });
+            setProcurementSubTab('cotacoes');
+            setActiveTab('compras');
+          }}
         />
       );
       case 'diario': return <ConstructionDiaryView />;
@@ -412,6 +418,8 @@ const AppContent: React.FC = () => {
           setExternalSelectedOSId={setSelectedProcurementOSId}
           materialCategories={materialCategories}
           setMaterialCategories={setMaterialCategories}
+          externalStockRequest={stockRequest}
+          onConsumeStockRequest={() => setStockRequest(null)}
         />
       );
       case 'pcp': return (
