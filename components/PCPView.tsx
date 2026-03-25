@@ -508,158 +508,167 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[40px] border-2 border-slate-100 bg-card shadow-2xl p-4 md:p-8">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-muted/50 border-b-2 border-slate-100">
-              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</th>
-              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</th>
-              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</th>
-              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</th>
-              <th className="px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Status</th>
-              <th className="sticky right-0 bg-muted/50 px-3 md:px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">Controle</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {projects.filter(p => p.currentStatus !== 'Finalizada').map(project => {
-              const incompleteOut = (project.outsourcedServices || []).some(s => !s.supplierName || (s.value || 0) <= 0);
-              const allOutReady = (project.outsourcedServices || []).length > 0 && (project.outsourcedServices || []).every(s => s.status === 'Pronto');
+      <div className="rounded-[40px] border-2 border-slate-100 bg-card shadow-2xl p-4 md:p-8">
+        {/* Header - Hidden on Mobile */}
+        <div className="hidden lg:grid lg:grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] bg-muted/50 border-b-2 border-slate-100 rounded-t-[32px]">
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Ordem de Serviço</div>
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Insumos</div>
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Terceiros</div>
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Logística</div>
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-center">Status</div>
+          <div className="px-6 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic text-right">Controle</div>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {projects.filter(p => p.currentStatus !== 'Finalizada').map(project => {
+            const incompleteOut = (project.outsourcedServices || []).some(s => !s.supplierName || (s.value || 0) <= 0);
+            const allOutReady = (project.outsourcedServices || []).length > 0 && (project.outsourcedServices || []).every(s => s.status === 'Pronto');
+            const isDirect = project.deliveryPath === 'Direct';
+            const logisticsComplete = project.clientScheduled && project.freightOrganized && project.isExpeditionReady && (isDirect || project.preAssemblyDone);
 
-              const isDirect = project.deliveryPath === 'Direct';
-              // New Logic: Expedition is part of the required checklist
-              const logisticsComplete = project.clientScheduled && project.freightOrganized && project.isExpeditionReady && (isDirect || project.preAssemblyDone);
-
-              return (
-                <tr key={project.id} className="hover:bg-muted/50/50 transition-all group">
-                  <td className="px-3 md:px-6 py-8">
-                    <div className="flex items-center gap-6">
-                      <div className="w-14 h-14 bg-slate-900 text-amber-500 flex items-center justify-center rounded-[20px] font-black italic shadow-lg shrink-0">{project.id.slice(-2)}</div>
-                      <div className="min-w-0">
-                        <p className="font-black text-foreground uppercase italic text-lg tracking-tighter leading-none truncate">{project.workName}</p>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 italic truncate">{project.clientName}</p>
-                      </div>
+            return (
+              <div key={project.id} className="grid grid-cols-1 lg:grid-cols-[2.5fr_1fr_1fr_1.5fr_1.2fr_2fr] items-center py-10 gap-6 lg:gap-0 hover:bg-muted/30 transition-all group">
+                {/* 1. Ordem de Serviço */}
+                <div className="px-6 lg:px-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-14 h-14 bg-slate-900 text-amber-500 flex items-center justify-center rounded-[20px] font-black italic shadow-lg shrink-0">
+                      {project.id.slice(-2)}
                     </div>
-                  </td>
-                  <td className="px-3 md:px-6 py-8 text-center">
-                    <div className={`inline-flex p-3 rounded-2xl border-2 ${project.materialsDelivered ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-500 border-red-100 animate-pulse'}`}>
-                      {project.materialsDelivered ? <Unlock size={20} /> : <Lock size={20} />}
+                    <div className="min-w-0">
+                      <p className="font-black text-foreground uppercase italic text-lg tracking-tighter leading-none truncate" title={project.workName}>
+                        {project.workName}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1 italic truncate" title={project.clientName}>
+                        {project.clientName}
+                      </p>
                     </div>
-                  </td>
-                  <td className="px-3 md:px-6 py-8 text-center">
-                    <button
-                      onClick={() => setShowOutsourcedModal(project.id)}
-                      className={`inline-flex p-3 rounded-2xl border-2 transition-all hover:scale-110 ${incompleteOut ? 'bg-amber-50 text-amber-500 border-amber-200 animate-bounce' : (allOutReady ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (project.outsourcedServices.length > 0 ? 'bg-indigo-50 text-indigo-500 border-indigo-100' : 'bg-muted/50 text-slate-300 border-slate-100'))}`}
-                    >
-                      {incompleteOut ? <AlertTriangle size={20} /> : (allOutReady ? <CheckCircle2 size={20} /> : <Clock size={20} />)}
-                    </button>
-                  </td>
-                  <td className="px-3 md:px-6 py-8 text-center">
-                    {(project.currentStatus === 'Produção' || project.currentStatus === 'Entrega' || project.currentStatus === 'Instalação') ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="flex gap-2">
-                          <button onClick={() => setShowExpeditionModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.isExpeditionReady ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-border text-slate-300 hover:border-indigo-400 hover:text-indigo-400'}`} title="Expedição (Móvel Pronto)">
-                            <Box size={14} />
-                          </button>
-                          {!isDirect && (
-                            <button onClick={() => setShowPreAssemblyModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.preAssemblyDone ? 'bg-indigo-400 border-indigo-400 text-white' : 'border-border text-slate-300'}`} title="Pré-montagem/Conferência">
-                              <Screwdriver size={14} />
-                            </button>
-                          )}
-                          <button onClick={() => setShowDeliveryModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.clientScheduled ? 'bg-amber-500 border-amber-500 text-white' : 'border-border text-slate-300'}`} title="Agendado com Cliente">
-                            <Clock size={14} />
-                          </button>
-                          <button onClick={() => setShowFreightModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.freightOrganized ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-slate-300'}`} title="Frete Organizado">
-                            <Truck size={14} />
-                          </button>
-                        </div>
-                        <p className="text-[8px] font-black uppercase text-slate-400 italic">{project.deliveryPath === 'Direct' ? 'Direto CLI' : 'Via Oficina'}</p>
-                      </div>
-                    ) : (
-                      <div className="text-slate-200">—</div>
-                    )}
-                  </td>
-                  <td className="px-3 md:px-6 py-8">
-                    <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase border shadow-lg ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest`}>
-                      {project.currentStatus}
-                    </span>
-                  </td>
-                  <td className="sticky right-0 bg-card px-3 md:px-6 py-8 text-right z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">
-                    <div className="flex flex-col gap-4">
-                      <button
-                        onClick={() => setShowAssemblyModal(project.id)}
-                        className="px-8 py-3 bg-card border-2 border-border rounded-[20px] text-[10px] font-black uppercase tracking-widest flex items-center gap-3 transition-all hover:bg-slate-900 hover:text-white hover:border-slate-900 ml-auto shadow-sm"
-                        title="Abrir Mapa de Montagem"
-                      >
-                        <Layers size={16} className="text-amber-500" /> Mapa de Montagem
-                      </button>
+                  </div>
+                </div>
 
-                      <div className="flex items-center gap-2 w-full justify-end">
-                        {project.currentStatus !== 'Venda' && project.currentStatus !== 'Cancelada' && (
-                          <button
-                            onClick={() => goBackStatus(project.id)}
-                            className="p-4 rounded-[20px] bg-muted/50 text-slate-400 hover:bg-red-50 hover:text-red-500 border-2 border-slate-100 hover:border-red-100 transition-all shadow-sm active:scale-95"
-                            title="Voltar Etapa Anterior"
-                          >
-                            <ArrowLeft size={18} />
+                {/* 2. Insumos */}
+                <div className="flex justify-center lg:px-6">
+                  <div className={`inline-flex p-3 rounded-2xl border-2 ${project.materialsDelivered ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-500 border-red-100 animate-pulse'}`}>
+                    {project.materialsDelivered ? <Unlock size={20} /> : <Lock size={20} />}
+                  </div>
+                </div>
+
+                {/* 3. Terceiros */}
+                <div className="flex justify-center lg:px-6">
+                  <button
+                    onClick={() => setShowOutsourcedModal(project.id)}
+                    className={`inline-flex p-3 rounded-2xl border-2 transition-all hover:scale-110 ${incompleteOut ? 'bg-amber-50 text-amber-500 border-amber-200 animate-bounce' : (allOutReady ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (project.outsourcedServices.length > 0 ? 'bg-indigo-50 text-indigo-500 border-indigo-100' : 'bg-muted/50 text-slate-300 border-slate-100'))}`}
+                  >
+                    {incompleteOut ? <AlertTriangle size={20} /> : (allOutReady ? <CheckCircle2 size={20} /> : <Clock size={20} />)}
+                  </button>
+                </div>
+
+                {/* 4. Logística */}
+                <div className="flex flex-col items-center lg:px-6">
+                  {(project.currentStatus === 'Produção' || project.currentStatus === 'Entrega' || project.currentStatus === 'Instalação') ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-wrap justify-center gap-2 max-w-[140px]">
+                        <button onClick={() => setShowExpeditionModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.isExpeditionReady ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-border text-slate-300 hover:border-indigo-400 hover:text-indigo-400'}`} title="Expedição (Móvel Pronto)">
+                          <Box size={14} />
+                        </button>
+                        {!isDirect && (
+                          <button onClick={() => setShowPreAssemblyModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.preAssemblyDone ? 'bg-indigo-400 border-indigo-400 text-white' : 'border-border text-slate-300'}`} title="Pré-montagem/Conferência">
+                            <Screwdriver size={14} />
                           </button>
                         )}
-                        <button
-                          onClick={() => {
-                            if (project.currentStatus === 'Produção' && !logisticsComplete) {
-                              alert(`TRAVA LOGÍSTICA: Complete o checklist logístico (${isDirect ? 'Expedição, Agendamento, Frete' : 'Expedição, Pré-montagem, Agendamento, Frete'}) para avançar.`);
-                              return;
-                            }
-                            updateStatus(project.id);
-                          }}
-                          className={`px-8 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all shadow-xl active:scale-95 ${project.currentStatus === 'Instalação' ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-foreground'}`}
-                        >
-                          {project.currentStatus === 'Instalação' ? 'Solicitar Vistoria' : 'Avançar Obra'} <ArrowRight size={18} />
+                        <button onClick={() => setShowDeliveryModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.clientScheduled ? 'bg-amber-500 border-amber-500 text-white' : 'border-border text-slate-300'}`} title="Agendado com Cliente">
+                          <Clock size={14} />
+                        </button>
+                        <button onClick={() => setShowFreightModal(project.id)} className={`p-2 rounded-lg border-2 transition-all ${project.freightOrganized ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-border text-slate-300'}`} title="Frete Organizado">
+                          <Truck size={14} />
                         </button>
                       </div>
-
-                      {/* Sub-lista de Ambientes para Instalação/Vistoria */}
-                      {(project.currentStatus === 'Instalação' || project.currentStatus === 'Vistoria') && (
-                        <div className="flex flex-col gap-2 mt-2">
-                          <p className="text-[9px] font-black text-slate-400 uppercase italic tracking-widest text-right">Status por Ambiente</p>
-                          {project.environmentsDetails.map(env => (
-                            <div key={env.name} className="flex items-center justify-end gap-3 bg-muted/50 p-3 rounded-2xl border border-slate-100 group-hover:bg-card transition-all">
-                              <span className="text-[10px] font-black text-foreground uppercase italic">{env.name}</span>
-                              <div className="flex gap-1">
-                                {!env.isMdoAuthorized ? (
-                                  <div className="flex items-center gap-1 bg-red-50 text-red-500 px-2 py-1 rounded-lg text-[8px] font-black border border-red-100 shadow-sm animate-pulse">
-                                    <Lock size={10} /> SEM MDO
-                                  </div>
-                                ) : (
-                                  <>
-                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase border ${getStatusBadgeClass(env.currentStatus || 'Instalação' as ProductionStatus)}`}>
-                                      {env.currentStatus || 'Instalação'}
-                                    </span>
-                                    {env.currentStatus !== 'Finalizada' && (
-                                      <button
-                                        onClick={() => {
-                                          const next = env.currentStatus === 'Vistoria' ? 'Finalizada' : 'Vistoria';
-                                          updateEnvironmentStatus(project.id, env.name, next as ProductionStatus);
-                                        }}
-                                        className="p-1 bg-slate-900 text-white rounded-lg hover:bg-amber-500 transition-colors shadow-sm"
-                                        title={env.currentStatus === 'Vistoria' ? 'Finalizar Ambiente' : 'Mandar para Vistoria'}
-                                      >
-                                        <ChevronRight size={12} />
-                                      </button>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <p className="text-[8px] font-black uppercase text-slate-400 italic">{project.deliveryPath === 'Direct' ? 'Direto CLI' : 'Via Oficina'}</p>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  ) : (
+                    <div className="text-slate-200">—</div>
+                  )}
+                </div>
+
+                {/* 5. Status */}
+                <div className="flex justify-center lg:px-6">
+                  <span className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-black uppercase border shadow-lg ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest whitespace-nowrap`}>
+                    {project.currentStatus}
+                  </span>
+                </div>
+
+                {/* 6. Controle */}
+                <div className="px-6 lg:px-8 flex flex-col items-center lg:items-end gap-3">
+                  <button
+                    onClick={() => setShowAssemblyModal(project.id)}
+                    className="px-6 py-2.5 bg-card border-2 border-border rounded-[16px] text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-sm whitespace-nowrap"
+                    title="Abrir Mapa de Montagem"
+                  >
+                    <Layers size={14} className="text-amber-500" /> Mapa de Montagem
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {project.currentStatus !== 'Venda' && project.currentStatus !== 'Cancelada' && (
+                      <button
+                        onClick={() => goBackStatus(project.id)}
+                        className="p-3.5 rounded-[16px] bg-muted/50 text-slate-400 hover:bg-red-50 hover:text-red-500 border-2 border-slate-100 hover:border-red-100 transition-all active:scale-95"
+                        title="Voltar Etapa Anterior"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (project.currentStatus === 'Produção' && !logisticsComplete) {
+                          alert(`TRAVA LOGÍSTICA: Complete o checklist logístico (${isDirect ? 'Expedição, Agendamento, Frete' : 'Expedição, Pré-montagem, Agendamento, Frete'}) para avançar.`);
+                          return;
+                        }
+                        updateStatus(project.id);
+                      }}
+                      className={`px-6 py-3.5 rounded-[16px] text-[10px] font-black uppercase tracking-[0.15em] flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 whitespace-nowrap ${project.currentStatus === 'Instalação' ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-foreground'}`}
+                    >
+                      {project.currentStatus === 'Instalação' ? 'Solicitar Vistoria' : 'Avançar Obra'} <ArrowRight size={16} />
+                    </button>
+                  </div>
+
+                  {/* Sub-lista de Ambientes para Instalação/Vistoria */}
+                  {(project.currentStatus === 'Instalação' || project.currentStatus === 'Vistoria') && (
+                    <div className="flex flex-col gap-2 w-full lg:max-w-[200px]">
+                      <p className="text-[9px] font-black text-slate-400 uppercase italic tracking-widest text-right">Status por Ambiente</p>
+                      {project.environmentsDetails.map(env => (
+                        <div key={env.name} className="flex items-center justify-end gap-3 bg-muted/50 p-2 rounded-xl border border-slate-100">
+                          <span className="text-[9px] font-black text-foreground uppercase italic truncate">{env.name}</span>
+                          <div className="flex gap-1 shrink-0">
+                            {!env.isMdoAuthorized ? (
+                              <div className="flex items-center gap-1 bg-red-50 text-red-500 px-2 py-1 rounded-lg text-[7px] font-black border border-red-100 shadow-sm animate-pulse">
+                                <Lock size={8} /> SEM MDO
+                              </div>
+                            ) : (
+                              <>
+                                <span className={`px-2 py-1 rounded-lg text-[7px] font-black uppercase border ${getStatusBadgeClass(env.currentStatus || 'Instalação' as ProductionStatus)}`}>
+                                  {env.currentStatus || 'Instalação'}
+                                </span>
+                                {env.currentStatus !== 'Finalizada' && (
+                                  <button
+                                    onClick={() => {
+                                      const next = env.currentStatus === 'Vistoria' ? 'Finalizada' : 'Vistoria';
+                                      updateEnvironmentStatus(project.id, env.name, next as ProductionStatus);
+                                    }}
+                                    className="p-1 bg-slate-900 text-white rounded-lg hover:bg-amber-500 transition-colors shadow-sm"
+                                  >
+                                    <ChevronRight size={10} />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* MODAL: ARCHITECT SELECTION */}
