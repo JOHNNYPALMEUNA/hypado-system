@@ -53,7 +53,7 @@ export const mapProjectToDB = (project: Project) => {
         outsourced_services: project.outsourcedServices || [],
         attachments: project.attachments || [],
         project_pdf_url: project.projectPdfUrl,
-        pdf_summary: project.pdfSummary,
+        // pdf_summary: project.pdfSummary, // Column does not exist in DB yet
         pre_assembly_done: project.preAssemblyDone,
         freight_organized: project.freightOrganized,
         client_scheduled: project.clientScheduled,
