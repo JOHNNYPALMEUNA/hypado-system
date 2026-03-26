@@ -369,6 +369,14 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                 </div>
 
                                 <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => handleSendProposal(env.name)}
+                                        className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 transition-all shadow-md"
+                                        title="Enviar Proposta WhatsApp"
+                                    >
+                                        <MessageSquare size={20} />
+                                    </button>
+
                                     {env.isMdoAuthorized ? (
                                         <div className="flex items-center gap-2">
                                             <div className="flex items-center gap-3 px-6 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">
@@ -383,31 +391,23 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                             </button>
                                         </div>
                                     ) : (
-                                        <>
-                                            <button 
-                                                onClick={() => handleSendProposal(env.name)}
-                                                className="p-4 bg-slate-900 text-white rounded-2xl hover:bg-emerald-600 transition-all shadow-md"
-                                                title="Enviar Proposta WhatsApp"
-                                            >
-                                                <MessageSquare size={20} />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleInternalTeamAssignment(env.name)}
-                                                className="p-4 bg-slate-200 text-slate-600 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-md group"
-                                                title="Autorizar Agora (Lançamento Direto)"
-                                            >
-                                                <UserCheck size={20} />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleGenerateContract(env.name)}
-                                                disabled={isGeneratingContract}
-                                                className="p-4 bg-slate-200 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-md"
-                                                title="Gerar Contrato de Empreita"
-                                            >
-                                                {isGeneratingContract ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
-                                            </button>
-                                        </>
+                                        <button 
+                                            onClick={() => handleInternalTeamAssignment(env.name)}
+                                            className="p-4 bg-slate-200 text-slate-600 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-md group"
+                                            title="Autorizar Agora (Lançamento Direto)"
+                                        >
+                                            <UserCheck size={20} />
+                                        </button>
                                     )}
+
+                                    <button 
+                                        onClick={() => handleGenerateContract(env.name)}
+                                        disabled={isGeneratingContract}
+                                        className="p-4 bg-slate-200 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-md"
+                                        title="Gerar Contrato de Empreita"
+                                    >
+                                        {isGeneratingContract ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
+                                    </button>
                                 </div>
                             </div>
                         </div>
