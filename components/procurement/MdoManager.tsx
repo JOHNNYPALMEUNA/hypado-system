@@ -58,8 +58,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
 
     const groupedEnvs = (selectedOS.environmentsDetails || []).filter(env => 
       mdoInstallers[env.name] === installerId && 
-      parseFloat(mdoValues[env.name] || '0') > 0 && 
-      !env.isMdoAuthorized
+      parseFloat(mdoValues[env.name] || '0') > 0
     );
 
     if (groupedEnvs.length === 0) {
