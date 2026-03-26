@@ -271,16 +271,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data) {
             const mapped = data.map((l: any) => ({
                 id: l.id,
-                projectId: l.project_id,
-                workName: l.work_name,
+                projectId: l.projectId,
+                workName: l.workName,
                 date: l.date,
                 author: l.author,
                 category: l.category,
                 description: l.description,
-                photoUrl: l.photo_url,
-                reworkDetails: l.rework_details,
+                photoUrl: l.photoUrl,
+                reworkDetails: l.reworkDetails,
                 status: l.status,
-                createdAt: l.created_at
+                createdAt: l.createdAt
             }));
             setDailyLogs(mapped);
         }
@@ -906,14 +906,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addDailyLog = async (log: DailyLog) => {
         try {
             const payload = {
-                project_id: log.projectId === 'manual' ? null : log.projectId,
-                work_name: log.workName,
+                projectId: log.projectId === 'manual' ? null : log.projectId,
+                workName: log.workName,
                 date: log.date,
                 author: log.author,
                 category: log.category,
                 description: log.description,
-                photo_url: log.photoUrl,
-                rework_details: log.reworkDetails,
+                photoUrl: log.photoUrl,
+                reworkDetails: log.reworkDetails,
                 status: log.status
             };
             const { error } = await supabase.from('daily_logs').insert([payload]);
@@ -932,14 +932,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateDailyLog = async (log: DailyLog) => {
         try {
             const logToUpdate = {
-                project_id: log.projectId === 'manual' ? null : log.projectId,
-                work_name: log.workName,
+                projectId: log.projectId === 'manual' ? null : log.projectId,
+                workName: log.workName,
                 date: log.date,
                 author: log.author,
                 category: log.category,
                 description: log.description,
-                photo_url: log.photoUrl,
-                rework_details: log.reworkDetails,
+                photoUrl: log.photoUrl,
+                reworkDetails: log.reworkDetails,
                 status: log.status
             };
 
