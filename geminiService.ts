@@ -366,6 +366,79 @@ export async function generateContract(clientName: string, cpfCnpj: string, proj
   }
   return "Erro desconhecido ao gerar contrato.";
 }
+
+export async function generateInstallerContract(
+  installer: { name: string, cpf: string, address: string },
+  project: { workName: string, workAddress: string, clientName: string },
+  value: number,
+  days: number = 10
+) {
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+
+  const prompt = `
+    PREENCHA O MODELO DE CONTRATO DE EMPREITADA ABAIXO COM OS DADOS FORNECIDOS.
+    Mantenha a formatação Markdown técnica e profissional.
+    
+    DADOS PARA PREENCHIMENTO:
+    - CONTRATADO: ${installer.name} (CPF: ${installer.cpf}, Endereço: ${installer.address})
+    - OBRA / LOCAL: ${project.workAddress} (Obra: ${project.workName}, Cliente: ${project.clientName})
+    - VALOR TOTAL DA EMPREITADA: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+    - PRAZO ESTIMADO: ${days} dias corridos
+    - DATA DE HOJE: ${formatDate(new Date())}
+
+    MODELO DE CONTRATO BASE (ESTRUTURA):
+
+    # CONTRATO DE PRESTAÇÃO DE SERVIÇOS POR EMPREITADA - PESSOA JURÍDICA/AUTÔNOMO
+
+    **CONTRATANTE:** **HYPADO PLANEJADOS LTDA**, inscrita no CNPJ sob o nº 50.394.116/0001-20, com sede na Rua J-80, Quadra 154A, Lote 17, Setor Jaó, Goiânia - GO, CEP 74674-420.
+
+    **CONTRATADO:** **{{INSTALLER_NAME}}**, inscrito no CPF nº {{INSTALLER_CPF}}, residente na {{INSTALLER_ADDRESS}}.
+
+    As partes acima identificadas celebram entre si o presente Contrato de Prestação de Serviços por Empreitada, regido pelos artigos 593 a 609 do Código Civil, conforme as seguintes cláusulas:
+
+    ## CLÁUSULA 1ª – OBJETO DO CONTRATO
+    1.1. O presente contrato tem por objeto a prestação de serviços de montagem de móveis planejados na obra localizada em: **{{WORK_ADDRESS}}** (Obra: {{WORK_NAME}}).
+    1.2. A empreitada compreenderá: Organização do local, montagem conforme projeto técnico, limpeza final e comunicação de ajustes.
+
+    ## CLÁUSULA 2ª – NATUREZA DA RELAÇÃO JURÍDICA
+    2.1. Inexistência de vínculo empregatício. O CONTRATADO possui plena autonomia na gestão de seus métodos e ferramentas.
+
+    ## CLÁUSULA 3ª – EXECUÇÃO E RESPONSABILIDADES
+    3.1. Ferramentas e EPIs são de responsabilidade do CONTRATADO.
+    3.2. O CONTRATADO responde por danos causados por negligência.
+
+    ## CLÁUSULA 4ª – REMUNERAÇÃO E PAGAMENTO
+    4.1. O valor total da empreitada é de **R$ {{VALUE}}**.
+    4.2. O pagamento será realizado via Pix mediante inspeção e aprovação técnica dos serviços.
+
+    ## CLÁUSULA 5ª – PRAZO
+    5.1. O prazo estimado para execução é de **{{DAYS}} dias corridos**, a contar do início efetivo dos trabalhos.
+
+    ## CLÁUSULA 6ª – FORO
+    6.1. Foro da Comarca de Goiânia - GO.
+
+    Local e Data: Goiânia - GO, {{CURRENT_DATE}}
+
+    __________________________________________
+    **HYPADO PLANEJADOS LTDA**
+
+    __________________________________________
+    **{{INSTALLER_NAME}}** (CONTRATADO)
+  `;
+
+  for (const modelName of models) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error: any) {
+      console.error(`Erro Contrato Instalador Gemini (${modelName}):`, error);
+      if (modelName === models[models.length - 1]) return "Erro ao gerar contrato de empreita.";
+      if (error.message?.includes("429")) await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  return "Erro ao gerar contrato.";
+}
 // Função para Analisar Plano de Corte (Smart CUT / PCP Express)
 export async function analyzeCutList(base64Image: string, mimeType: string = "image/jpeg", instructions?: string) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });

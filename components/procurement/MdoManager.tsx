@@ -3,9 +3,10 @@ import {
   Users, Hammer, DollarSign, MessageSquare, 
   Sparkles, Check, AlertCircle, Calendar, Plus, 
   Briefcase, HardHat, UserCheck, MoreHorizontal,
-  PlusCircle, RefreshCw, CheckCircle2
+  PlusCircle, RefreshCw, CheckCircle2, FileText, Printer, X, Loader2
 } from 'lucide-react';
 import { Project, Supplier, Installer, Company, Expense } from '../../types';
+import { generateInstallerContract } from '../../geminiService';
 
 interface MdoManagerProps {
   projects: Project[];
@@ -38,6 +39,11 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     value: '', 
     description: '' 
   });
+
+  // Contract Modal States
+  const [contractText, setContractText] = useState('');
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isGeneratingContract, setIsGeneratingContract] = useState(false);
 
   const selectedOS = useMemo(() => projects.find(p => p.id === selectedOSId), [selectedOSId, projects]);
 
@@ -167,7 +173,45 @@ const MdoManager: React.FC<MdoManagerProps> = ({
         environmentsDetails: newEnvDetails as any,
         expenses: [...(selectedOS.expenses || []), newExp]
     } as Project);
-    alert("REGISTRO INTERNO CONCLUÍDO!");
+    alert("AUTORIZAÇÃO CONCLUÍDA!");
+  };
+
+  const handleGenerateContract = async (envName: string) => {
+    if (!selectedOS) return;
+    const env = selectedOS.environmentsDetails.find(e => e.name === envName);
+    if (!env) return;
+
+    const installerId = env.assignedInstallerId;
+    const installer = installers.find(i => i.id === installerId);
+    
+    if (!installer) {
+        alert("Nenhum profissional vinculado a este ambiente para gerar contrato.");
+        return;
+    }
+
+    setIsGeneratingContract(true);
+    try {
+        const text = await generateInstallerContract(
+            { 
+              name: installer.name, 
+              cpf: installer.cpf || 'Não informado', 
+              address: installer.observations?.includes('Endereço:') ? installer.observations.split('Endereço:')[1].trim() : 'Não informado' 
+            },
+            { 
+              workName: selectedOS.workName, 
+              workAddress: selectedOS.workAddress || 'Não informado',
+              clientName: selectedOS.clientName 
+            },
+            env.authorizedMdoValue || 0
+        );
+        setContractText(text);
+        setIsContractModalOpen(true);
+    } catch (error) {
+        console.error('Error generating contract:', error);
+        alert('Erro ao gerar contrato.');
+    } finally {
+        setIsGeneratingContract(false);
+    }
   };
 
   const handleUndoAuthorization = async (envName: string) => {
@@ -349,10 +393,18 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                             </button>
                                             <button 
                                                 onClick={() => handleInternalTeamAssignment(env.name)}
-                                                className="p-4 bg-slate-200 text-slate-600 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-md"
-                                                title="Equipe Interna (Lançamento Direto)"
+                                                className="p-4 bg-slate-200 text-slate-600 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-md group"
+                                                title="Autorizar Agora (Lançamento Direto)"
                                             >
                                                 <UserCheck size={20} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleGenerateContract(env.name)}
+                                                disabled={isGeneratingContract}
+                                                className="p-4 bg-slate-200 text-slate-400 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-md"
+                                                title="Gerar Contrato de Empreita"
+                                            >
+                                                {isGeneratingContract ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
                                             </button>
                                         </>
                                     )}
@@ -441,6 +493,57 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Média Mensal</p>
                         <p className="text-white font-black text-2xl tracking-tighter italic">R$ 14.250</p>
                     </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Contract Preview Modal */}
+      {isContractModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-4xl max-h-[90vh] rounded-[40px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-8 border-b border-border flex justify-between items-center bg-slate-900 text-white">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-slate-900">
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-black uppercase italic tracking-tighter">Contrato de Empreita</h3>
+                            <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Documento Gerado via IA</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setIsContractModalOpen(false)}
+                        className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                        title="Fechar Modal"
+                    >
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-12 bg-slate-50 printable-area">
+                    <div className="prose prose-slate max-w-none">
+                        <div className="whitespace-pre-wrap font-serif text-slate-700 leading-relaxed text-sm">
+                            {contractText}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-8 bg-white border-t border-slate-100 flex justify-end gap-4 no-print">
+                    <button 
+                        onClick={() => setIsContractModalOpen(false)}
+                        className="px-8 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-200 transition-all"
+                        title="Fechar Visualização"
+                    >
+                        Fechar
+                    </button>
+                    <button 
+                        onClick={() => window.print()}
+                        className="px-8 py-4 bg-amber-500 text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-900 hover:text-white transition-all flex items-center gap-3 shadow-lg"
+                        title="Imprimir Contrato"
+                    >
+                        <Printer size={18} /> Imprimir Contrato
+                    </button>
                 </div>
             </div>
         </div>
