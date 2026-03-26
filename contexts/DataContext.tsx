@@ -271,16 +271,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data) {
             const mapped = data.map((l: any) => ({
                 id: l.id,
-                projectId: l.projectId,
-                workName: l.workName,
+                projectId: l.project_id || l.projectId,
+                workName: l.work_name || l.workName,
                 date: l.date,
                 author: l.author,
                 category: l.category,
                 description: l.description,
-                photoUrl: l.photoUrl,
-                reworkDetails: l.reworkDetails,
+                photoUrl: l.photo_url || l.photoUrl,
+                reworkDetails: l.rework_details || l.reworkDetails,
+                analysisResult: l.analysis_result || l.analysisResult,
+                completionPercentage: l.completion_percentage || l.completionPercentage,
                 status: l.status,
-                createdAt: l.createdAt
+                createdAt: l.created_at || l.createdAt
             }));
             setDailyLogs(mapped);
         }
@@ -906,15 +908,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const addDailyLog = async (log: DailyLog) => {
         try {
             const payload = {
-                projectId: log.projectId === 'manual' ? null : log.projectId,
-                workName: log.workName,
+                project_id: log.projectId === 'manual' ? null : log.projectId,
+                work_name: log.workName,
                 date: log.date,
                 author: log.author,
                 category: log.category,
                 description: log.description,
-                photoUrl: log.photoUrl,
-                reworkDetails: log.reworkDetails,
-                status: log.status
+                photo_url: log.photoUrl,
+                rework_details: log.reworkDetails,
+                status: log.status,
+                analysis_result: log.analysisResult,
+                completion_percentage: log.completionPercentage,
+                created_at: log.createdAt
             };
             const { error } = await supabase.from('daily_logs').insert([payload]);
             if (error) throw error;
@@ -932,15 +937,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updateDailyLog = async (log: DailyLog) => {
         try {
             const logToUpdate = {
-                projectId: log.projectId === 'manual' ? null : log.projectId,
-                workName: log.workName,
+                project_id: log.projectId === 'manual' ? null : log.projectId,
+                work_name: log.workName,
                 date: log.date,
                 author: log.author,
                 category: log.category,
                 description: log.description,
-                photoUrl: log.photoUrl,
-                reworkDetails: log.reworkDetails,
-                status: log.status
+                photo_url: log.photoUrl,
+                rework_details: log.reworkDetails,
+                status: log.status,
+                analysis_result: log.analysisResult,
+                completion_percentage: log.completionPercentage
             };
 
             const currentLog = dailyLogs.find(l => l.id === log.id);

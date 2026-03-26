@@ -3,30 +3,30 @@ import { DailyLog } from '../types';
 
 export const mapDailyLogFromDB = (l: any): DailyLog => ({
     ...l,
-    projectId: l.projectId,
-    workName: l.workName,
-    photoUrl: l.photoUrl,
-    reworkDetails: l.reworkDetails,
-    analysisResult: l.analysisResult,
-    completionPercentage: l.completionPercentage,
-    createdAt: l.createdAt
+    projectId: l.project_id || l.projectId,
+    workName: l.work_name || l.workName,
+    photoUrl: l.photo_url || l.photoUrl,
+    reworkDetails: l.rework_details || l.reworkDetails,
+    analysisResult: l.analysis_result || l.analysisResult,
+    completionPercentage: l.completion_percentage || l.completionPercentage,
+    createdAt: l.created_at || l.createdAt
 });
 
 export const mapDailyLogToDB = (l: DailyLog) => ({
     id: l.id,
-    projectId: l.projectId,
-    workName: l.workName,
+    project_id: l.projectId,
+    work_name: l.workName,
     date: l.date,
     author: l.author,
     category: l.category,
     description: l.description,
-    photoUrl: l.photoUrl,
-    reworkDetails: l.reworkDetails,
+    photo_url: l.photoUrl,
+    rework_details: l.reworkDetails,
     status: l.status,
     environment: l.environment,
-    analysisResult: l.analysisResult,
-    completionPercentage: l.completionPercentage,
-    createdAt: l.createdAt
+    analysis_result: l.analysisResult,
+    completion_percentage: l.completionPercentage,
+    created_at: l.createdAt
 });
 
 export const diaryService = {
