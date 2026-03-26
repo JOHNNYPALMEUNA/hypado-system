@@ -232,6 +232,7 @@ export interface Project {
   modules?: SelectedModule[];
   architectId?: string; // ID of the architect/designer
   renderImageUrl?: string; // URL to the 3D Render image for AI comparison
+  pdfSummary?: string; // Persistent technical summary extracted from PDF
 }
 
 export interface Product {
@@ -385,6 +386,8 @@ export interface DailyLog {
   }[];
   status: 'Pendente' | 'Em Produção' | 'Pronto' | 'Concluído' | 'Registrado';
   environment?: string; // New field for environment mapping
+  analysisResult?: string; // Result of IA Progress Analysis
+  completionPercentage?: number; // Completion % from IA Analysis
   createdAt: string;
 }
 

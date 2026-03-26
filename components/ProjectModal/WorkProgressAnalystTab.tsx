@@ -17,7 +17,7 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
     project,
     handlePdfDelete
 }) => {
-    const { dailyLogs, updateProject } = useData();
+    const { dailyLogs, addDailyLog, updateProject } = useData();
     const [renderImage, setRenderImage] = useState<string | null>(project.renderImageUrl || null);
     const [progressPhotos, setProgressPhotos] = useState<PhotoWithMeta[]>([]);
     const [manualPhotos, setManualPhotos] = useState<PhotoWithMeta[]>([]);
@@ -25,8 +25,10 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
     const [completionPercentage, setCompletionPercentage] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSavingRender, setIsSavingRender] = useState(false);
-    const [pdfSummary, setPdfSummary] = useState<string | null>(null);
+    const [pdfSummary, setPdfSummary] = useState<string | null>(project.pdfSummary || null);
     const [isReadingPdf, setIsReadingPdf] = useState(false);
+    const [isSavingSummary, setIsSavingSummary] = useState(false);
+    const [isRegistering, setIsRegistering] = useState(false);
 
     // Sync render image with project if it changes externally
     useEffect(() => {
@@ -139,6 +141,48 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
             alert("Erro ao ler PDF do projeto.");
         } finally {
             setIsReadingPdf(false);
+        }
+    };
+
+    const handleSavePdfSummary = async () => {
+        if (!pdfSummary) return;
+        setIsSavingSummary(true);
+        try {
+            await updateProject({ ...project, pdfSummary: pdfSummary });
+            alert("Resumo técnico do PDF salvo na obra!");
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao salvar resumo.");
+        } finally {
+            setIsSavingSummary(false);
+        }
+    };
+
+    const handleRegisterProgress = async () => {
+        if (!analysis || completionPercentage === null) return;
+        setIsRegistering(true);
+        try {
+            const newLog = {
+                id: `log-ia-${Date.now()}`,
+                projectId: project.id,
+                workName: project.workName,
+                date: new Date().toISOString().split('T')[0],
+                author: "IA Avanço",
+                category: "Registro Diário" as any,
+                description: `Avanço de Obra Detectado: ${completionPercentage}%`,
+                analysisResult: analysis,
+                completionPercentage: completionPercentage,
+                status: 'Registrado' as any,
+                createdAt: new Date().toISOString()
+            };
+
+            await addDailyLog(newLog);
+            alert("Progresso registrado no histórico da obra!");
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao registrar progresso.");
+        } finally {
+            setIsRegistering(false);
         }
     };
 
@@ -356,14 +400,27 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
             {/* AI PDF Summary / Project Confirmation */}
             {pdfSummary && (
                 <div className="bg-emerald-50/30 border border-emerald-100 rounded-[32px] p-8 animate-in fade-in slide-in-from-top-4">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm border border-emerald-100">
-                            <FileText size={20} />
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white rounded-xl text-emerald-600 shadow-sm border border-emerald-100">
+                                <FileText size={20} />
+                            </div>
+                            <div>
+                                <h5 className="text-[12px] font-black text-emerald-900 uppercase tracking-tight">O que a IA entendeu do Projeto:</h5>
+                                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest italic">Base técnica extraída do PDF</p>
+                            </div>
                         </div>
-                        <div>
-                            <h5 className="text-[12px] font-black text-emerald-900 uppercase tracking-tight">O que a IA entendeu do Projeto:</h5>
-                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest italic">Base técnica extraída do PDF</p>
-                        </div>
+
+                        {pdfSummary !== project.pdfSummary && (
+                            <button 
+                                onClick={handleSavePdfSummary}
+                                disabled={isSavingSummary}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+                            >
+                                {isSavingSummary ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                Salvar Base na Obra
+                            </button>
+                        )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                         {renderMarkdown(pdfSummary)}
@@ -407,14 +464,24 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                         </div>
 
                         {completionPercentage !== null && (
-                            <div className="text-right">
-                                <span className="text-4xl font-black text-white italic">{completionPercentage}%</span>
-                                <div className="w-32 h-2 bg-white/20 rounded-full mt-2 overflow-hidden">
-                                    <div 
-                                        className="h-full bg-white rounded-full transition-all duration-1000" 
-                                        style={{ width: `${completionPercentage}%` }}
-                                    />
+                            <div className="flex flex-col items-end gap-3">
+                                <div className="text-right">
+                                    <span className="text-4xl font-black text-white italic">{completionPercentage}%</span>
+                                    <div className="w-32 h-2 bg-white/20 rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                            className="h-full bg-white rounded-full transition-all duration-1000" 
+                                            style={{ width: `${completionPercentage}%` }}
+                                        />
+                                    </div>
                                 </div>
+                                <button
+                                    onClick={handleRegisterProgress}
+                                    disabled={isRegistering}
+                                    className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-600 rounded-2xl text-[10px] font-black uppercase hover:bg-emerald-50 transition-all shadow-xl"
+                                >
+                                    {isRegistering ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                                    Registrar no Histórico
+                                </button>
                             </div>
                         )}
                     </div>
@@ -429,6 +496,47 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* PROGRESS HISTORY FEED */}
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <RefreshCw size={18} className="text-slate-400" />
+                    <h5 className="text-[12px] font-black text-slate-900 uppercase tracking-widest italic">Histórico de Evolução (Feed)</h5>
+                </div>
+                
+                <div className="space-y-4">
+                    {dailyLogs
+                        .filter(log => log.projectId === project.id && log.author === "IA Avanço")
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map(log => (
+                            <div key={log.id} className="bg-slate-50 border border-slate-100 rounded-[24px] p-6 hover:border-indigo-200 transition-all group">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-black text-[10px]">
+                                            {log.completionPercentage}%
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-slate-900 uppercase">{new Date(log.date).toLocaleDateString('pt-BR')}</p>
+                                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest italic">{log.author}</p>
+                                        </div>
+                                    </div>
+                                    <Sparkles size={14} className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <div className="text-sm text-slate-600 border-l-2 border-indigo-100 pl-4 py-1 italic line-clamp-3 group-hover:line-clamp-none transition-all">
+                                    {log.analysisResult}
+                                </div>
+                            </div>
+                        ))
+                    }
+                    {dailyLogs.filter(log => log.projectId === project.id && log.author === "IA Avanço").length === 0 && (
+                        <div className="py-12 border-2 border-dashed border-slate-100 rounded-[32px] flex flex-col items-center justify-center text-center">
+                            <RefreshCw size={32} className="text-slate-200 mb-3 animate-reverse-spin" />
+                            <p className="text-[10px] font-black uppercase text-slate-300 italic">Nenhum registro de avanço encontrado.</p>
+                            <p className="text-[8px] text-slate-300 uppercase mt-1">Faça uma análise agora e clique em "Registrar no Histórico".</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
