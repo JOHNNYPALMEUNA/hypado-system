@@ -14,7 +14,7 @@ export const mapProjectFromDB = (p: any): Project => ({
     cloudFolderLink: p.cloudFolderLink,
     materialsDelivered: p.materialsDelivered,
     productionCentral: p.production_central || p.productionCentral,
-    qualityReport: p.qualityReport,
+    qualityReport: p.quality_report || p.qualityReport,
     history: p.history || [],
     preAssemblyDone: p.pre_assembly_done,
     freightOrganized: p.freight_organized,
@@ -26,7 +26,7 @@ export const mapProjectFromDB = (p: any): Project => ({
     deliveryDate: p.client_delivery_date,
     isExpeditionReady: p.is_expedition_ready,
     projectPdfUrl: p.project_pdf_url,
-    pdfSummary: p.pdf_summary,
+    pdfSummary: p.pdf_summary || p.pdfSummary,
     architectId: p.architect_id || p.architectId || '',
     environmentsDetails: p.environmentsDetails || p.environments_details || [],
     outsourcedServices: p.outsourced_services || p.outsourcedServices || []
@@ -49,7 +49,7 @@ export const mapProjectToDB = (project: Project) => {
         environmentsDetails: project.environmentsDetails || [],
         expenses: project.expenses || [],
         history: project.history || [],
-        qualityReport: project.qualityReport || null,
+        quality_report: project.qualityReport || null,
         outsourced_services: project.outsourcedServices || [],
         attachments: project.attachments || [],
         project_pdf_url: project.projectPdfUrl,
@@ -65,7 +65,16 @@ export const mapProjectToDB = (project: Project) => {
         architect_id: project.architectId,
         installer_id: project.installerId,
         production_central: project.productionCentral,
-        pre_assembly_team: project.preAssemblyTeam || []
+        pre_assembly_team: project.preAssemblyTeam || [],
+        // Address structured fields (verified as camelCase)
+        addressCep: project.addressCep,
+        addressCity: project.addressCity,
+        addressStreet: project.addressStreet,
+        addressNumber: project.addressNumber,
+        addressNeighborhood: project.addressNeighborhood,
+        addressComplement: project.addressComplement,
+        addressQuadra: project.addressQuadra,
+        addressLote: project.addressLote
     };
 };
 

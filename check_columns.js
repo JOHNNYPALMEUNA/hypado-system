@@ -7,17 +7,18 @@ const supabaseKey = 'sb_publishable_3mFDDlw0JvV-14DfbVz3aw_m1eQANNv';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkColumns() {
-    console.log('Fetching technical_assistance...');
-    const { data, error } = await supabase.from('technical_assistance').select('*').limit(1);
+    console.log('Fetching daily_logs...');
+    const { data, error } = await supabase.from('daily_logs').select('*').limit(1);
 
     if (error) {
         console.error('Error:', error);
     } else {
-        console.log('Data:', JSON.stringify(data, null, 2));
         if (data && data.length > 0) {
-            console.log('Keys:', Object.keys(data[0]));
+            console.log('--- ALL COLUMNS IN PROJECTS ---');
+            console.log(Object.keys(data[0]).sort().join('\n'));
+            console.log('-------------------------------');
         } else {
-            console.log('No data found.');
+            console.log('No data found in projects table.');
         }
     }
 }
