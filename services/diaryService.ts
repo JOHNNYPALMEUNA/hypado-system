@@ -31,25 +31,25 @@ export const mapDailyLogToDB = (l: DailyLog) => ({
 
 export const diaryService = {
     async getAll(): Promise<DailyLog[]> {
-        const { data, error } = await supabase.from('diary_logs').select('*');
+        const { data, error } = await supabase.from('daily_logs').select('*');
         if (error) throw error;
         return (data || []).map(mapDailyLogFromDB);
     },
 
     async add(log: DailyLog): Promise<void> {
         const payload = mapDailyLogToDB(log);
-        const { error } = await supabase.from('diary_logs').insert([payload]);
+        const { error } = await supabase.from('daily_logs').insert([payload]);
         if (error) throw error;
     },
 
     async update(log: DailyLog): Promise<void> {
         const payload = mapDailyLogToDB(log);
-        const { error } = await supabase.from('diary_logs').update(payload).eq('id', log.id);
+        const { error } = await supabase.from('daily_logs').update(payload).eq('id', log.id);
         if (error) throw error;
     },
 
     async delete(id: string): Promise<void> {
-        const { error } = await supabase.from('diary_logs').delete().eq('id', id);
+        const { error } = await supabase.from('daily_logs').delete().eq('id', id);
         if (error) throw error;
     }
 };
