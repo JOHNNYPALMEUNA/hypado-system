@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { DailyLog, Project, Company } from '../types';
-import { Building2, Calendar, ClipboardList, AlertOctagon, User, Loader2 } from 'lucide-react';
+import { Building2, Calendar, ClipboardList, AlertOctagon, User, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { analyzeDailyDiary } from '../geminiService';
 
 interface PublicDailyReportViewProps {
     date: string;
@@ -13,6 +14,8 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
     const [company, setCompany] = useState<Company | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [aiAnalysis, setAiAnalysis] = useState<{ narrative: string; verdict: string; completionPercentage: number } | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     useEffect(() => {
         const fetchReportData = async () => {
@@ -34,6 +37,7 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
                     category: l.category,
                     description: l.description,
                     photoUrl: l.photo_url || l.photoUrl,
+                    photoUrls: l.photo_urls || l.photoUrls || (l.photo_url || l.photoUrl ? [l.photo_url || l.photoUrl] : []),
                     reworkDetails: l.rework_details || l.reworkDetails,
                     status: l.status,
                     createdAt: l.created_at || l.createdAt,
@@ -56,6 +60,7 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
                     contractDate: p.contract_date || p.contractDate,
                     promisedDate: p.promised_date || p.promisedDate,
                     currentStatus: p.current_status || p.currentStatus,
+                    pdfSummary: p.pdf_summary || p.pdfSummary,
                 } as Project));
                 setProjects(mappedProjects);
 
@@ -70,6 +75,16 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
                         address: compData.address,
                         logoUrl: compData.logo_url || compData.logoUrl,
                     });
+                }
+
+                // If we have logs, trigger AI analysis on the fly for the public view
+                if (filteredLogs.length > 0) {
+                    setIsAnalyzing(true);
+                    const photos = filteredLogs.flatMap(l => l.photoUrls || (l.photoUrl ? [l.photoUrl] : []));
+                    const mainProject = mappedProjects.find(p => p.id === filteredLogs[0].projectId) || { workName: 'Múltiplas Obras' } as Project;
+                    const result = await analyzeDailyDiary(filteredLogs, mainProject, photos);
+                    if (result) setAiAnalysis(result);
+                    setIsAnalyzing(false);
                 }
 
             } catch (err: any) {
@@ -162,7 +177,64 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
                     </div>
                 </div>
 
-                {/* Cover / Title */}
+                {/* AI Analysis Section */}
+                {(isAnalyzing || aiAnalysis) && (
+                    <div className="bg-white rounded-3xl p-8 md:p-10 shadow-xl shadow-indigo-500/5 border border-indigo-100 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 text-indigo-600">
+                            <Sparkles size={80} />
+                        </div>
+                        
+                        <div className="relative z-10 flex flex-col md:flex-row gap-8">
+                            <div className="md:w-1/4 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Veredito da IA</span>
+                                {isAnalyzing ? (
+                                    <Loader2 className="animate-spin text-indigo-600 mb-2" size={32} />
+                                ) : (
+                                    <>
+                                        <div className="text-4xl mb-2">{aiAnalysis?.verdict.split(' ')[0]}</div>
+                                        <p className="font-black text-slate-900 uppercase tracking-tight text-sm leading-tight">
+                                            {aiAnalysis?.verdict.split(' ').slice(1).join(' ') || 'Analisando...'}
+                                        </p>
+                                    </>
+                                )}
+                                
+                                {!isAnalyzing && aiAnalysis && (
+                                    <div className="mt-6 w-full space-y-2">
+                                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                            <span>Progresso</span>
+                                            <span>{aiAnalysis.completionPercentage}%</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500" style={{ width: `${aiAnalysis.completionPercentage}%` }}></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="md:w-3/4">
+                                <div className="flex items-center gap-2 mb-4 text-indigo-600">
+                                    <Sparkles size={20} />
+                                    <h4 className="font-black uppercase tracking-widest text-sm italic">Narrativa de Tempo Efetivo</h4>
+                                </div>
+                                {isAnalyzing ? (
+                                    <div className="space-y-3">
+                                        <div className="h-4 bg-slate-100 rounded-full w-full animate-pulse"></div>
+                                        <div className="h-4 bg-slate-100 rounded-full w-5/6 animate-pulse"></div>
+                                        <div className="h-4 bg-slate-100 rounded-full w-4/6 animate-pulse"></div>
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-600 leading-relaxed font-medium italic relative">
+                                        <span className="text-4xl text-slate-200 absolute -top-4 -left-4 opacity-50 font-serif">"</span>
+                                        {aiAnalysis?.narrative || 'Nenhum registro técnico disponível para análise.'}
+                                        <span className="text-4xl text-slate-200 absolute -bottom-8 right-0 opacity-50 font-serif">"</span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Cover / Title (only if AI is hidden or as a header) */}
                 <div className="bg-white rounded-3xl p-8 md:p-10 shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden group print:shadow-none print:border-none print:p-0">
                     <div className="absolute top-0 right-0 p-8 opacity-5 print:hidden">
                         <ClipboardList size={120} />
@@ -210,62 +282,80 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
                             <p className="text-slate-500 font-medium">Nenhum registro encontrado para esta data.</p>
                         </div>
                     ) : (
-                        <div className="grid gap-4">
+                        <div className="grid gap-6">
                             {logs.map(log => {
                                 const proj = projects.find(p => p.id === log.projectId);
-                                const isWarning = ['Falta de Peça', 'Erro de Projeto', 'Erro de Fabricação'].includes(log.category);
+                                const isWarning = ['Falta de Peça', 'Erro de Projeto', 'Erro de Fabricação', 'Falta de Material', 'Montador Ausente'].includes(log.category);
+                                const logPhotos = log.photoUrls || (log.photoUrl ? [log.photoUrl] : []);
 
                                 return (
-                                    <div key={log.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow">
+                                    <div key={log.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col gap-6 hover:shadow-md transition-shadow">
 
-                                        {/* Status & Project Header */}
-                                        <div className="md:w-1/3 space-y-3">
-                                            <div className="flex items-start justify-between">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider ${isWarning ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                                                    {isWarning && <AlertOctagon size={12} />}
-                                                    {log.category}
-                                                </span>
+                                        <div className="flex flex-col md:flex-row gap-6">
+                                            {/* Status & Project Header */}
+                                            <div className="md:w-1/3 space-y-3">
+                                                <div className="flex items-start justify-between">
+                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider ${isWarning ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                        {isWarning && <AlertOctagon size={12} />}
+                                                        {log.category}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-black text-slate-900 leading-tight">
+                                                        {proj?.workName || log.workName || 'Obra Avulsa'}
+                                                    </h4>
+                                                    {proj && <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-1">{proj.clientName}</p>}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
+                                                    <User size={14} className="shrink-0" /> Autor: {log.author || 'Membro da Equipe'}
+                                                </div>
+                                                {log.environment && (
+                                                    <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded w-fit">
+                                                        Ambiente: {log.environment}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div>
-                                                <h4 className="font-black text-slate-900 leading-tight">
-                                                    {proj?.workName || log.workName || 'Obra Avulsa'}
-                                                </h4>
-                                                {proj && <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-1">{proj.clientName}</p>}
-                                            </div>
-                                            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                                                <User size={14} className="shrink-0" /> Autor: {log.author || 'Membro da Equipe'}
+
+                                            {/* Separator mobile */}
+                                            <div className="h-px w-full bg-slate-100 md:hidden" />
+
+                                            {/* Details & Status */}
+                                            <div className="md:w-2/3 flex flex-col justify-between gap-4">
+                                                {log.reworkDetails && log.reworkDetails.length > 0 ? (
+                                                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                                        <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Detalhes da Peça Solicitada</p>
+                                                        <ul className="space-y-1 text-sm text-slate-700 font-medium">
+                                                            <li><span className="text-slate-400 mr-2">Nome:</span> {log.reworkDetails[0].partName}</li>
+                                                            <li><span className="text-slate-400 mr-2">Medidas:</span> {log.reworkDetails[0].width}x{log.reworkDetails[0].height}mm</li>
+                                                            {log.reworkDetails[0].thickness && <li><span className="text-slate-400 mr-2">Espessura:</span> {log.reworkDetails[0].thickness}</li>}
+                                                            {log.reworkDetails[0].color && <li><span className="text-slate-400 mr-2">Cor/Acabamento:</span> {log.reworkDetails[0].color}</li>}
+                                                            <li><span className="text-slate-400 mr-2">Qtd:</span> {log.reworkDetails[0].quantity}</li>
+                                                        </ul>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-sm text-slate-600 whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                                        {log.description || <span className="italic text-slate-400">Sem observações detalhadas.</span>}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex justify-end mt-auto">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(log.status)}`}>
+                                                        Status: {log.status}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Separator mobile */}
-                                        <div className="h-px w-full bg-slate-100 md:hidden" />
-
-                                        {/* Details & Status */}
-                                        <div className="md:w-2/3 flex flex-col justify-between gap-4">
-                                            {log.reworkDetails && log.reworkDetails.length > 0 ? (
-                                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Detalhes da Peça Solicitada</p>
-                                                    <ul className="space-y-1 text-sm text-slate-700 font-medium">
-                                                        <li><span className="text-slate-400 mr-2">Nome:</span> {log.reworkDetails[0].partName}</li>
-                                                        <li><span className="text-slate-400 mr-2">Medidas:</span> {log.reworkDetails[0].width}x{log.reworkDetails[0].height}mm</li>
-                                                        {log.reworkDetails[0].thickness && <li><span className="text-slate-400 mr-2">Espessura:</span> {log.reworkDetails[0].thickness}</li>}
-                                                        {log.reworkDetails[0].color && <li><span className="text-slate-400 mr-2">Cor/Acabamento:</span> {log.reworkDetails[0].color}</li>}
-                                                        <li><span className="text-slate-400 mr-2">Qtd:</span> {log.reworkDetails[0].quantity}</li>
-                                                    </ul>
-                                                </div>
-                                            ) : (
-                                                <div className="text-sm text-slate-600 whitespace-pre-line bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                                    {log.description || <span className="italic text-slate-400">Sem observações detalhadas.</span>}
-                                                </div>
-                                            )}
-
-                                            <div className="flex justify-end mt-auto">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(log.status)}`}>
-                                                    Status: {log.status}
-                                                </span>
+                                        {/* Photos for this log */}
+                                        {logPhotos.length > 0 && (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2">
+                                                {logPhotos.map((url, i) => (
+                                                    <div key={i} className="aspect-square rounded-xl overflow-hidden border border-slate-100">
+                                                        <img src={url} alt="Evidência" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ))}
                                             </div>
-                                        </div>
-
+                                        )}
                                     </div>
                                 );
                             })}

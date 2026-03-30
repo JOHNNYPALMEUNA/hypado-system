@@ -26,7 +26,7 @@ import { processRefundReceipt } from '../geminiService';
 import { supabase } from '../supabaseClient';
 
 const FinancialAuditView: React.FC = () => {
-    const { addRefundRequest, updateRefundRequest, deleteRefundRequest, projects, installers, isIdle } = useData();
+    const { addRefundRequest, updateRefundRequest, deleteRefundRequest, bulkUpdateRefundRequests, projects, installers, isIdle } = useData();
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
     React.useEffect(() => {
@@ -287,9 +287,9 @@ const FinancialAuditView: React.FC = () => {
         const now = new Date();
         const settlementId = `SET-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
 
-        for (const req of outstanding) {
-            await updateRefundRequest({ ...req, status: '🟢 PAGO', settlementId });
-        }
+        const idsToUpdate = outstanding.map(req => req.id);
+        await bulkUpdateRefundRequests(idsToUpdate, '🟢 PAGO', settlementId);
+        
         setShowSettlementSummary(false);
 
         // Generate and navigate to report

@@ -502,12 +502,17 @@ const ObrasView: React.FC<Props> = ({
          clientName: client.name,
          workName: formData.workName,
          environments: formData.selectedEnvironments,
-         environmentsDetails: formData.selectedEnvironments.map(env => ({
-            name: env,
-            type: 'Geral',
-            memorial: formData.environmentsDetails[env] || INITIAL_MEMORIAL(),
-            value: Number(formData.environmentsValues[env] || 0)
-         })),
+         environmentsDetails: formData.selectedEnvironments.map((env: string) => {
+            const existingProject = editingProjectId ? projects.find(p => p.id === editingProjectId) : null;
+            const existingEnv = existingProject?.environmentsDetails?.find(e => e.name === env);
+            return {
+               ...existingEnv,
+               name: env,
+               type: existingEnv?.type || 'Geral',
+               memorial: formData.environmentsDetails[env] || INITIAL_MEMORIAL(),
+               value: Number(formData.environmentsValues[env] || 0)
+            };
+         }),
          outsourcedServices: formData.outsourcedServices,
          expenses: formData.expenses, // FIX: Saving expenses
          value: Number(formData.value),

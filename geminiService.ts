@@ -1,6 +1,6 @@
 
 import { GoogleGenerativeAI, Part } from "@google/generative-ai";
-import { Project, MemorialDescritivo, EnvironmentWithDetails, Task } from "./types";
+import { Project, MemorialDescritivo, EnvironmentWithDetails, Task, DailyLog } from "./types";
 
 // Initialize the API with the key from Vite environment variables
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
@@ -918,5 +918,84 @@ export async function analyzeWorkProgress(renderBase64: string | null, photosBas
   } catch (error: any) {
     console.error("Erro Work Progress AI:", error);
     return `Não foi possível analisar o avanço da obra. Erro: ${error?.message || 'Verifique as imagens/PDF'}.`;
+  }
+}
+
+/**
+ * Analisa os registros de um dia (logs) e fotos para gerar uma narrativa técnica e um veredito.
+ */
+export async function analyzeDailyDiary(logs: DailyLog[], project: Project, photos: string[]) {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const logsSummary = logs.map(l => ({
+    category: l.category,
+    description: l.description,
+    rework: l.reworkDetails,
+    status: l.status,
+    environment: l.environment
+  }));
+
+  const prompt = `
+    Atue como um ANALISTA TÉCNICO DE PRODUÇÃO E PCP (Planejamento e Controle de Produção) da Marcenaria Hypado.
+    Sua tarefa é analisar o progresso da obra "${project.workName}" com base nos registros do diário e fotos de hoje.
+    
+    CONDIÇÕES DA OBRA:
+    - Status Atual do Projeto: ${project.currentStatus}
+    - Prazo Prometido para Entrega: ${project.promisedDate}
+    - Resumo Técnico do Projeto (PDF): ${project.pdfSummary || 'Resumo não disponível'}
+    
+    REGISTROS DO DIÁRIO (LOGS) DE HOJE:
+    ${JSON.stringify(logsSummary, null, 2)}
+    
+    INSTRUÇÕES DE ANÁLISE:
+    1. **NARRATIVA DE TEMPO EFETIVO**: Gere uma descrição profissional sobre o que foi realizado hoje. Correlacione os textos dos logs com o que é visível nas fotos. Use termos técnicos como 'caixaria', 'fitação', 'ponteamento', 'nivelamento', 'ferragens', etc.
+    2. **ANÁLISE DE IMPACTO**: Se houver logs de 'Falta de Peça', 'Erro de Projeto' ou 'Atraso', explique tecnicamente como isso afeta a data de entrega ou o fluxo das próximas etapas.
+    3. **VEREDITO FINAL**: Escolha um dos três: 
+       - 🟢 FLUXO SAUDÁVEL: Progresso conforme esperado, sem impedimentos graves.
+       - 🟡 ATENÇÃO NECESSÁRIA: Pequenos atrasos ou falta de materiais que exigem gestão.
+       - 🔴 RISCO DE ATRASO / REPASSE: Impedimentos graves ou muitos erros de fabricação/projeto.
+    4. **PERCENTUAL DE CONCLUSÃO**: Estime o avanço da fase atual (apenas o que foi feito hoje somado ao estado anterior).
+    
+    Dê o veredito com uma breve justificativa de uma frase.
+    
+    FORMATO DE RETORNO (JSON APENAS):
+    {
+      "narrative": "A narrativa detalhada em parágrafo técnico",
+      "verdict": "🟢/🟡/🔴 + Justificativa curta",
+      "completionPercentage": 0
+    }
+  `;
+
+  // Preparar partes (Fotos + Texto)
+  const parts: Part[] = [];
+  
+  // Adicionar fotos (limitar a 5 para evitar sobrecarga no prompt gratuito)
+  photos.slice(0, 5).forEach(url => {
+    if (url && url.includes('base64,')) {
+      parts.push({
+        inlineData: {
+          data: url.split('base64,')[1],
+          mimeType: "image/jpeg"
+        }
+      });
+    }
+  });
+
+  parts.push({ text: prompt });
+
+  try {
+    const result = await withRetry(() => model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: { 
+        responseMimeType: "application/json",
+        temperature: 0.4
+      }
+    }));
+    const text = result.response.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro Diary AI Analysis:", error);
+    return null;
   }
 }

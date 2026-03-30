@@ -175,7 +175,10 @@ const AppContent: React.FC = () => {
       setReportId(params.get('id'));
     } else if (params.get('mode') === 'daily-report') {
       setAppMode('daily-report');
-      setReportDate(params.get('date'));
+      // Sanitize: extract only YYYY-MM-DD from the date param (prevents corruption from WhatsApp copy-paste)
+      const rawDate = params.get('date') || '';
+      const dateMatch = rawDate.match(/^\d{4}-\d{2}-\d{2}/);
+      setReportDate(dateMatch ? dateMatch[0] : rawDate);
     }
   }, []);
 

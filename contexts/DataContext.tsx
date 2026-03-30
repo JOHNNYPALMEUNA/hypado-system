@@ -57,6 +57,7 @@ interface DataContextType {
     addRefundRequest: (request: RefundRequest) => Promise<void>;
     updateRefundRequest: (request: RefundRequest) => Promise<void>;
     deleteRefundRequest: (id: string) => Promise<void>;
+    bulkUpdateRefundRequests: (ids: string[], status: RefundStatus, settlementId: string) => Promise<void>;
     resetDatabase: () => Promise<void>;
     logEvent: (
         relatedId: string,
@@ -1024,6 +1025,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const bulkUpdateRefundRequests = async (ids: string[], status: RefundStatus, settlementId: string) => {
+        try {
+            await refundService.bulkUpdate(ids, { status, settlementId });
+            await fetchRefundRequests();
+        } catch (error: any) {
+            console.error('Error in bulk update refund:', error);
+            alert(`Erro ao atualizar reembolsos em massa: ${error.message}`);
+        }
+    };
+
     const deleteRefundRequest = async (id: string) => {
         try {
             await refundService.delete(id);
@@ -1087,7 +1098,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             suppliers, addSupplier, updateSupplier, deleteSupplier,
             materials, addMaterial, updateMaterial, deleteMaterial,
             dailyLogs, addDailyLog, updateDailyLog, deleteDailyLog,
-            refundRequests, addRefundRequest, updateRefundRequest, deleteRefundRequest,
+            refundRequests, addRefundRequest, updateRefundRequest, deleteRefundRequest, bulkUpdateRefundRequests,
             resetDatabase,
             logEvent,
             isIdle,

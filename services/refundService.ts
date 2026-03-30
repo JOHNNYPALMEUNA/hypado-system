@@ -50,6 +50,15 @@ export const refundService = {
         if (error) throw error;
     },
 
+    async bulkUpdate(ids: string[], updates: Partial<RefundRequest>): Promise<void> {
+        const payload: any = {};
+        if (updates.status) payload.status = updates.status;
+        if (updates.settlementId) payload.settlement_id = updates.settlementId;
+        
+        const { error } = await supabase.from('refund_requests').update(payload).in('id', ids);
+        if (error) throw error;
+    },
+
     async delete(id: string): Promise<void> {
         const { error } = await supabase.from('refund_requests').delete().eq('id', id);
         if (error) throw error;

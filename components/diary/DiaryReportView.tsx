@@ -11,8 +11,9 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { MessageCircle, Calendar } from 'lucide-react';
+import { MessageCircle, Calendar, Sparkles, Loader2, ExternalLink } from 'lucide-react';
 import { DailyLog, Project } from '../../types';
+import { analyzeDailyDiary } from '../../geminiService';
 
 interface DiaryReportViewProps {
   dailyLogs: DailyLog[];
@@ -21,9 +22,38 @@ interface DiaryReportViewProps {
 
 const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }) => {
   const [reportDate, setReportDate] = React.useState(new Date().toISOString().split('T')[0]);
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [aiAnalysis, setAiAnalysis] = React.useState<{ narrative: string; verdict: string; completionPercentage: number } | null>(null);
 
   // Filter logs for the selected date
-  const filteredLogsForReport = dailyLogs.filter(l => l.date === reportDate);
+  const filteredLogsForReport = dailyLogs.filter(l => l.date.split('T')[0] === reportDate);
+
+  const handleAIAnalysis = async () => {
+    if (filteredLogsForReport.length === 0) {
+      alert('Nenhuma ocorrência registrada nesta data para análise.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      // For the daily report, we'll pick the most active project or analyze all general logs
+      // In this case, we'll try to provide a general summary if no project is focused
+      const photos = filteredLogsForReport.flatMap(l => l.photoUrls || (l.photoUrl ? [l.photoUrl] : []));
+      
+      // We'll use a placeholder project if multiple exist, or the first one
+      const mainProject = projects.find(p => p.id === filteredLogsForReport[0].projectId) || { workName: 'Múltiplas Obras' } as Project;
+
+      const result = await analyzeDailyDiary(filteredLogsForReport, mainProject, photos);
+      if (result) {
+        setAiAnalysis(result);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao gerar análise IA.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleWhatsAppShare = () => {
     if (filteredLogsForReport.length === 0) {
@@ -32,21 +62,18 @@ const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }
     }
 
     const dateFormatted = new Date(reportDate + 'T12:00:00').toLocaleDateString();
+    const publicUrl = `${window.location.origin}${window.location.pathname}?mode=daily-report&date=${reportDate}`;
+    
     let message = `*RESUMO DIÁRIO DE OBRAS - ${dateFormatted}*\n\n`;
-    message += `Total de Ocorrências: ${filteredLogsForReport.length}\n`;
-    message += `-----------------------------------\n\n`;
+    
+    if (aiAnalysis) {
+      message += `*ESTADO GERAL:* ${aiAnalysis.verdict}\n`;
+      message += `*VEREDITO TÉCNICO:* \n${aiAnalysis.narrative.substring(0, 200)}...\n\n`;
+    }
 
-    filteredLogsForReport.forEach((log, idx) => {
-      const proj = projects.find(p => p.id === log.projectId);
-      message += `*${idx + 1}. ${proj?.workName || log.workName || 'Obra Avulsa'}*\n`;
-      message += `📌 Categoria: ${log.category}\n`;
-      message += `📝 Relato: ${log.description}\n`;
-      if (log.reworkDetails && log.reworkDetails.length > 0) {
-        message += `⚠️ Peça: ${log.reworkDetails[0].partName} (${log.reworkDetails[0].width}x${log.reworkDetails[0].height})\n`;
-      }
-      message += `👷 Status: ${log.status}\n\n`;
-    });
-
+    message += `📊 Total de Ocorrências: ${filteredLogsForReport.length}\n\n`;
+    message += `🔗 *RELATÓRIO COMPLETO COM FOTOS:*\n`;
+    message += `${publicUrl}\n\n`;
     message += `_Gerado via Hypado System_`;
     
     const encodedMessage = encodeURIComponent(message);
@@ -91,9 +118,20 @@ const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }
               placeholder="aaaa-mm-dd"
               className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none"
               value={reportDate}
-              onChange={e => setReportDate(e.target.value)}
+              onChange={e => {
+                setReportDate(e.target.value);
+                setAiAnalysis(null);
+              }}
             />
           </div>
+          <button 
+             onClick={handleAIAnalysis}
+             disabled={isAnalyzing}
+             className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center gap-2"
+          >
+            {isAnalyzing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+            {isAnalyzing ? 'Analisando...' : 'Gerar Relatório IA'}
+          </button>
           <button 
              onClick={handleWhatsAppShare}
              className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center gap-2"
@@ -102,6 +140,52 @@ const DiaryReportView: React.FC<DiaryReportViewProps> = ({ dailyLogs, projects }
           </button>
         </div>
       </div>
+
+      {/* AI Analysis Result Display */}
+      {aiAnalysis && (
+        <div className="bg-white rounded-3xl p-8 border border-indigo-100 shadow-xl shadow-indigo-500/5 animate-in slide-in-from-top-4 duration-500">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="md:w-1/4 flex flex-col items-center justify-center text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Veredito da IA</span>
+              <div className="text-4xl mb-2">{aiAnalysis.verdict.split(' ')[0]}</div>
+              <p className="font-black text-slate-900 uppercase tracking-tight text-sm leading-tight">
+                {aiAnalysis.verdict.split(' ').slice(1).join(' ')}
+              </p>
+              <div className="mt-6 w-full space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span>Progresso</span>
+                  <span>{aiAnalysis.completionPercentage}%</span>
+                </div>
+                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-1000" 
+                    style={{ width: `${aiAnalysis.completionPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+            <div className="md:w-3/4 flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-4 text-indigo-600">
+                <Sparkles size={20} />
+                <h4 className="font-black uppercase tracking-widest text-sm">Narrativa de Tempo Efetivo</h4>
+              </div>
+              <p className="text-slate-600 leading-relaxed font-medium italic relative">
+                <span className="text-4xl text-slate-200 absolute -top-4 -left-4 opacity-50 font-serif">"</span>
+                {aiAnalysis.narrative}
+                <span className="text-4xl text-slate-200 absolute -bottom-8 right-0 opacity-50 font-serif">"</span>
+              </p>
+              <div className="mt-8 flex justify-end">
+                <button 
+                  onClick={() => window.open(`${window.location.origin}${window.location.pathname}?mode=daily-report&date=${reportDate}`, '_blank')}
+                  className="text-xs font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-500 flex items-center gap-2"
+                >
+                  Visualizar Página do Relatório <ExternalLink size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
