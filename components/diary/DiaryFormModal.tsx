@@ -36,6 +36,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
   const [category, setCategory] = useState<DailyLog['category']>('Registro Diário');
   const [description, setDescription] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
   const [specificProjectId, setSpecificProjectId] = useState('');
   const [workName, setWorkName] = useState('');
   const [environment, setEnvironment] = useState('');
@@ -69,6 +70,7 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
     setCategory('Registro Diário');
     setDescription('');
     setPhotos([]);
+    setVideos([]);
     setPartName('');
     setWidth('');
     setHeight('');
@@ -96,6 +98,8 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
       description: description,
       photoUrl: photos.length > 0 ? photos[0] : undefined,
       photoUrls: photos.length > 0 ? photos : undefined,
+      videoUrl: videos.length > 0 ? videos[0] : undefined,
+      videoUrls: videos.length > 0 ? videos : undefined,
       status: (category === 'Falta de Peça' || category === 'Peça Danificada' || category === 'Falta de Material') ? 'Pendente' : 'Registrado',
       environment: environment || undefined,
       createdAt: new Date().toISOString()
@@ -131,13 +135,22 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach((file: any) => {
+      const isVideo = file.type?.startsWith('video/');
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotos(prev => [...prev, reader.result as string]);
+        if (isVideo) {
+          setVideos(prev => [...prev, reader.result as string]);
+        } else {
+          setPhotos(prev => [...prev, reader.result as string]);
+        }
       };
       reader.readAsDataURL(file as File);
     });
+  };
+
+  const removeVideo = (index: number) => {
+    setVideos(prev => prev.filter((_, i) => i !== index));
   };
 
   const removePhoto = (index: number) => {
@@ -331,15 +344,33 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
           )}
 
           <div>
-            <label className="block text-sm font-bold text-foreground mb-4">Fotos da Ocorrência (Opcional)</label>
+            <label className="block text-sm font-bold text-foreground mb-4">Fotos e Vídeos da Ocorrência (Opcional)</label>
             <div className="grid grid-cols-4 gap-4">
               {photos.map((photo, index) => (
-                <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm group">
+                <div key={`photo-${index}`} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm group">
                   <img src={photo} alt={`Upload ${index}`} className="w-full h-full object-cover" />
                   <button
                     onClick={() => removePhoto(index)}
                     className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                     title="Remover Foto"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+
+              {videos.map((video, index) => (
+                <div key={`video-${index}`} className="relative aspect-square rounded-2xl overflow-hidden border border-indigo-200 bg-indigo-50 shadow-sm group">
+                  <video src={video} className="w-full h-full object-cover" muted />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-8 h-8 bg-indigo-500/80 rounded-full flex items-center justify-center text-white">
+                      <Plus className="rotate-45" size={16} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeVideo(index)}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    title="Remover Vídeo"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -352,14 +383,14 @@ const DiaryFormModal: React.FC<DiaryFormModalProps> = ({
                 <input 
                   type="file" 
                   multiple 
-                  accept="image/*" 
+                  accept="image/*,video/*" 
                   className="hidden" 
                   onChange={handlePhotoUpload} 
                 />
               </label>
             </div>
             <p className="text-[10px] text-muted-foreground mt-3 font-bold uppercase italic tracking-tighter">
-              Dica: Você pode selecionar várias imagens de uma vez.
+              Dica: Você pode selecionar fotos e vídeos de uma vez.
             </p>
           </div>
         </div>

@@ -843,9 +843,14 @@ export async function analyzeProjectPDF(pdfBase64: string, projectName: string):
 }
 
 /**
- * Analisa o avanço da obra comparando um Render 3D (ou PDF do projeto) com fotos reais.
+ * Analisa o avanço da obra comparando um Render 3D (ou PDF do projeto) com fotos e VÍDEOS reais.
  */
-export async function analyzeWorkProgress(renderBase64: string | null, photosBase64: string[], pdfBase64?: string): Promise<string> {
+export async function analyzeWorkProgress(
+  renderBase64: string | null, 
+  photosBase64: string[], 
+  pdfBase64?: string,
+  videosBase64: string[] = [] // Novo suporte a vídeos
+): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
@@ -853,11 +858,11 @@ export async function analyzeWorkProgress(renderBase64: string | null, photosBas
       ESTIMATIVA DE AVANÇO DE OBRA (CARPINTARIA/MARCENARIA)
       
       INSTRUÇÕES:
-      1. SÃO FORNECIDAS IMAGENS E/OU UM PDF DE PROJETO como "Objetivo Final".
-      2. As DEMAIS IMAGENS são FOTOS REAIS da obra em andamento.
+      1. SÃO FORNECIDAS IMAGENS, VÍDEOS E/OU UM PDF DE PROJETO como "Objetivo Final".
+      2. As DEMAIS MÍDIAS são FOTOS E VÍDEOS REAIS da obra em andamento.
       3. Compare o Projeto (Render ou PDF) com o Real e estime o percentual de conclusão (0% a 100%).
       4. Identifique o que já foi montado (ex: caixaria, frentes, puxadores, tamponamentos) e o que falta.
-      5. Tente agrupar a análise por AMBIENTE se as fotos permitirem identificação.
+      5. Tente agrupar a análise por AMBIENTE se as mídias permitirem identificação.
       6. Responda em português de forma clara e profissional.
       
       FORMATO DA RESPOSTA:
@@ -868,11 +873,29 @@ export async function analyzeWorkProgress(renderBase64: string | null, photosBas
       - **PRÓXIMOS PASSOS / PENDÊNCIAS**: [O que falta para atingir o resultado do projeto]
       - **ALERTAS**: [Divergências ou pontos de atenção]
       
-      Seja preciso e técnico. Max 300 palavras.
+      Seja preciso e técnico. Max 400 palavras.
     `;
 
-    // Preparar as partes para o modelo (Texto + Design + Fotos)
+    // Preparar as partes para o modelo (Texto + Design + Fotos + Vídeos)
     const parts: any[] = [{ text: prompt }];
+
+    // Função utilitária para extrair mimeType e data
+    const getMediaPart = (base64: string, defaultType: string = "image/jpeg") => {
+      let mimeType = defaultType;
+      let data = base64;
+
+      if (base64.includes(';base64,')) {
+        const match = base64.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          mimeType = match[1];
+          data = match[2];
+        } else {
+            data = base64.split(',')[1];
+        }
+      }
+
+      return { inlineData: { mimeType, data } };
+    };
 
     // Adicionar PDF se disponível (Fonte Primária de Verdade)
     if (pdfBase64) {
@@ -886,31 +909,24 @@ export async function analyzeWorkProgress(renderBase64: string | null, photosBas
 
     // Adicionar Render se disponível (Fonte Secundária)
     if (renderBase64) {
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: renderBase64.includes(',') ? renderBase64.split(',')[1] : renderBase64
-        }
-      });
+      parts.push(getMediaPart(renderBase64));
     }
 
     // Adicionar Fotos da Obra
     photosBase64.forEach((photo) => {
-      if (photo) {
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: photo.includes(',') ? photo.split(',')[1] : photo
-          }
-        });
-      }
+      if (photo) parts.push(getMediaPart(photo));
+    });
+
+    // Adicionar Vídeos da Obra
+    videosBase64.forEach((video) => {
+      if (video) parts.push(getMediaPart(video, "video/mp4"));
     });
 
     const result = await withRetry(() => model.generateContent({
       contents: [{ role: 'user', parts }],
       generationConfig: { 
         temperature: 0.2,
-        maxOutputTokens: 1000
+        maxOutputTokens: 1500
       }
     }), 2);
 

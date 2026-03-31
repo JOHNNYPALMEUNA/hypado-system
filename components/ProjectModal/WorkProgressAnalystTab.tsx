@@ -8,8 +8,9 @@ interface WorkProgressAnalystTabProps {
     handlePdfDelete?: () => void;
 }
 
-interface PhotoWithMeta {
+interface MediaWithMeta {
     url: string;
+    type: 'image' | 'video';
     environment?: string;
 }
 
@@ -19,8 +20,8 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
 }) => {
     const { dailyLogs, addDailyLog, updateProject } = useData();
     const [renderImage, setRenderImage] = useState<string | null>(project.renderImageUrl || null);
-    const [progressPhotos, setProgressPhotos] = useState<PhotoWithMeta[]>([]);
-    const [manualPhotos, setManualPhotos] = useState<PhotoWithMeta[]>([]);
+    const [progressMedia, setProgressMedia] = useState<MediaWithMeta[]>([]);
+    const [manualMedia, setManualMedia] = useState<MediaWithMeta[]>([]);
     const [analysis, setAnalysis] = useState<string | null>(null);
     const [completionPercentage, setCompletionPercentage] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -37,28 +38,35 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
         }
     }, [project.renderImageUrl]);
 
-    // Load photos from Daily Logs with Environment mapping
+    // Load photos and videos from Daily Logs with Environment mapping
     useEffect(() => {
-        const fetchDiaryPhotos = () => {
+        const fetchDiaryMedia = () => {
             const projectLogs = dailyLogs.filter(log => log.projectId === project.id);
-            const photos: PhotoWithMeta[] = [];
+            const media: MediaWithMeta[] = [];
             
             projectLogs.forEach(log => {
-                // Check for multiple photos
+                // Check for photos
                 if (log.photoUrls && log.photoUrls.length > 0) {
                     log.photoUrls.forEach(url => {
-                        photos.push({ url, environment: log.environment });
+                        media.push({ url, type: 'image', environment: log.environment });
                     });
-                } 
-                // Fallback to single photo for compatibility
-                else if (log.photoUrl) {
-                    photos.push({ url: log.photoUrl, environment: log.environment });
+                } else if (log.photoUrl) {
+                    media.push({ url: log.photoUrl, type: 'image', environment: log.environment });
+                }
+
+                // Check for videos
+                if (log.videoUrls && log.videoUrls.length > 0) {
+                    log.videoUrls.forEach(url => {
+                        media.push({ url, type: 'video', environment: log.environment });
+                    });
+                } else if (log.videoUrl) {
+                    media.push({ url: log.videoUrl, type: 'video', environment: log.environment });
                 }
             });
             
-            setProgressPhotos(photos);
+            setProgressMedia(media);
         };
-        fetchDiaryPhotos();
+        fetchDiaryMedia();
     }, [dailyLogs, project.id]);
 
     const handleRenderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,16 +93,18 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
 
     const handleAnalyze = async () => {
         const hasProjectSource = renderImage || project.projectPdfUrl;
-        const allPhotos = [...progressPhotos, ...manualPhotos];
+        const allMedia = [...progressMedia, ...manualMedia];
 
-        if (!hasProjectSource || allPhotos.length === 0) {
-            alert("Por favor, garanta que existe uma fonte de projeto (Render ou PDF) e que existam fotos (no Diário ou enviadas agora).");
+        if (!hasProjectSource || allMedia.length === 0) {
+            alert("Por favor, garanta que existe uma fonte de projeto (Render ou PDF) e que existam fotos ou vídeos (no Diário ou enviados agora).");
             return;
         }
         setIsLoading(true);
         try {
-            const photosBase64 = allPhotos.map(p => p.url);
-            const result = await analyzeWorkProgress(renderImage, photosBase64, project.projectPdfUrl);
+            const photosBase64 = allMedia.filter(m => m.type === 'image').map(m => m.url);
+            const videosBase64 = allMedia.filter(m => m.type === 'video').map(m => m.url);
+            
+            const result = await analyzeWorkProgress(renderImage, photosBase64, project.projectPdfUrl, videosBase64);
             setAnalysis(result);
             
             // Extract percentage
@@ -109,25 +119,30 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
         }
     };
 
-    const handleManualPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleManualMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
 
-        Array.from(files).forEach((file: File) => {
+        Array.from(files).forEach((file: any) => {
+            const isVideo = file.type?.startsWith('video/');
             const reader = new FileReader();
             reader.onloadend = () => {
-                setManualPhotos(prev => [...prev, { url: reader.result as string, environment: '' }]);
+                setManualMedia(prev => [...prev, { 
+                    url: reader.result as string, 
+                    type: isVideo ? 'video' : 'image',
+                    environment: '' 
+                }]);
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(file as File);
         });
     };
 
-    const removeManualPhoto = (index: number) => {
-        setManualPhotos(prev => prev.filter((_, i) => i !== index));
+    const removeManualMedia = (index: number) => {
+        setManualMedia(prev => prev.filter((_, i) => i !== index));
     };
 
-    const setManualPhotoEnvironment = (index: number, env: string) => {
-        setManualPhotos(prev => prev.map((p, i) => i === index ? { ...p, environment: env } : p));
+    const setManualMediaEnvironment = (index: number, env: string) => {
+        setManualMedia(prev => prev.map((p, i) => i === index ? { ...p, environment: env } : p));
     };
 
     const handleReadPdf = async () => {
@@ -229,7 +244,7 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                          )}
                          <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl flex items-center gap-2">
                             <ImageIcon size={14} className="text-slate-400" />
-                            <span className="text-[10px] font-black uppercase text-slate-500">{progressPhotos.length + manualPhotos.length} Fotos p/ Análise</span>
+                            <span className="text-[10px] font-black uppercase text-slate-500">{progressMedia.length + manualMedia.length} Mídias p/ Análise</span>
                          </div>
                     </div>
                 </div>
@@ -335,42 +350,50 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
 
                     {/* Progress Photos Source (from Daily Logs) */}
                     <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Fotos da Obra (Mapeadas por Ambiente)</label>
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Fotos e Vídeos da Obra (Mapeados)</label>
                         <div className="grid grid-cols-3 gap-3 h-48 content-start overflow-y-auto pr-2 custom-scrollbar">
-                            {/* Photos from Diary */}
-                            {progressPhotos.map((photo, idx) => (
+                            {/* Media from Diary */}
+                            {progressMedia.map((media, idx) => (
                                 <div key={`diary-${idx}`} className="relative aspect-square rounded-2xl overflow-hidden border border-border shadow-sm bg-muted/20 group/photo">
-                                    <img src={photo.url} alt="Progresso" className="w-full h-full object-cover" />
+                                    {media.type === 'video' ? (
+                                        <video src={media.url} className="w-full h-full object-cover" muted />
+                                    ) : (
+                                        <img src={media.url} alt="Progresso" className="w-full h-full object-cover" />
+                                    )}
                                     <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-900/60 backdrop-blur-sm rounded-full">
-                                        <p className="text-[7px] font-black text-white uppercase italic">Diário</p>
+                                        <p className="text-[7px] font-black text-white uppercase italic">{media.type === 'video' ? 'VÍDEO' : 'FOTO'}</p>
                                     </div>
-                                    {photo.environment && (
+                                    {media.environment && (
                                         <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 backdrop-blur-sm transform translate-y-full group-hover/photo:translate-y-0 transition-transform">
-                                            <p className="text-[8px] font-black text-white uppercase text-center truncate tracking-tighter">{photo.environment}</p>
+                                            <p className="text-[8px] font-black text-white uppercase text-center truncate tracking-tighter">{media.environment}</p>
                                         </div>
                                     )}
                                 </div>
                             ))}
 
-                            {/* Manual Uploaded Photos */}
-                            {manualPhotos.map((photo, idx) => (
+                            {/* Manual Uploaded Media */}
+                            {manualMedia.map((media, idx) => (
                                 <div key={`manual-${idx}`} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-indigo-200 shadow-sm bg-indigo-50 group/photo">
-                                    <img src={photo.url} alt="Manual" className="w-full h-full object-cover" />
+                                    {media.type === 'video' ? (
+                                        <video src={media.url} className="w-full h-full object-cover" muted />
+                                    ) : (
+                                        <img src={media.url} alt="Manual" className="w-full h-full object-cover" />
+                                    )}
                                     <div className="absolute top-2 left-2 px-2 py-0.5 bg-indigo-500 rounded-full">
-                                        <p className="text-[7px] font-black text-white uppercase italic">Manual</p>
+                                        <p className="text-[7px] font-black text-white uppercase italic">{media.type === 'video' ? 'VÍDEO' : 'FOTO'}</p>
                                     </div>
                                     <button 
-                                        onClick={() => removeManualPhoto(idx)}
+                                        onClick={() => removeManualMedia(idx)}
                                         className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover/photo:opacity-100 transition-opacity"
-                                        title="Remover Foto"
+                                        title="Remover Mídia"
                                     >
                                         <X size={10} />
                                     </button>
                                     
                                     <select 
                                         className="absolute bottom-0 left-0 right-0 bg-indigo-600 text-white p-1 text-[8px] font-black uppercase outline-none"
-                                        value={photo.environment}
-                                        onChange={e => setManualPhotoEnvironment(idx, e.target.value)}
+                                        value={media.environment}
+                                        onChange={e => setManualMediaEnvironment(idx, e.target.value)}
                                         title="Vincular Ambiente"
                                     >
                                         <option value="">Vincular Cômodo...</option>
@@ -384,13 +407,13 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
                             {/* Upload Trigger */}
                             <label className="aspect-square rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 text-indigo-400 hover:text-indigo-600 bg-indigo-50/10 shadow-inner">
                                 <Plus size={20} />
-                                <span className="text-[8px] font-black uppercase">Adicionar Foto</span>
-                                <input type="file" multiple accept="image/*" className="hidden" onChange={handleManualPhotoUpload} />
+                                <span className="text-[8px] font-black uppercase">Adicionar</span>
+                                <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={handleManualMediaUpload} />
                             </label>
                         </div>
-                        {progressPhotos.length === 0 && manualPhotos.length === 0 && (
+                        {progressMedia.length === 0 && manualMedia.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-4 text-center">
-                                <p className="text-[10px] font-black uppercase text-slate-400 italic">Nenhuma foto carregada para análise.</p>
+                                <p className="text-[10px] font-black uppercase text-slate-400 italic">Nenhuma mídia carregada para análise.</p>
                             </div>
                         )}
                     </div>
@@ -432,7 +455,7 @@ const WorkProgressAnalystTab: React.FC<WorkProgressAnalystTabProps> = ({
             <div className="flex flex-col items-center gap-4">
                 <button
                     onClick={handleAnalyze}
-                    disabled={isLoading || (!renderImage && !project.projectPdfUrl) || (progressPhotos.length + manualPhotos.length === 0)}
+                    disabled={isLoading || (!renderImage && !project.projectPdfUrl) || (progressMedia.length + manualMedia.length === 0)}
                     className="group relative px-10 py-5 bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden shadow-2xl disabled:opacity-50 disabled:grayscale transition-all hover:scale-105 active:scale-95"
                 >
                     <div className="absolute inset-0 bg-gradient-to-r from-primary to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />

@@ -375,6 +375,8 @@ export interface DailyLog {
   description: string;
   photoUrl?: string;
   photoUrls?: string[];
+  videoUrl?: string; // Single video URL fallback
+  videoUrls?: string[]; // Multiple video URLs for Gemini analysis
   reworkDetails?: {
     partName: string;
     width: number;
