@@ -106,11 +106,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
     const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 minutes session idle limit
+    const LOGOUT_TIMEOUT = 3 * 60 * 60 * 1000; // 3 hours forced logout
     const [isIdle, setIsIdle] = useState(false);
     const isIdleRef = useRef(false);
 
     useEffect(() => {
         let timeoutId: any;
+        let logoutTimeoutId: any;
+
         const resetTimer = () => {
             if (isIdleRef.current) {
                 console.log('User returned. Reconnecting and fetching fresh DB state...');
@@ -118,12 +121,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isIdleRef.current = false;
                 fetchData();
             }
+            
+            // Clear current timers
             clearTimeout(timeoutId);
+            clearTimeout(logoutTimeoutId);
+
+            // Restart IDLE timer (10 mins)
             timeoutId = setTimeout(() => {
                 console.warn('App went IDLE for 10 minutes. Unsubscribing from WebSockets to save Supabase Resources.');
                 setIsIdle(true);
                 isIdleRef.current = true;
             }, IDLE_TIMEOUT);
+
+            // Restart LOGOUT timer (3 hours)
+            logoutTimeoutId = setTimeout(async () => {
+                console.error('Inactivity for 3 hours. Forced LOGOUT required.');
+                await supabase.auth.signOut();
+                window.location.reload(); // Ensure state is cleared
+            }, LOGOUT_TIMEOUT);
         };
 
         window.addEventListener('mousemove', resetTimer);
@@ -132,13 +147,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.addEventListener('scroll', resetTimer);
         window.addEventListener('touchstart', resetTimer);
 
-        timeoutId = setTimeout(() => {
-            setIsIdle(true);
-            isIdleRef.current = true;
-        }, IDLE_TIMEOUT);
+        // Initial Start
+        resetTimer();
 
         return () => {
             clearTimeout(timeoutId);
+            clearTimeout(logoutTimeoutId);
             window.removeEventListener('mousemove', resetTimer);
             window.removeEventListener('keydown', resetTimer);
             window.removeEventListener('click', resetTimer);

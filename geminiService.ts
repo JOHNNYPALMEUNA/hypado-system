@@ -800,11 +800,36 @@ export async function analyzePCP(project: any, timelineEvents: any[]): Promise<s
 }
 
 /**
+ * Utility to ensure a given string is treated as base64 data for Gemini.
+ * If it starts with http, it fetches and converts to dataURL.
+ */
+async function ensureBase64(input: string): Promise<string> {
+  if (!input || input.includes(';base64,')) return input;
+  if (!input.startsWith('http')) return input;
+
+  try {
+    const response = await fetch(input);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("FileReader failed"));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error converting URL to Base64:", input, error);
+    return input; // Fallback to raw string, though it will likely fail on API side
+  }
+}
+
+/**
  * Analisa um PDF de projeto e retorna um resumo estruturado dos ambientes e especificações.
  */
-export async function analyzeProjectPDF(pdfBase64: string, projectName: string): Promise<string> {
+export async function analyzeProjectPDF(pdfInput: string, projectName: string): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const pdfBase64 = await ensureBase64(pdfInput);
 
     const prompt = `
       Analise este PDF de projeto de marcenaria/carpintaria para a obra: ${projectName}.
@@ -846,13 +871,21 @@ export async function analyzeProjectPDF(pdfBase64: string, projectName: string):
  * Analisa o avanço da obra comparando um Render 3D (ou PDF do projeto) com fotos e VÍDEOS reais.
  */
 export async function analyzeWorkProgress(
-  renderBase64: string | null, 
-  photosBase64: string[], 
-  pdfBase64?: string,
-  videosBase64: string[] = [] // Novo suporte a vídeos
+  renderInput: string | null, 
+  photosInput: string[], 
+  pdfInput?: string,
+  videosInput: string[] = [] // Novo suporte a vídeos
 ): Promise<string> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Pre-process all inputs to base64
+    const [renderBase64, photosBase64, pdfBase64, videosBase64] = await Promise.all([
+      renderInput ? ensureBase64(renderInput) : Promise.resolve(null),
+      Promise.all(photosInput.map(p => ensureBase64(p))),
+      pdfInput ? ensureBase64(pdfInput) : Promise.resolve(undefined),
+      Promise.all(videosInput.map(v => ensureBase64(v)))
+    ]);
 
     const prompt = `
       ESTIMATIVA DE AVANÇO DE OBRA (CARPINTARIA/MARCENARIA)
@@ -881,6 +914,7 @@ export async function analyzeWorkProgress(
 
     // Função utilitária para extrair mimeType e data
     const getMediaPart = (base64: string, defaultType: string = "image/jpeg") => {
+      if (!base64) return null;
       let mimeType = defaultType;
       let data = base64;
 
@@ -909,17 +943,20 @@ export async function analyzeWorkProgress(
 
     // Adicionar Render se disponível (Fonte Secundária)
     if (renderBase64) {
-      parts.push(getMediaPart(renderBase64));
+      const part = getMediaPart(renderBase64);
+      if (part) parts.push(part);
     }
 
     // Adicionar Fotos da Obra
     photosBase64.forEach((photo) => {
-      if (photo) parts.push(getMediaPart(photo));
+      const part = getMediaPart(photo);
+      if (part) parts.push(part);
     });
 
     // Adicionar Vídeos da Obra
     videosBase64.forEach((video) => {
-      if (video) parts.push(getMediaPart(video, "video/mp4"));
+      const part = getMediaPart(video, "video/mp4");
+      if (part) parts.push(part);
     });
 
     const result = await withRetry(() => model.generateContent({
@@ -983,10 +1020,12 @@ export async function analyzeDailyDiary(logs: DailyLog[], project: Project, phot
   `;
 
   // Preparar partes (Fotos + Texto)
-  const parts: Part[] = [];
+  const parts: any[] = [];
   
   // Adicionar fotos (limitar a 5 para evitar sobrecarga no prompt gratuito)
-  photos.slice(0, 5).forEach(url => {
+  const processedPhotos = await Promise.all(photos.slice(0, 5).map(p => ensureBase64(p)));
+
+  processedPhotos.forEach(url => {
     if (url && url.includes('base64,')) {
       parts.push({
         inlineData: {
@@ -1006,7 +1045,7 @@ export async function analyzeDailyDiary(logs: DailyLog[], project: Project, phot
         responseMimeType: "application/json",
         temperature: 0.4
       }
-    }));
+    }), 2);
     const text = result.response.text();
     if (!text) return null;
     return JSON.parse(text);
