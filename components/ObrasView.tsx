@@ -42,7 +42,7 @@ const ObrasView: React.FC<Props> = ({
    company, installers, materialCategories, purchaseOrders, dailyLogs, addAssistance, assistances,
    onStockConsumptionRequest
 }) => {
-   const { addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent } = useData();
+   const { addProject, updateProject, patchProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent } = useData();
    // ... existing code ...
 
 
@@ -481,12 +481,11 @@ const ObrasView: React.FC<Props> = ({
       }
 
       if (auditStatus === 'Aprovado') {
-         updateProject({
-            ...project,
+         patchProject(editingProjectId, {
             currentStatus: 'Finalizada',
             qualityReport: report,
             history: [...project.history, { status: 'Finalizada', timestamp: new Date().toISOString() }]
-         } as Project);
+         });
          setIsModalOpen(false);
          alert('Obra finalizada com sucesso!');
       }
@@ -599,7 +598,7 @@ const ObrasView: React.FC<Props> = ({
       if (confirm('Deseja realmente cancelar esta obra? Ela ficará na aba "Canceladas".')) {
          const project = projects.find(p => p.id === editingProjectId);
          if (project) {
-            updateProject({ ...project, currentStatus: 'Cancelada' });
+            patchProject(editingProjectId, { currentStatus: 'Cancelada' });
          }
          setIsModalOpen(false);
          setEditingProjectId(null);

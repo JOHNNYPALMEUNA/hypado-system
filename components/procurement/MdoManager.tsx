@@ -13,6 +13,7 @@ interface MdoManagerProps {
   installers: Installer[];
   suppliers: Supplier[];
   updateProject: (p: Project) => Promise<void>;
+  patchProject: (id: string, updates: Partial<Project>) => Promise<void>;
   company: Company;
   mode: 'apontamento' | 'diario';
 }
@@ -22,6 +23,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   installers,
   suppliers,
   updateProject,
+  patchProject,
   company,
   mode
 }) => {
@@ -84,7 +86,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
       return env;
     });
 
-    await updateProject({ ...selectedOS, environmentsDetails: newEnvDetails as any } as Project);
+    await patchProject(selectedOSId, { environmentsDetails: newEnvDetails as any });
 
     // Smart Link Generation
     const proposalData = {
@@ -133,7 +135,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
       e.name === envName ? { ...e, mdoStatus: response, isMdoAuthorized: isAuth } : e
     );
 
-    await updateProject({ ...selectedOS, environmentsDetails: newEnvDetails as any, expenses: newExpenses } as Project);
+    await patchProject(selectedOSId, { environmentsDetails: newEnvDetails as any, expenses: newExpenses });
     alert(response === 'Aceito' ? "EMPREITA REGISTRADA!" : "PROPOSTA RECUSADA!");
   };
 
@@ -167,11 +169,10 @@ const MdoManager: React.FC<MdoManagerProps> = ({
       } : e
     );
 
-    await updateProject({ 
-        ...selectedOS, 
+    await patchProject(selectedOSId, { 
         environmentsDetails: newEnvDetails as any,
         expenses: [...(selectedOS.expenses || []), newExp]
-    } as Project);
+    });
     alert("AUTORIZAÇÃO CONCLUÍDA!");
   };
 
@@ -286,7 +287,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
             date: newDiaryEntry.date,
             category: 'Montagem'
         };
-        await updateProject({ ...p, expenses: [...(p.expenses || []), newExp] } as Project);
+        await patchProject(p.id, { expenses: [...(p.expenses || []), newExp] });
         setNewDiaryEntry({ ...newDiaryEntry, value: '', description: '' });
         alert("Diária lançada com sucesso!");
     }

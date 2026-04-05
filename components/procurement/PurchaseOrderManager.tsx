@@ -17,6 +17,7 @@ interface PurchaseOrderManagerProps {
   updateQuotation: (q: Quotation) => Promise<void>;
   deleteQuotation: (id: string) => Promise<void>;
   updateProject: (p: Project) => Promise<void>;
+  patchProject: (id: string, updates: Partial<Project>) => Promise<void>;
   company: Company;
   addMaterial: (m: Material) => Promise<void>;
   updateMaterial: (m: Material) => Promise<void>;
@@ -35,6 +36,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
   updateQuotation,
   deleteQuotation,
   updateProject,
+  patchProject,
   company,
   addMaterial,
   updateMaterial,
@@ -395,11 +397,10 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                 }
             };
 
-            await updateProject({
-                ...project,
+            await patchProject(entryModalData.projectId, {
                 materialsDelivered: !hasPendingItems,
                 expenses: [...(project.expenses || []), newExp]
-            } as Project);
+            });
         }
     }
 
@@ -460,8 +461,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
           }
       };
 
-      await updateProject({
-          ...project,
+      await patchProject(stockConsumptionData.projectId, {
           expenses: [...(project.expenses || []), newExp]
       });
 

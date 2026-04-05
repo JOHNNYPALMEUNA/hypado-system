@@ -19,6 +19,7 @@ interface DataContextType {
     deleteInstaller: (id: string) => Promise<void>;
     addProject: (project: Project) => Promise<void>;
     updateProject: (project: Project) => Promise<void>;
+    patchProject: (id: string, updates: Partial<Project>) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     addClient: (client: Client) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -544,7 +545,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updateProject = async (project: Project) => {
         try {
-            const payload = mapProjectToDB(project);
+            console.log(`Updating project ${project.id}... Full payload size approximation: ${JSON.stringify(project).length} chars`);
             const currentProject = projects.find(p => p.id === project.id);
             if (project.currentStatus !== currentProject?.currentStatus) {
                 await logEvent(
@@ -556,13 +557,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 );
             }
 
-            // The logEvent logic is handled above. 
-            // We use the service to handle the DB update consistently.
             await projectService.update(project);
             await fetchProjects();
         } catch (error: any) {
-            console.error('Error updating project:', error);
-            alert(`ERRO AO ATUALIZAR OBRA: ${error.message || JSON.stringify(error)}`);
+            console.error('CRITICAL: Error updating project:', error);
+            const errorMsg = error.message || error.details || JSON.stringify(error);
+            alert(`ERRO AO ATUALIZAR OBRA: ${errorMsg}`);
+            throw error;
+        }
+    };
+
+    const patchProject = async (id: string, updates: Partial<Project>) => {
+        try {
+            console.log(`Patching project ${id}...`, updates);
+            
+            // Map frontend fields to DB fields (snake_case)
+            const dbUpdates: any = {};
+            if (updates.isExpeditionReady !== undefined) dbUpdates.is_expedition_ready = updates.isExpeditionReady;
+            if (updates.currentStatus !== undefined) dbUpdates.currentStatus = updates.currentStatus;
+            if (updates.installerId !== undefined) dbUpdates.installer_id = updates.installerId;
+            if (updates.productionCentral !== undefined) dbUpdates.production_central = updates.productionCentral;
+            if (updates.preAssemblyDone !== undefined) dbUpdates.pre_assembly_done = updates.preAssemblyDone;
+            if (updates.freightOrganized !== undefined) dbUpdates.freight_organized = updates.freightOrganized;
+            if (updates.clientScheduled !== undefined) dbUpdates.client_scheduled = updates.clientScheduled;
+            if (updates.deliveryPath !== undefined) dbUpdates.delivery_path = updates.deliveryPath;
+            if (updates.freightCarrierId !== undefined) dbUpdates.freight_carrier_id = updates.freightCarrierId;
+            if (updates.freightDate !== undefined) dbUpdates.freight_scheduling_date = updates.freightDate;
+            if (updates.deliveryDate !== undefined) dbUpdates.client_delivery_date = updates.deliveryDate;
+            if (updates.pdfSummary !== undefined) dbUpdates.pdf_summary = updates.pdfSummary;
+            if (updates.architectId !== undefined) dbUpdates.architect_id = updates.architectId;
+            if (updates.history !== undefined) dbUpdates.history = updates.history;
+            if (updates.expenses !== undefined) dbUpdates.expenses = updates.expenses;
+            if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments;
+            if (updates.environmentsDetails !== undefined) dbUpdates.environmentsDetails = updates.environmentsDetails;
+
+            if (Object.keys(dbUpdates).length === 0) {
+                console.warn('No valid fields for patchProject mapping found in updates:', updates);
+                return;
+            }
+
+            await projectService.updatePartial(id, dbUpdates);
+            await fetchProjects();
+        } catch (error: any) {
+            console.error('Error patching project:', error);
+            alert(`ERRO AO ATUALIZAR STATUS (PARTIAL): ${error.message || JSON.stringify(error)}`);
             throw error;
         }
     };
@@ -1102,7 +1140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <DataContext.Provider value={{
             clients, projects, installers, quotations, tasks, events, loading, refreshData: fetchData,
             addInstaller, updateInstaller, deleteInstaller,
-            addProject, updateProject, deleteProject,
+            addProject, updateProject, patchProject, deleteProject,
             addClient, updateClient, deleteClient,
             addQuotation, updateQuotation, deleteQuotation,
             addTask, updateTask, deleteTask,

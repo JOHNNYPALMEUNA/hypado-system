@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<ProductionStatus, { label: string, icon: any, color:
 };
 
 const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcurementMDO }) => {
-  const { updateProject, suppliers, clients, userRole, logEvent } = useData();
+  const { updateProject, patchProject, suppliers, clients, userRole, logEvent } = useData();
   const [showCentralModal, setShowCentralModal] = useState<string | null>(null);
   const [showOutsourcedModal, setShowOutsourcedModal] = useState<string | null>(null);
   const [showLogisticsModal, setShowLogisticsModal] = useState<string | null>(null);
@@ -102,12 +102,11 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
     const p = projects.find(proj => proj.id === projectId);
     if (p) {
       logEvent(projectId, 'PROJECT', 'STATUS_CHANGE', p.currentStatus, nextStatus);
-      await updateProject({
-        ...p,
-        ...extraData as any,
+      await patchProject(projectId, {
+        ...extraData,
         currentStatus: nextStatus,
         history: [...(p.history || []), { status: nextStatus, timestamp: transitionDate ? new Date(transitionDate).toISOString() : new Date().toISOString() }]
-      } as Project);
+      });
       if (nextStatus === 'Finalizada') {
         startCelebration();
       }
@@ -207,11 +206,10 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
     if (prevStatus) {
       if (confirm(`Atenção: Deseja realmente VOLTAR esta obra para a fase de ${STATUS_CONFIG[prevStatus].label}?`)) {
-        updateProject({
-          ...p,
+        patchProject(projectId, {
           currentStatus: prevStatus,
           history: [...(p.history || []), { status: prevStatus, timestamp: new Date().toISOString() }]
-        } as Project);
+        });
       }
     } else {
       alert('Não é possível voltar desta etapa.');
@@ -398,10 +396,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   };
 
   const updateLogistics = (projectId: string, data: Partial<Project>) => {
-    const p = projects.find(proj => proj.id === projectId);
-    if (p) {
-      updateProject({ ...p, ...data } as Project);
-    }
+    patchProject(projectId, data);
   };
 
   const processAssemblyPDFWithAI = async (projectId: string) => {

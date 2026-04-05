@@ -97,6 +97,11 @@ export const projectService = {
         if (error) throw error;
     },
 
+    async updatePartial(id: string, updates: Partial<Record<keyof ReturnType<typeof mapProjectToDB>, any>>): Promise<void> {
+        const { error } = await supabase.from('projects').update(updates).eq('id', id);
+        if (error) throw error;
+    },
+
     async delete(id: string): Promise<void> {
         const { error } = await supabase.from('projects').delete().eq('id', id);
         if (error) throw error;

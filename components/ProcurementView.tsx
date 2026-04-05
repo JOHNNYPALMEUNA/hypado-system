@@ -45,6 +45,7 @@ const ProcurementView: React.FC<Props> = ({
 }) => {
   const { 
     updateProject, 
+    patchProject,
     suppliers, 
     addSupplier, 
     updateSupplier, 
@@ -100,6 +101,7 @@ const ProcurementView: React.FC<Props> = ({
             updateQuotation={updateQuotation}
             deleteQuotation={deleteQuotation}
             updateProject={updateProject}
+            patchProject={patchProject}
             company={company}
             addMaterial={addMaterial}
             updateMaterial={updateMaterial}
@@ -132,6 +134,7 @@ const ProcurementView: React.FC<Props> = ({
             installers={installers}
             suppliers={suppliers}
             updateProject={updateProject}
+            patchProject={patchProject}
             company={company}
             mode="apontamento"
           />
@@ -143,6 +146,7 @@ const ProcurementView: React.FC<Props> = ({
             installers={installers}
             suppliers={suppliers}
             updateProject={updateProject}
+            patchProject={patchProject}
             company={company}
             mode="diario"
           />
