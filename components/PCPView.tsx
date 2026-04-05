@@ -71,6 +71,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [drillingValue, setDrillingValue] = useState<string>('');
   const [showSmartImport, setShowSmartImport] = useState(false);
   const [smartImportText, setSmartImportText] = useState('');
+  const [selectedEnvsForCutting, setSelectedEnvsForCutting] = useState<string[]>([]);
   const [pendingProjectData, setPendingProjectData] = useState<Partial<Project> | null>(null);
   const [transitionDate, setTransitionDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,6 +136,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
         });
       }
       setProductionPartsCount(initialParts);
+      setSelectedEnvsForCutting(p ? p.environmentsDetails.filter(e => e.currentStatus === 'Corte').map(e => e.name) : []);
       setCuttingUnitPrice('');
       setCuttingQuantity('');
       setEdgingUnitPrice('');
@@ -311,22 +313,28 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
     const updatedEnvironments = project.environmentsDetails.map(env => {
       const envParts = (productionPartsCount[env.name] || 0) as number;
-      // Distribute Commission Proporciomonally to Parts
       const share = totalParts > 0 ? envParts / totalParts : 1 / project.environmentsDetails.length;
       const calculatedCommission = totalCommissionBudget * share;
+      
+      const isNewlyCutting = selectedEnvsForCutting.includes(env.name);
 
       return {
         ...env,
+        currentStatus: isNewlyCutting ? ('Corte' as ProductionStatus) : (env.currentStatus || ('Projeto' as ProductionStatus)),
         memorial: {
           ...env.memorial,
           partsCount: envParts
         },
-        // Initialize Commission Values
-        commissionValue: calculatedCommission,
-        authorizedMdoValue: calculatedCommission, // Auto-authorize initial calculation
-        isMdoAuthorized: true // Auto-authorize to streamline process (can be revoked in Procurement)
+        commissionValue: Number(calculatedCommission.toFixed(2)),
+        authorizedMdoValue: Number(calculatedCommission.toFixed(2)),
+        isMdoAuthorized: true
       }
     });
+
+    const hasAnyCutting = updatedEnvironments.some(e => e.currentStatus === 'Corte');
+    if (hasAnyCutting && project.currentStatus === 'Projeto') {
+        extraData.currentStatus = 'Corte' as ProductionStatus;
+    }
 
     // Validate Total Commission (Alert if > 10%) - Though here it is exactly 10%, future edits might change it
     const currentTotalCommission = updatedEnvironments.reduce((acc, env) => acc + (env.commissionValue || 0), 0);
@@ -354,8 +362,11 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
       const share = totalParts > 0 ? envParts / totalParts : 1 / project.environmentsDetails.length;
       const calculatedCommission = totalCommissionBudget * share;
 
+      const isNewlyCutting = selectedEnvsForCutting.includes(env.name);
+
       return {
         ...env,
+        currentStatus: isNewlyCutting ? ('Corte' as ProductionStatus) : (env.currentStatus || ('Projeto' as ProductionStatus)),
         memorial: {
           ...env.memorial,
           partsCount: envParts
@@ -366,12 +377,15 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
       };
     });
 
-    await updateProject({
-      ...project,
-      environmentsDetails: updatedEnvironments
-    } as Project);
+    const hasAnyCutting = updatedEnvironments.some(e => e.currentStatus === 'Corte');
+    const nextProjectStatus = (hasAnyCutting && project.currentStatus === 'Projeto') ? ('Corte' as ProductionStatus) : project.currentStatus;
+
+    await patchProject(showCentralModal, {
+      environmentsDetails: updatedEnvironments,
+      currentStatus: nextProjectStatus
+    });
     
-    alert("APONTAMENTO DE PEÇAS SALVO!\nOs valores de MDO foram recalculados proporcionalmente.");
+    alert("APONTAMENTO DE PEÇAS SALVO!\nOs ambientes selecionados foram marcados como 'Em Corte'.");
   };
 
   const updateOutsourcedItem = (projectId: string, serviceId: string, field: keyof OutsourcedService, value: any) => {
@@ -597,9 +611,14 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
                   {/* 5. Status */}
                   <td className="px-3 py-7 text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[9px] font-black uppercase border shadow-md ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest whitespace-nowrap`}>
-                      {project.currentStatus}
-                    </span>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-[9px] font-black uppercase border shadow-md ${getStatusBadgeClass(project.currentStatus)} italic tracking-widest whitespace-nowrap`}>
+                        {project.currentStatus}
+                      </span>
+                      {project.currentStatus === 'Corte' && project.environmentsDetails.some(e => e.currentStatus === 'Projeto') && (
+                        <span className="text-[7px] font-black text-orange-500 uppercase italic animate-pulse">Corte Parcial</span>
+                      )}
+                    </div>
                   </td>
 
                   {/* 6. Controle */}
@@ -952,15 +971,33 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                 <h5 className="text-xs font-black uppercase text-slate-400 italic ml-2">Apontamento de Peças (Plano de Corte)</h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {projects.find(p => p.id === showCentralModal)?.environmentsDetails.map(env => (
-                    <div key={env.name} className="bg-card p-4 rounded-xl border border-border">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">{env.name}</label>
-                      <input
-                        type="number"
-                        placeholder="Qtd Peças"
-                        className="w-full text-lg font-black outline-none"
-                        value={productionPartsCount[env.name] || ''}
-                        onChange={e => setProductionPartsCount(prev => ({ ...prev, [env.name]: Number(e.target.value) }))}
+                    <div key={env.name} className={`bg-card p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${selectedEnvsForCutting.includes(env.name) ? 'border-orange-500 bg-orange-50/10' : 'border-border'}`}>
+                      <input 
+                        title="Selecionar para Corte"
+                        type="checkbox"
+                        className="w-5 h-5 rounded-lg border-2 border-slate-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                        checked={selectedEnvsForCutting.includes(env.name)}
+                        onChange={() => {
+                          setSelectedEnvsForCutting(prev => 
+                            prev.includes(env.name) ? prev.filter(e => e !== env.name) : [...prev, env.name]
+                          )
+                        }}
                       />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-bold uppercase text-muted-foreground block">{env.name}</label>
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${env.currentStatus === 'Corte' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            {env.currentStatus || 'Projeto'}
+                          </span>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="Qtd Peças"
+                          className="w-full text-lg font-black outline-none bg-transparent"
+                          value={productionPartsCount[env.name] || ''}
+                          onChange={e => setProductionPartsCount(prev => ({ ...prev, [env.name]: Number(e.target.value) }))}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
