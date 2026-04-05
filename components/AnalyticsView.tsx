@@ -20,7 +20,18 @@ interface Props {
 const COLORS = ['#f59e0b', '#10b981', '#6366f1', '#f43f5e', '#64748b', '#8b5cf6'];
 
 const AnalyticsView: React.FC<Props> = ({ projects, clients, installers, assistances, purchaseOrders, dailyLogs }) => {
-  const { userRole } = useData();
+  const { userRole, fetchFullProject } = useData();
+
+  // HYDRATION: Analytics needs full project data for costs and rankings
+  // We trigger hydration for projects that are missing details
+  React.useEffect(() => {
+    projects.forEach(p => {
+      // If it's a summary (no environmentsDetails or outsourcedServices)
+      if ((!p.environmentsDetails || p.environmentsDetails.length === 0) && (!p.outsourcedServices || p.outsourcedServices.length === 0)) {
+        fetchFullProject(p.id);
+      }
+    });
+  }, []); // Only on mount of Analytics view
 
   // --- 1. FINANCEIRO ---
   const financialMetrics = useMemo(() => {

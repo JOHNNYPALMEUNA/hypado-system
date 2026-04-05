@@ -8,6 +8,8 @@ import {
 import { Project, Supplier, Installer, Company, Expense } from '../../types';
 import { generateInstallerContract } from '../../geminiService';
 
+import { useData } from '../../contexts/DataContext';
+
 interface MdoManagerProps {
   projects: Project[];
   installers: Installer[];
@@ -27,6 +29,8 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   company,
   mode
 }) => {
+  const { fetchFullProject } = useData();
+
   // Shared States
   const [selectedOSId, setSelectedOSId] = useState('');
   const [mdoValues, setMdoValues] = useState<Record<string, string>>({});
@@ -48,6 +52,18 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   const [isGeneratingContract, setIsGeneratingContract] = useState(false);
 
   const selectedOS = useMemo(() => projects.find(p => p.id === selectedOSId), [selectedOSId, projects]);
+
+  // HYDRATION: Fetch full project details when an OS is selected for MDO
+  React.useEffect(() => {
+    if (selectedOSId) {
+      const p = projects.find(proj => proj.id === selectedOSId);
+      // If it's a summary (no environmentsDetails)
+      if (p && (!p.environmentsDetails || p.environmentsDetails.length === 0)) {
+        console.log(`Hydrating project ${selectedOSId} for MDO Management...`);
+        fetchFullProject(selectedOSId);
+      }
+    }
+  }, [selectedOSId, projects, fetchFullProject]);
 
   // --- NEGOTIATION FLOW HANDLERS ---
   const handleSendProposal = async (targetEnvName: string) => {

@@ -67,6 +67,7 @@ interface DataContextType {
         oldValue?: string,
         newValue?: string
     ) => Promise<void>;
+    fetchFullProject: (id: string) => Promise<Project | null>;
     isIdle: boolean;
     userRole: UserRole | null;
     currentUserEmail: string | null;
@@ -175,10 +176,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProjects = async () => {
         try {
-            const data = await projectService.getAll();
+            // OPTIMIZATION: Fetch only summaries initially to save Supabase Disk IO Budget
+            const data = await projectService.getSummaries();
             setProjects(data);
         } catch (error) {
             console.error('Error fetching projects:', error);
+        }
+    };
+
+    const fetchFullProject = async (id: string): Promise<Project | null> => {
+        try {
+            const project = await projectService.getById(id);
+            setProjects(prev => prev.map(p => p.id === id ? project : p));
+            return project;
+        } catch (error) {
+            console.error(`Error hydration project ${id}:`, error);
+            return null;
         }
     };
 
@@ -1153,6 +1166,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             refundRequests, addRefundRequest, updateRefundRequest, deleteRefundRequest, bulkUpdateRefundRequests,
             resetDatabase,
             logEvent,
+            fetchFullProject,
             isIdle,
             userRole,
             currentUserEmail,

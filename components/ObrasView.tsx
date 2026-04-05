@@ -42,7 +42,7 @@ const ObrasView: React.FC<Props> = ({
    company, installers, materialCategories, purchaseOrders, dailyLogs, addAssistance, assistances,
    onStockConsumptionRequest
 }) => {
-   const { addProject, updateProject, patchProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent } = useData();
+   const { addProject, updateProject, patchProject, deleteProject, addClient, updateClient, deleteClient, materials, userRole, logEvent, fetchFullProject } = useData();
    // ... existing code ...
 
 
@@ -101,6 +101,43 @@ const ObrasView: React.FC<Props> = ({
       architectId: '', // Designer ID
       renderImageUrl: '' // 3D Render Image
    });
+
+   // HYDRATION: Fetch full project details when editing
+   React.useEffect(() => {
+      if (isModalOpen && editingProjectId) {
+         const p = projects.find(proj => proj.id === editingProjectId);
+         // If it's a summary (no environmentsDetails or outsourcedServices)
+         if (p && (!p.environmentsDetails || p.environmentsDetails.length === 0) && (!p.outsourcedServices || p.outsourcedServices.length === 0)) {
+            console.log(`Hydrating project ${editingProjectId} for Editing...`);
+            fetchFullProject(editingProjectId);
+         }
+      }
+   }, [isModalOpen, editingProjectId, projects, fetchFullProject]);
+
+   // Sync formData when project is hydrated
+   React.useEffect(() => {
+      if (isModalOpen && editingProjectId) {
+         const p = projects.find(proj => proj.id === editingProjectId);
+         if (p && p.environmentsDetails && p.environmentsDetails.length > 0) {
+            const envDetails: Record<string, MemorialDescritivo> = {};
+            const envValues: Record<string, string> = {};
+
+            p.environmentsDetails.forEach(env => {
+               if (env && env.name) {
+                  envDetails[env.name] = env.memorial || INITIAL_MEMORIAL();
+                  envValues[env.name] = (env.value || 0).toString();
+               }
+            });
+
+            setFormData(prev => ({
+               ...prev,
+               environmentsDetails: envDetails,
+               environmentsValues: envValues,
+               outsourcedServices: p.outsourcedServices || []
+            }));
+         }
+      }
+   }, [projects]); // Listen for project state updates (hydration)
 
    // CEP Usage
    const handleFetchAddress = async () => {

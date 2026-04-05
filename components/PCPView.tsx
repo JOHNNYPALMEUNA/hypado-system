@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<ProductionStatus, { label: string, icon: any, color:
 };
 
 const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcurementMDO }) => {
-  const { updateProject, patchProject, suppliers, clients, userRole, logEvent } = useData();
+  const { updateProject, patchProject, suppliers, clients, userRole, logEvent, fetchFullProject } = useData();
   const [showCentralModal, setShowCentralModal] = useState<string | null>(null);
   const [showOutsourcedModal, setShowOutsourcedModal] = useState<string | null>(null);
   const [showLogisticsModal, setShowLogisticsModal] = useState<string | null>(null);
@@ -98,6 +98,29 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
       setTempPreAssemblyTeam(p?.preAssemblyTeam || []);
     }
   }, [showPreAssemblyModal, projects]);
+
+  // HYDRATION: Fetch full project details when opening any detail modal
+  useEffect(() => {
+    const activeModalId = 
+      showCentralModal || showOutsourcedModal || showLogisticsModal || 
+      showPreAssemblyModal || showFreightModal || showDeliveryModal || 
+      showExpeditionModal || showArchitectModal || showAssemblyModal;
+
+    if (activeModalId) {
+      const p = projects.find(proj => proj.id === activeModalId);
+      // If project exists but is a summary (no environmentsDetails or outsourcedServices)
+      // Note: We check if they are explicitly empty as the summary fetch doesn't include them
+      if (p && (!p.environmentsDetails || p.environmentsDetails.length === 0) && (!p.outsourcedServices || p.outsourcedServices.length === 0)) {
+        console.log(`Hydrating project ${activeModalId} for PCP controls...`);
+        fetchFullProject(activeModalId);
+      }
+    }
+  }, [
+    showCentralModal, showOutsourcedModal, showLogisticsModal, 
+    showPreAssemblyModal, showFreightModal, showDeliveryModal, 
+    showExpeditionModal, showArchitectModal, showAssemblyModal,
+    projects, fetchFullProject
+  ]);
 
   const advance = async (projectId: string, nextStatus: ProductionStatus, extraData: Partial<Project> = {}) => {
     const p = projects.find(proj => proj.id === projectId);

@@ -78,11 +78,34 @@ export const mapProjectToDB = (project: Project) => {
     };
 };
 
+const SUMMARY_COLUMNS = `
+    id, clientId, clientName, workName, workAddress, 
+    value, contractDate, promisedDate, currentStatus, 
+    materialsDelivered, is_expedition_ready, architect_id, 
+    installer_id, production_central, pre_assembly_done, 
+    freight_organized, client_scheduled, delivery_path, 
+    freight_carrier_id, freight_scheduling_date, client_delivery_date,
+    addressCep, addressCity, addressStreet, addressNumber, 
+    addressNeighborhood, addressComplement, addressQuadra, addressLote
+`;
+
 export const projectService = {
     async getAll(): Promise<Project[]> {
         const { data, error } = await supabase.from('projects').select('*');
         if (error) throw error;
         return (data || []).map(mapProjectFromDB);
+    },
+
+    async getSummaries(): Promise<Project[]> {
+        const { data, error } = await supabase.from('projects').select(SUMMARY_COLUMNS);
+        if (error) throw error;
+        return (data || []).map(mapProjectFromDB);
+    },
+
+    async getById(id: string): Promise<Project> {
+        const { data, error } = await supabase.from('projects').select('*').eq('id', id).single();
+        if (error) throw error;
+        return mapProjectFromDB(data);
     },
 
     async add(project: Project): Promise<void> {
