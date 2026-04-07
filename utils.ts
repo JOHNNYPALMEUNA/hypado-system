@@ -31,6 +31,10 @@ export const formatCurrency = (value: number | string): string => {
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+export const roundToTwo = (num: number): number => {
+    return Math.round((num + Number.EPSILON) * 100) / 100;
+};
+
 export const formatDate = (date: string | null | undefined): string => {
     if (!date) return 'A combinar';
     try {

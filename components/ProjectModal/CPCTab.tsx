@@ -23,8 +23,8 @@ const CPCTab: React.FC<CPCTabProps> = ({ project, installers, setFormData, onSto
     
     const totalRefunds = projectRefunds.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     const totalRevenue = project.value || 0;
-    const totalExpenses = (project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0) + totalRefunds;
-    const grossMargin = totalRevenue - totalExpenses;
+    const totalExpenses = Math.round(((project.expenses || []).reduce((acc: number, curr: any) => acc + (curr.value || 0), 0) + totalRefunds) * 100) / 100;
+    const grossMargin = Math.round((totalRevenue - totalExpenses) * 100) / 100;
     const marginPercentage = totalRevenue > 0 ? ((grossMargin / totalRevenue) * 100) : 0;
 
     const handleDeleteExpense = (expenseId: string) => {

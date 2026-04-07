@@ -9,7 +9,7 @@ import {
 
 
 import { useData } from '../contexts/DataContext';
-import { getStatusBadgeClass, formatCurrency } from '../utils';
+import { getStatusBadgeClass, formatCurrency, roundToTwo } from '../utils';
 import Confetti from './Confetti';
 
 interface Props {
@@ -348,9 +348,8 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           ...env.memorial,
           partsCount: envParts
         },
-        commissionValue: Number(calculatedCommission.toFixed(2)),
-        authorizedMdoValue: Number(calculatedCommission.toFixed(2)),
-        isMdoAuthorized: true
+        commissionValue: roundToTwo(calculatedCommission),
+        authorizedMdoValue: roundToTwo(calculatedCommission)
       }
     });
 
@@ -361,8 +360,8 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
 
     // Validate Total Commission (Alert if > 10%) - Though here it is exactly 10%, future edits might change it
     const currentTotalCommission = updatedEnvironments.reduce((acc, env) => acc + (env.commissionValue || 0), 0);
-    if (currentTotalCommission > totalCommissionBudget + 1) { // Tolerance for float rounding
-      alert(`ATENÇÃO: O valor total de comissão (R$ ${currentTotalCommission.toFixed(2)}) excede 10% do valor da obra!`);
+    if (currentTotalCommission > totalCommissionBudget + 0.1) { // Tolerance for float rounding
+      alert(`ATENCÃO: O valor total de comissão (R$ ${currentTotalCommission.toFixed(2)}) excede 10% do valor da obra!`);
     }
 
     extraData.environmentsDetails = updatedEnvironments;
@@ -394,9 +393,8 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           ...env.memorial,
           partsCount: envParts
         },
-        commissionValue: Number(calculatedCommission.toFixed(2)),
-        authorizedMdoValue: Number(calculatedCommission.toFixed(2)),
-        isMdoAuthorized: true
+        commissionValue: roundToTwo(calculatedCommission),
+        authorizedMdoValue: roundToTwo(calculatedCommission)
       };
     });
 

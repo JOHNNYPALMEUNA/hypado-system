@@ -9,6 +9,7 @@ import { Project, Supplier, Installer, Company, Expense } from '../../types';
 import { generateInstallerContract } from '../../geminiService';
 
 import { useData } from '../../contexts/DataContext';
+import { roundToTwo, formatCurrency } from '../../utils';
 
 interface MdoManagerProps {
   projects: Project[];
@@ -107,8 +108,8 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     // Smart Link Generation
     const proposalData = {
       workName: selectedOS.workName,
-      envs: groupedEnvs.map(env => ({ name: env.name, value: parseFloat(mdoValues[env.name] || '0') })),
-      totalValue,
+      envs: groupedEnvs.map(env => ({ name: env.name, value: roundToTwo(parseFloat(mdoValues[env.name] || '0')) })),
+      totalValue: roundToTwo(totalValue),
       projectId: selectedOSId,
       installerId: installerId,
       adminPhone: company.phone?.replace(/\D/g, '') || '',
@@ -121,7 +122,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     const text = `*PROPOSTA DE EMPREITA - HYPADO*\n\n` +
       `👷 Olá *${installerName}*,\n` +
       `Nova oportunidade na obra *${selectedOS.workName}*.\n` +
-      `💰 *VALOR TOTAL:* R$ ${totalValue.toLocaleString('pt-BR')}\n\n` +
+      `💰 *VALOR TOTAL:* ${formatCurrency(totalValue)}\n\n` +
       `👉 *Toque no link para ACEITAR:*\n${smartLink}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
@@ -164,7 +165,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     if (!selectedInstallerId) return alert("Selecione um profissional.");
 
     const rawValue = mdoValues[env.name] || '0';
-    const declaredValue = parseFloat(rawValue) || 0;
+    const declaredValue = roundToTwo(parseFloat(rawValue) || 0);
 
     // Record Expense for Internal Team (OS value fall-in)
     const newExp: Expense = {
@@ -277,14 +278,14 @@ const MdoManager: React.FC<MdoManagerProps> = ({
         share = 1 / selectedOS.environmentsDetails.length;
       }
       
-      const amount = budget * share;
-      return { ...env, commissionValue: Number(amount.toFixed(2)), authorizedMdoValue: Number(amount.toFixed(2)) };
+      const amount = roundToTwo(budget * share);
+      return { ...env, commissionValue: amount, authorizedMdoValue: amount };
     });
 
     await updateProject({ ...selectedOS, environmentsDetails: newEnvDetails as any } as Project);
     
     const newVals: Record<string, string> = {};
-    newEnvDetails.forEach(e => newVals[e.name] = (e.commissionValue || 0).toFixed(2));
+    newEnvDetails.forEach(e => newVals[e.name] = (e.commissionValue || 0).toString());
     setMdoValues(newVals);
     alert("CÁLCULO PROPORCIONAL CONCLUÍDO!");
   };
@@ -356,7 +357,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                                         <Briefcase size={12} /> {env.memorial?.partsCount || 0} Peças
                                     </div>
                                     <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
-                                        <DollarSign size={12} /> Sugestão IA: R$ {(env.commissionValue || 0).toLocaleString()}
+                                        <DollarSign size={12} /> Sugestão IA: {formatCurrency(env.commissionValue || 0)}
                                     </div>
                                 </div>
                             </div>
