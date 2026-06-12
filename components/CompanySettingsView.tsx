@@ -203,7 +203,7 @@ const CompanySettingsView: React.FC<Props> = ({ company, setCompany }) => {
               // Custom prompt or just simple prompt is fine.
               const password = prompt('🔒 ZONA DE PERIGO 🔒\n\nPara confirmar o RESET TOTAL DO SISTEMA, digite a senha de administrador:');
 
-              if (password !== 'adm123') {
+              if (password !== 'admin123') {
                 if (password !== null) alert('Senha incorreta.');
                 return;
               }

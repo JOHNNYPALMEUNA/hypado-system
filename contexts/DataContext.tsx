@@ -1113,30 +1113,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const resetDatabase = async () => {
         try {
             console.log('Starting Factory Reset...');
-            // Delete in order to avoid foreign key constraints (although Supabase handles CASCADE if configured, explicit is safer)
 
             // 1. Technical Assistance & Daily Logs
-            await supabase.from('technical_assistance').delete().neq('id', '0');
-            await supabase.from('daily_logs').delete().neq('id', '0');
-            // 2. Events & Tasks
-            await supabase.from('events').delete().neq('id', '0');
-            await supabase.from('tasks').delete().neq('id', '0');
-            // 3. Purchase Orders
-            await supabase.from('purchase_orders').delete().neq('id', '0');
-            // 4. Projects (and cascading environments)
-            await supabase.from('projects').delete().neq('id', '0');
-            // 5. Clients
-            await supabase.from('clients').delete().neq('id', '0');
-            // 6. Timeline Events
-            await supabase.from('timeline_events').delete().neq('id', '0');
+            const { error: err1 } = await supabase.from('technical_assistance').delete().not('id', 'is', null);
+            if (err1) throw err1;
+            
+            const { error: err2 } = await supabase.from('daily_logs').delete().not('id', 'is', null);
+            if (err2) throw err2;
 
+            // 2. Events & Tasks
+            const { error: err3 } = await supabase.from('events').delete().not('id', 'is', null);
+            if (err3) throw err3;
+            
+            const { error: err4 } = await supabase.from('tasks').delete().not('id', 'is', null);
+            if (err4) throw err4;
+
+            // 3. Purchase Orders
+            const { error: err5 } = await supabase.from('purchase_orders').delete().not('id', 'is', null);
+            if (err5) throw err5;
+
+            // 4. Projects
+            const { error: err6 } = await supabase.from('projects').delete().not('id', 'is', null);
+            if (err6) throw err6;
+
+            // 5. Clients
+            const { error: err7 } = await supabase.from('clients').delete().not('id', 'is', null);
+            if (err7) throw err7;
+
+            // 6. Timeline Events
+            const { error: err8 } = await supabase.from('timeline_events').delete().not('id', 'is', null);
+            if (err8) throw err8;
 
             // Refresh Local State
             setProjects([]);
             setClients([]);
             setQuotations([]);
             setTasks([]);
-            setEvents([]);
             setEvents([]);
             setAssistances([]);
             setDailyLogs([]);
@@ -1145,7 +1157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             alert('Sistema reiniciado com sucesso! Todos os dados operacionais foram apagados.');
         } catch (error: any) {
             console.error('Error resetting database:', error);
-            alert(`Erro ao reiniciar sistema: ${error.message}`);
+            alert(`Erro ao reiniciar sistema: ${error.message || JSON.stringify(error)}`);
         }
     };
 

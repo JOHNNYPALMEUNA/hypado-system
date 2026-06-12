@@ -1054,3 +1054,106 @@ export async function analyzeDailyDiary(logs: DailyLog[], project: Project, phot
     return null;
   }
 }
+
+/**
+ * Gera uma mensagem de WhatsApp personalizada para follow-up comercial.
+ */
+export async function generateFollowUpMessage(lead: {
+  clientName: string;
+  workName: string;
+  value: number;
+  crmStage: string;
+  team: string;
+  environments: string[];
+  notes?: string;
+}): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `
+      Atue como um Consultor de Vendas Sênior da marcenaria de alto padrão "Hypado Planejados".
+      Sua tarefa é criar uma mensagem personalizada, profissional e altamente engajadora para enviar via WhatsApp para o cliente.
+      
+      DADOS DO NEGÓCIO:
+      - Cliente: ${lead.clientName}
+      - Nome do Projeto: ${lead.workName}
+      - Valor aproximado: R$ ${lead.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      - Etapa Atual no Funil: ${lead.crmStage}
+      - Vendedor Responsável: ${lead.team}
+      - Ambientes do Projeto: ${lead.environments.join(', ')}
+      - Anotações/Contexto extra: ${lead.notes || 'Nenhum'}
+
+      INSTRUÇÕES DE ESCRITA:
+      - A mensagem deve ser enviada via WhatsApp.
+      - Use tom amigável, entusiasmado, muito profissional e focado em excelência.
+      - Não seja invasivo ou insistente ("chato"). Mostre real interesse em ajudar e realizar o sonho da casa planejada dele.
+      - Adapte a abordagem de acordo com a etapa do funil:
+        * Se for "Sem tarefa": Um contato inicial simpático, demonstrando satisfação em atendê-lo.
+        * Se for "Folow up (Whatsapp)": Lembrar do andamento do contato anterior, perguntar se restou alguma dúvida, colocar-se à disposição.
+        * Se for "Gerar orçamento": Avisar que a equipe está trabalhando com carinho no desenho/orçamento dos móveis e perguntar sobre algum detalhe específico (ex: espessuras ou ferragens), demonstrando cuidado técnico.
+        * Se for "Apresentação da proposta": Convidar calorosamente para uma reunião (presencial ou online) para apresentar a proposta comercial e o projeto 3D em detalhes.
+      - Use quebras de linha para facilitar a leitura.
+      - Use a formatação do WhatsApp (ex: *negrito* em pontos chave como o nome do projeto ou ambientes).
+      - Retorne APENAS o texto final da mensagem, pronto para enviar. Sem aspas iniciais/finais e sem comentários extras.
+    `;
+
+    const result = await withRetry(() => model.generateContent(prompt), 2);
+    return result.response.text().trim();
+  } catch (error: any) {
+    console.error("Erro ao gerar mensagem de follow-up:", error);
+    return `Olá ${lead.clientName}! Tudo bem? Gostaria de saber como está o andamento do projeto ${lead.workName}. Ficamos à disposição!`;
+  }
+}
+
+/**
+ * Analisa o pipeline de vendas atual do CRM e gera um relatório estratégico.
+ */
+export async function analyzeSalesPipeline(leads: any[]): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const leadsSummary = leads.map(l => ({
+      clientName: l.clientName,
+      workName: l.workName,
+      value: l.value,
+      crmStage: l.crmStage || 'Sem tarefa',
+      team: l.team || 'Sem Vendedor',
+      environments: l.environments || [],
+      daysInCRM: l.registrationDate ? Math.ceil((Date.now() - new Date(l.registrationDate).getTime()) / (86400000)) : 0
+    }));
+
+    const prompt = `
+      Atue como um Diretor Comercial e de Operações Sênior da Marcenaria "Hypado Planejados".
+      Analise o atual pipeline de vendas (oportunidades na etapa de Venda) e produza um Relatório de Inteligência de Vendas e Estratégia de Conversão.
+
+      DADOS DO PIPELINE (LEADS ATIVOS NO CRM):
+      ${JSON.stringify(leadsSummary, null, 2)}
+
+      ESTRUTURA DO RELATÓRIO ESPERADO:
+      Apresente uma resposta estruturada em Markdown profissional com as seguintes seções:
+      
+      1. **📊 Visão Geral do Funil**:
+         - Resumo estatístico do pipeline (soma total do valor, média de ticket das oportunidades, contagem total de leads).
+         - Distribuição das oportunidades pelas etapas do funil.
+         
+      2. **🔍 Identificação de Gargalos**:
+         - Quais etapas possuem mais acúmulo de leads?
+         - Quais leads de alto valor estão há mais tempo parados (temperatura fria) e representam risco de perda?
+         
+      3. **🔮 Prospecção de Receita (Previsibilidade)**:
+         - Faça uma estimativa de conversão realista para este mês baseada no valor dos leads e suas etapas. (Considere pesos hipotéticos de conversão: Proposta: 60%, Orçamento: 30%, Follow-up: 15%, Sem tarefa: 5%).
+         
+      4. **🎯 Recomendações Estratégicas para os Vendedores**:
+         - Proponha ações práticas imediatas para acelerar os 3 leads mais importantes/valiosos.
+         - Dicas gerais para aumentar a taxa de fechamento e evitar a perda de oportunidades no WhatsApp.
+
+      Seja motivador, muito pragmático, com insights diretos ao ponto e embasamento em dados. Use emojis para destacar os tópicos.
+    `;
+
+    const result = await withRetry(() => model.generateContent(prompt), 2);
+    return result.response.text();
+  } catch (error: any) {
+    console.error("Erro ao analisar pipeline de vendas:", error);
+    return "⚠️ Não foi possível analisar o pipeline de vendas neste momento. Tente novamente mais tarde.";
+  }
+}
