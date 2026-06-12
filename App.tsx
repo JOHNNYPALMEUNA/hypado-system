@@ -25,7 +25,8 @@ import {
   Mic,
   Sparkles,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Funnel
 } from 'lucide-react';
 import { MOCK_CLIENTS, MOCK_PROJECTS, MOCK_ENVIRONMENTS } from './mockData';
 import { Client, Project, Environment, Supplier, Material, Quotation, Company, Installer, TechnicalAssistance, Task, CalendarEvent } from './types';
@@ -307,7 +308,7 @@ const AppContent: React.FC = () => {
 
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'clientes', label: 'Clientes', icon: Users },
+    { id: 'clientes', label: 'CRM & Clientes', icon: Funnel },
     { id: 'obras', label: 'Ordens de Serviço', icon: Briefcase },
     { id: 'diario', label: 'Diário / Ocorrências', icon: ClipboardList },
     { id: 'compras', label: 'Suprimentos', icon: ShoppingCart },
@@ -465,6 +466,7 @@ const AppContent: React.FC = () => {
           addEvent={addEvent}
           updateEvent={updateEvent}
           deleteEvent={deleteEvent}
+          assistances={assistances}
         />
       );
       case 'quality': return (

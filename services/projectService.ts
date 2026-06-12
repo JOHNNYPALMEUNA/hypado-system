@@ -29,7 +29,8 @@ export const mapProjectFromDB = (p: any): Project => ({
     pdfSummary: p.pdf_summary || p.pdfSummary,
     architectId: p.architect_id || p.architectId || '',
     environmentsDetails: p.environmentsDetails || p.environments_details || [],
-    outsourcedServices: p.outsourced_services || p.outsourcedServices || []
+    outsourcedServices: p.outsourced_services || p.outsourcedServices || [],
+    crmStage: p.crm_stage || 'Sem tarefa'
 });
 
 export const mapProjectToDB = (project: Project) => {
@@ -74,13 +75,14 @@ export const mapProjectToDB = (project: Project) => {
         addressNeighborhood: project.addressNeighborhood,
         addressComplement: project.addressComplement,
         addressQuadra: project.addressQuadra,
-        addressLote: project.addressLote
+        addressLote: project.addressLote,
+        crm_stage: project.crmStage || 'Sem tarefa'
     };
 };
 
 const SUMMARY_COLUMNS = `
     id, clientId, clientName, workName, workAddress, 
-    value, contractDate, promisedDate, currentStatus, 
+    value, contractDate, promisedDate, currentStatus, crm_stage, 
     materialsDelivered, is_expedition_ready, architect_id, 
     installer_id, production_central, pre_assembly_done, 
     freight_organized, client_scheduled, delivery_path, 

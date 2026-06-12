@@ -233,6 +233,7 @@ export interface Project {
   architectId?: string; // ID of the architect/designer
   renderImageUrl?: string; // URL to the 3D Render image for AI comparison
   pdfSummary?: string; // Persistent technical summary extracted from PDF
+  crmStage?: string; // Stage within the sales funnel
 }
 
 export interface Product {
