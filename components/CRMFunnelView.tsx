@@ -289,8 +289,9 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
         isCompleteRegistration: false
       });
       setSelectedClientId('');
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Erro ao criar oportunidade/cliente:", err);
+      alert(`Erro ao criar oportunidade/cliente: ${err.message || JSON.stringify(err)}`);
     }
   };
 

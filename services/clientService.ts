@@ -10,7 +10,7 @@ export const mapClientToDB = (client: Client) => {
         address: client.address || '',
         cpf: client.cpf || null,
         status: client.status || 'Ativo',
-        total_spent: client.totalSpent || 0,
+        totalSpent: client.totalSpent || 0,
         is_corporate: client.isCorporate || false,
         lead_source: client.leadSource || null,
         send_notifications: client.sendNotifications !== false,

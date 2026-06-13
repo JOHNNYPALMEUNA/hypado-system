@@ -35,6 +35,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -120,7 +121,7 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone) {
       alert('Por favor, preencha pelo menos o Nome e o Celular Principal.');
@@ -143,23 +144,30 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
       leadSource: formData.leadSource
     };
 
-    if (editingClient) {
-      updateClient({
-        ...editingClient,
-        ...clientPayload
-      });
-    } else {
-      const newClient: Client = {
-        id: `c-${Date.now()}`,
-        ...clientPayload,
-        projectsCount: 0,
-        averageRating: 0,
-        lastVisit: new Date().toISOString().split('T')[0]
-      };
-      addClient(newClient);
+    setIsSaving(true);
+    try {
+      if (editingClient) {
+        await updateClient({
+          ...editingClient,
+          ...clientPayload
+        });
+      } else {
+        const newClient: Client = {
+          id: `c-${Date.now()}`,
+          ...clientPayload,
+          projectsCount: 0,
+          averageRating: 0,
+          lastVisit: new Date().toISOString().split('T')[0]
+        };
+        await addClient(newClient);
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      console.error("Erro ao salvar cliente:", err);
+      alert(`Erro ao salvar cliente: ${err.message || JSON.stringify(err)}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsModalOpen(false);
   };
 
   const handleDelete = () => {
@@ -537,9 +545,18 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
                     )}
                     <button
                       type="submit"
-                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary-hover py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                      disabled={isSaving}
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary-hover py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Save size={14} /> Salvar Dados de Cadastro
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="animate-spin" size={14} /> Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={14} /> Salvar Dados de Cadastro
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
