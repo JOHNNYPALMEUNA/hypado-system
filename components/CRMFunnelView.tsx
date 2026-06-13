@@ -68,7 +68,18 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
     seller: '',
     description: '',
     environments: [] as string[],
-    promisedDate: ''
+    promisedDate: '',
+    cep: '',
+    address: '',
+    quadra: '',
+    lote: '',
+    cpf: '',
+    isCorporate: false,
+    sendNotifications: true,
+    storeName: 'Hypado Planejados',
+    leadSource: '',
+    hasAddress: false,
+    isCompleteRegistration: false
   });
 
   // Form State for Editing Lead
@@ -88,6 +99,34 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
   // AI Pipeline Analysis State
   const [isAnalyzingPipeline, setIsAnalyzingPipeline] = useState(false);
   const [pipelineReport, setPipelineReport] = useState('');
+  const [isFetchingCep, setIsFetchingCep] = useState(false);
+
+  const fetchAddressForLead = async (cep: string) => {
+    setIsFetchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (!data.erro) {
+        const fullAddress = `${data.logradouro}, ${data.bairro} - ${data.localidade}/${data.uf}`;
+        setNewLeadData(prev => ({ ...prev, address: fullAddress }));
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+    } finally {
+      setIsFetchingCep(false);
+    }
+  };
+
+  const handleLeadInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    if (name === 'cep') {
+      const cleanCep = value.replace(/\D/g, '').substring(0, 8);
+      setNewLeadData(prev => ({ ...prev, [name]: cleanCep }));
+      if (cleanCep.length === 8) fetchAddressForLead(cleanCep);
+    } else {
+      setNewLeadData(prev => ({ ...prev, [name]: value }));
+    }
+  };
 
   // Filter projects that are in the 'Venda' stage
   const activeLeads = (projects || []).filter(p => p.currentStatus === 'Venda');
@@ -179,8 +218,16 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
         id: clientId,
         name: newLeadData.clientName,
         phone: newLeadData.phone || '(00) 00000-0000',
-        email: newLeadData.email || 'lead@exemplo.com',
-        address: '',
+        email: newLeadData.email || '',
+        address: newLeadData.hasAddress ? newLeadData.address : '',
+        quadra: newLeadData.hasAddress ? newLeadData.quadra : '',
+        lote: newLeadData.hasAddress ? newLeadData.lote : '',
+        description: newLeadData.isCompleteRegistration ? newLeadData.description : '',
+        cpf: newLeadData.isCompleteRegistration ? newLeadData.cpf : '',
+        isCorporate: newLeadData.isCorporate,
+        sendNotifications: newLeadData.sendNotifications,
+        storeName: newLeadData.storeName || 'Hypado Planejados',
+        leadSource: newLeadData.leadSource || '',
         projectsCount: 1,
         averageRating: 0,
         lastVisit: new Date().toISOString().split('T')[0]
@@ -228,7 +275,18 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
         seller: '',
         description: '',
         environments: [],
-        promisedDate: ''
+        promisedDate: '',
+        cep: '',
+        address: '',
+        quadra: '',
+        lote: '',
+        cpf: '',
+        isCorporate: false,
+        sendNotifications: true,
+        storeName: 'Hypado Planejados',
+        leadSource: '',
+        hasAddress: false,
+        isCompleteRegistration: false
       });
       setSelectedClientId('');
     } catch (err) {
@@ -795,40 +853,250 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                   </div>
                 ) : (
                   <>
+                    {/* Toggle: Pessoa jurídica */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Pessoa jurídica: <span className="text-primary font-black ml-1">{newLeadData.isCorporate ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadData(prev => ({ ...prev, isCorporate: !prev.isCorporate }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${newLeadData.isCorporate ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${newLeadData.isCorporate ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Campo: Nome */}
                     <div>
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Nome do Cliente</label>
+                      <label className="text-[10px] font-bold text-foreground uppercase mb-1 block">
+                        * Nome do Cliente
+                      </label>
                       <input
                         type="text"
-                        required
+                        name="clientName"
                         value={newLeadData.clientName}
-                        onChange={(e) => setNewLeadData(prev => ({ ...prev, clientName: e.target.value }))}
-                        placeholder="Nome Completo do Cliente"
-                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all"
+                        onChange={handleLeadInputChange}
+                        placeholder={newLeadData.isCorporate ? "Razão Social ou Nome Fantasia" : "Nome Completo do Cliente"}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-semibold"
+                        required
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">WhatsApp</label>
-                        <input
-                          type="tel"
-                          value={newLeadData.phone}
-                          onChange={(e) => setNewLeadData(prev => ({ ...prev, phone: e.target.value }))}
-                          placeholder="(62) 99999-9999"
-                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">E-mail</label>
-                        <input
-                          type="email"
-                          value={newLeadData.email}
-                          onChange={(e) => setNewLeadData(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="cliente@email.com"
-                          className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all"
-                        />
-                      </div>
+                    {/* Campo: Celular Principal (com Alerta Rosa) */}
+                    <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-2xl space-y-2">
+                      <label className="text-[10px] font-bold text-foreground uppercase block">
+                        * Celular Principal
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={newLeadData.phone}
+                        onChange={handleLeadInputChange}
+                        placeholder="(00) 00000-0000"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-semibold"
+                        required
+                      />
+                      <p className="text-[9px] text-red-500 font-semibold leading-relaxed">
+                        Número que o cliente precisa inserir no aplicativo para ter acesso ao projeto!
+                      </p>
                     </div>
+
+                    {/* Campo: Origem do lead */}
+                    <div>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                        Origem do lead (procedência do cliente)
+                      </label>
+                      <select
+                        name="leadSource"
+                        value={newLeadData.leadSource}
+                        onChange={handleLeadInputChange}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-semibold"
+                      >
+                        <option value="">Selecione uma origem</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="Indicação">Indicação de Cliente</option>
+                        <option value="Arquiteto">Parceria com Arquiteto</option>
+                        <option value="Google">Google / Pesquisa Web</option>
+                        <option value="WhatsApp">WhatsApp Business / Prospecção</option>
+                        <option value="Outro">Outro Canal</option>
+                      </select>
+                    </div>
+
+                    {/* Campo: E-mail */}
+                    <div>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                        E-mail
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={newLeadData.email}
+                        onChange={handleLeadInputChange}
+                        placeholder="cliente@email.com"
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-semibold"
+                      />
+                    </div>
+
+                    {/* Toggle: Enviar notificação */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Enviar notificação para este e-mail: <span className="text-primary font-black ml-1">{newLeadData.sendNotifications ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadData(prev => ({ ...prev, sendNotifications: !prev.sendNotifications }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${newLeadData.sendNotifications ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${newLeadData.sendNotifications ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Campo: Loja */}
+                    <div>
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                        Loja
+                      </label>
+                      <select
+                        name="storeName"
+                        value={newLeadData.storeName}
+                        onChange={handleLeadInputChange}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-black text-primary"
+                      >
+                        <option value="Hypado Planejados">Hypado Planejados</option>
+                      </select>
+                    </div>
+
+                    {/* Toggle: Já sabe o endereço? */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Já sabe o endereço?: <span className="text-primary font-black ml-1">{newLeadData.hasAddress ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadData(prev => ({ ...prev, hasAddress: !prev.hasAddress }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${newLeadData.hasAddress ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${newLeadData.hasAddress ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Seção Endereço Revelada */}
+                    {newLeadData.hasAddress && (
+                      <div className="pt-2 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="col-span-1">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block flex items-center gap-1">
+                              CEP {isFetchingCep && <Loader2 size={10} className="animate-spin text-primary" />}
+                            </label>
+                            <input
+                              type="text"
+                              name="cep"
+                              value={newLeadData.cep}
+                              onChange={handleLeadInputChange}
+                              maxLength={8}
+                              placeholder="00000000"
+                              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                              Endereço / Logradouro
+                            </label>
+                            <input
+                              type="text"
+                              name="address"
+                              value={newLeadData.address}
+                              onChange={handleLeadInputChange}
+                              placeholder="Rua, Número, Bairro"
+                              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                              Quadra
+                            </label>
+                            <input
+                              type="text"
+                              name="quadra"
+                              value={newLeadData.quadra}
+                              onChange={handleLeadInputChange}
+                              placeholder="Quadra"
+                              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                              Lote
+                            </label>
+                            <input
+                              type="text"
+                              name="lote"
+                              value={newLeadData.lote}
+                              onChange={handleLeadInputChange}
+                              placeholder="Lote"
+                              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Toggle: Fazer cadastro completo */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+                        Fazer cadastro completo: <span className="text-primary font-black ml-1">{newLeadData.isCompleteRegistration ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNewLeadData(prev => ({ ...prev, isCompleteRegistration: !prev.isCompleteRegistration }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${newLeadData.isCompleteRegistration ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${newLeadData.isCompleteRegistration ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Seção Cadastro Completo Revelada */}
+                    {newLeadData.isCompleteRegistration && (
+                      <div className="pt-2 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div>
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                            {newLeadData.isCorporate ? 'CNPJ' : 'CPF'}
+                          </label>
+                          <input
+                            type="text"
+                            name="cpf"
+                            value={newLeadData.cpf}
+                            onChange={handleLeadInputChange}
+                            placeholder={newLeadData.isCorporate ? "00.000.000/0000-00" : "000.000.000-00"}
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">
+                            Anotações / Descrição do Cliente
+                          </label>
+                          <textarea
+                            name="description"
+                            value={newLeadData.description}
+                            onChange={handleLeadInputChange}
+                            rows={3}
+                            placeholder="Informações adicionais do cliente..."
+                            className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

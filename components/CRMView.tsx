@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Search,
   User,
-  Filter
+  Filter,
+  Save
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import CRMFunnelView from './CRMFunnelView';
@@ -44,7 +45,14 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
     quadra: '',
     lote: '',
     description: '',
-    isBlocked: false
+    isBlocked: false,
+    cpf: '',
+    isCorporate: false,
+    sendNotifications: true,
+    storeName: 'Hypado Planejados',
+    leadSource: '',
+    hasAddress: false,
+    isCompleteRegistration: false
   });
 
   const openModal = (client?: Client) => {
@@ -59,13 +67,23 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
         quadra: client.quadra || '',
         lote: client.lote || '',
         description: client.description || '',
-        isBlocked: client.isBlocked || false
+        isBlocked: client.isBlocked || false,
+        cpf: client.cpf || '',
+        isCorporate: client.isCorporate || false,
+        sendNotifications: client.sendNotifications !== false,
+        storeName: client.storeName || 'Hypado Planejados',
+        leadSource: client.leadSource || '',
+        hasAddress: !!client.address || !!client.quadra || !!client.lote,
+        isCompleteRegistration: !!client.cpf || !!client.description
       });
     } else {
       setEditingClient(null);
       setFormData({
         name: '', email: '', phone: '', cep: '', address: '',
-        quadra: '', lote: '', description: '', isBlocked: false
+        quadra: '', lote: '', description: '', isBlocked: false,
+        cpf: '', isCorporate: false, sendNotifications: true,
+        storeName: 'Hypado Planejados', leadSource: '',
+        hasAddress: false, isCompleteRegistration: false
       });
     }
     setIsModalOpen(true);
@@ -105,36 +123,38 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.phone) {
-      alert('Por favor, preencha pelo menos o Nome e o Telefone.');
+      alert('Por favor, preencha pelo menos o Nome e o Celular Principal.');
       return;
     }
+
+    const clientPayload = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.hasAddress ? formData.address : '',
+      quadra: formData.hasAddress ? formData.quadra : '',
+      lote: formData.hasAddress ? formData.lote : '',
+      description: formData.isCompleteRegistration ? formData.description : '',
+      cpf: formData.isCompleteRegistration ? formData.cpf : '',
+      isBlocked: formData.isBlocked,
+      isCorporate: formData.isCorporate,
+      sendNotifications: formData.sendNotifications,
+      storeName: formData.storeName,
+      leadSource: formData.leadSource
+    };
 
     if (editingClient) {
       updateClient({
         ...editingClient,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        quadra: formData.quadra,
-        lote: formData.lote,
-        description: formData.description,
-        isBlocked: formData.isBlocked
+        ...clientPayload
       });
     } else {
       const newClient: Client = {
         id: `c-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        quadra: formData.quadra,
-        lote: formData.lote,
-        description: formData.description,
+        ...clientPayload,
         projectsCount: 0,
         averageRating: 0,
-        lastVisit: new Date().toISOString().split('T')[0],
-        isBlocked: formData.isBlocked
+        lastVisit: new Date().toISOString().split('T')[0]
       };
       addClient(newClient);
     }
@@ -213,53 +233,313 @@ const CRMView: React.FC<Props> = ({ clients, setClients, projects }) => {
           </div>
 
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-card w-full max-w-lg rounded-xl shadow-xl border border-border overflow-hidden animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
-                  <h4 className="text-lg font-semibold">{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</h4>
-                  <button onClick={() => setIsModalOpen(false)} title="Fechar" className="text-muted-foreground hover:text-foreground transition-colors"><X size={20} /></button>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-card w-full max-w-xl rounded-3xl shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 max-h-[95vh] overflow-y-auto">
+                <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/20">
+                  <h4 className="text-md font-black text-foreground uppercase tracking-widest">
+                    Cadastro
+                  </h4>
+                  <button onClick={() => setIsModalOpen(false)} title="Fechar" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <X size={20} />
+                  </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-5 bg-card">
                   <div className="space-y-4">
+                    
+                    {/* Toggle: Pessoa jurídica */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Pessoa jurídica: <span className="text-primary font-black ml-1">{formData.isCorporate ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, isCorporate: !prev.isCorporate }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.isCorporate ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.isCorporate ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Campo: Nome */}
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Nome Completo</label>
-                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} placeholder="Nome Completo" title="Nome Completo" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
+                      <label className="text-xs font-bold text-foreground block mb-1">
+                        * Nome
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder={formData.isCorporate ? "Razão Social ou Nome Fantasia" : "Nome Completo"}
+                        title="Nome Completo"
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                        required
+                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Telefone</label>
-                        <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(00) 00000-0000" title="Telefone" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" required />
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">E-mail</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="exemplo@email.com" title="E-mail" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
-                      </div>
+                    {/* Campo: Celular Principal (com Alerta Rosa) */}
+                    <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-2xl space-y-2">
+                      <label className="text-xs font-bold text-foreground block">
+                        * Celular Principal
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        placeholder="(00) 00000-0000"
+                        title="Telefone"
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                        required
+                      />
+                      <p className="text-[10px] text-red-500 font-semibold leading-relaxed">
+                        Número que o cliente precisa inserir no aplicativo para ter acesso ao projeto!
+                      </p>
                     </div>
 
-                    <div className="pt-2 border-t border-border">
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="col-span-1">
-                          <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block flex items-center gap-1">CEP {isFetchingCep && <Loader2 size={10} className="animate-spin" />}</label>
-                          <input type="text" name="cep" value={formData.cep} onChange={handleInputChange} maxLength={8} placeholder="00000000" title="CEP" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                    {/* Campo: Origem do lead */}
+                    <div>
+                      <label className="text-xs font-bold text-muted-foreground block mb-1 uppercase tracking-wider">
+                        Origem do lead (procedência do cliente)
+                      </label>
+                      <select
+                        name="leadSource"
+                        value={formData.leadSource}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm outline-none focus:border-primary/50 transition-all font-semibold"
+                      >
+                        <option value="">Selecione uma origem</option>
+                        <option value="Instagram">Instagram</option>
+                        <option value="Indicação">Indicação de Cliente</option>
+                        <option value="Arquiteto">Parceria com Arquiteto</option>
+                        <option value="Google">Google / Pesquisa Web</option>
+                        <option value="WhatsApp">WhatsApp Business / Prospecção</option>
+                        <option value="Outro">Outro Canal</option>
+                      </select>
+                    </div>
+
+                    {/* Campo: E-mail */}
+                    <div>
+                      <label className="text-xs font-bold text-muted-foreground block mb-1 uppercase tracking-wider">
+                        E-mail
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="cliente@email.com"
+                        title="E-mail"
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                      />
+                    </div>
+
+                    {/* Toggle: Enviar notificação */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Enviar notificação para este e-mail: <span className="text-primary font-black ml-1">{formData.sendNotifications ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, sendNotifications: !prev.sendNotifications }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.sendNotifications ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.sendNotifications ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Campo: Loja */}
+                    <div>
+                      <label className="text-xs font-bold text-muted-foreground block mb-1 uppercase tracking-wider">
+                        Loja
+                      </label>
+                      <select
+                        name="storeName"
+                        value={formData.storeName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm outline-none focus:border-primary/50 transition-all font-black text-primary"
+                      >
+                        <option value="Hypado Planejados">Hypado Planejados</option>
+                      </select>
+                    </div>
+
+                    {/* Toggle: Já sabe o endereço? */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Já sabe o endereço?: <span className="text-primary font-black ml-1">{formData.hasAddress ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, hasAddress: !prev.hasAddress }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.hasAddress ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.hasAddress ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Seção Endereço Revelada */}
+                    {formData.hasAddress && (
+                      <div className="pt-2 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="col-span-1">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block flex items-center gap-1">
+                              CEP {isFetchingCep && <Loader2 size={10} className="animate-spin text-primary" />}
+                            </label>
+                            <input
+                              type="text"
+                              name="cep"
+                              value={formData.cep}
+                              onChange={handleInputChange}
+                              maxLength={8}
+                              placeholder="00000000"
+                              title="CEP"
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">
+                              Endereço / Logradouro
+                            </label>
+                            <input
+                              type="text"
+                              name="address"
+                              value={formData.address}
+                              onChange={handleInputChange}
+                              placeholder="Rua, Número, Bairro"
+                              title="Endereço"
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
                         </div>
-                        <div className="col-span-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase mb-1 block">Endereço</label>
-                          <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="Rua, Número, Bairro" title="Endereço" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">
+                              Quadra
+                            </label>
+                            <input
+                              type="text"
+                              name="quadra"
+                              value={formData.quadra}
+                              onChange={handleInputChange}
+                              placeholder="Quadra"
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">
+                              Lote
+                            </label>
+                            <input
+                              type="text"
+                              name="lote"
+                              value={formData.lote}
+                              onChange={handleInputChange}
+                              placeholder="Lote"
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                            />
+                          </div>
                         </div>
                       </div>
+                    )}
+
+                    {/* Toggle: Fazer cadastro completo */}
+                    <div className="flex justify-between items-center py-2 border-b border-border">
+                      <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Fazer cadastro completo: <span className="text-primary font-black ml-1">{formData.isCompleteRegistration ? 'Sim' : 'Não'}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, isCompleteRegistration: !prev.isCompleteRegistration }))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.isCompleteRegistration ? 'bg-primary' : 'bg-muted'}`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.isCompleteRegistration ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                      </button>
                     </div>
+
+                    {/* Seção Cadastro Completo Revelada */}
+                    {formData.isCompleteRegistration && (
+                      <div className="pt-2 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div>
+                          <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">
+                            {formData.isCorporate ? 'CNPJ' : 'CPF'}
+                          </label>
+                          <input
+                            type="text"
+                            name="cpf"
+                            value={formData.cpf}
+                            onChange={handleInputChange}
+                            placeholder={formData.isCorporate ? "00.000.000/0000-00" : "000.000.000-00"}
+                            title="Documento"
+                            className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">
+                            Anotações / Descrição do Cliente
+                          </label>
+                          <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleInputChange}
+                            rows={3}
+                            placeholder="Informações adicionais do cliente..."
+                            className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:border-primary/50 outline-none transition-all font-semibold"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Toggle: Bloquear Cliente (Editar) */}
+                    {editingClient && (
+                      <div className="flex justify-between items-center py-2 border-b border-border">
+                        <span className="text-xs font-bold text-red-500 uppercase tracking-wider">
+                          Bloquear Cliente: <span className="font-black ml-1">{formData.isBlocked ? 'Bloqueado' : 'Ativo'}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, isBlocked: !prev.isBlocked }))}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.isBlocked ? 'bg-red-600' : 'bg-muted'}`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${formData.isBlocked ? 'translate-x-5' : 'translate-x-0'}`}
+                          />
+                        </button>
+                      </div>
+                    )}
+
                   </div>
 
-                  <div className="pt-4 flex gap-3">
+                  <div className="pt-4 border-t border-border flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="flex-1 bg-background border border-border text-foreground hover:bg-muted py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                      Cancelar
+                    </button>
                     {editingClient && (
-                      <button type="button" onClick={handleDelete} className="px-4 py-2 border border-destructive/30 text-destructive hover:bg-destructive/10 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-                        <Trash2 size={16} /> Excluir
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        className="px-4 py-3 border border-red-500/30 text-red-650 hover:bg-red-500 hover:text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Excluir
                       </button>
                     )}
-                    <button type="submit" className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                      {editingClient ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+                    <button
+                      type="submit"
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary-hover py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <Save size={14} /> Salvar Dados de Cadastro
                     </button>
                   </div>
                 </form>

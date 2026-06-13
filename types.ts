@@ -178,6 +178,10 @@ export interface Client {
   status?: string; // 'Ativo', 'Inativo'
   totalSpent?: number;
   avatar?: string;
+  isCorporate?: boolean;
+  leadSource?: string;
+  sendNotifications?: boolean;
+  storeName?: string;
 }
 
 export interface Environment {
