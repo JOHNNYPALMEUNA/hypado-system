@@ -238,6 +238,9 @@ export interface Project {
   renderImageUrl?: string; // URL to the 3D Render image for AI comparison
   pdfSummary?: string; // Persistent technical summary extracted from PDF
   crmStage?: string; // Stage within the sales funnel
+  signatures?: StageSignature[];
+  cadernoTecnicoUrl?: string;
+  whatsappGroupJid?: string;
 }
 
 export interface Product {
@@ -347,6 +350,14 @@ export interface TechnicalAssistance {
   finalObservations?: string;
 
   status: AssistanceStatus;
+}
+
+export interface StageSignature {
+  stage: ProductionStatus;
+  signedByName: string;
+  signedAt: string;
+  clientIp?: string;
+  signatureHash: string;
 }
 
 export interface Task {

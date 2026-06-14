@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { Client, Project, Installer, Quotation, Task, CalendarEvent, Company, TechnicalAssistance, Supplier, Material, DailyLog, TimelineEvent, UserRole, AssistanceStatus, RefundRequest, RefundStatus } from '../types';
+import { Client, Project, Installer, Quotation, Task, CalendarEvent, Company, TechnicalAssistance, Supplier, Material, DailyLog, TimelineEvent, UserRole, AssistanceStatus, RefundRequest, RefundStatus, StageSignature, ProductionStatus } from '../types';
 import { projectService, mapProjectToDB } from '../services/projectService';
 import { clientService } from '../services/clientService';
 import { installerService, mapInstallerToDB } from '../services/installerService';
@@ -20,6 +20,7 @@ interface DataContextType {
     addProject: (project: Project) => Promise<void>;
     updateProject: (project: Project) => Promise<void>;
     patchProject: (id: string, updates: Partial<Project>) => Promise<void>;
+    signProjectStage: (projectId: string, stage: ProductionStatus, clientName: string) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
     addClient: (client: Client) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -603,6 +604,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (updates.expenses !== undefined) dbUpdates.expenses = updates.expenses;
             if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments;
             if (updates.environmentsDetails !== undefined) dbUpdates.environmentsDetails = updates.environmentsDetails;
+            if (updates.signatures !== undefined) dbUpdates.signatures = updates.signatures;
+            if (updates.cadernoTecnicoUrl !== undefined) dbUpdates.caderno_tecnico_url = updates.cadernoTecnicoUrl;
 
             if (Object.keys(dbUpdates).length === 0) {
                 console.warn('No valid fields for patchProject mapping found in updates:', updates);
@@ -614,6 +617,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error: any) {
             console.error('Error patching project:', error);
             alert(`ERRO AO ATUALIZAR STATUS (PARTIAL): ${error.message || JSON.stringify(error)}`);
+            throw error;
+        }
+    };
+
+    const signProjectStage = async (projectId: string, stage: ProductionStatus, clientName: string) => {
+        try {
+            const currentProject = projects.find(p => p.id === projectId);
+            if (!currentProject) throw new Error('Projeto não encontrado');
+
+            const newSignature: StageSignature = {
+                stage,
+                signedByName: clientName,
+                signedAt: new Date().toISOString(),
+                clientIp: '200.150.12.87', // Simulado
+                signatureHash: 'sha256_' + Math.random().toString(36).substring(2, 15).toUpperCase()
+            };
+
+            const updatedSignatures = [...(currentProject.signatures || []), newSignature];
+
+            let nextStatus = currentProject.currentStatus;
+            if (stage === 'Venda') {
+                nextStatus = 'Projeto';
+            } else if (stage === 'Projeto') {
+                nextStatus = 'Corte';
+            } else if (stage === 'Entrega') {
+                nextStatus = 'Instalação';
+            } else if (stage === 'Vistoria') {
+                nextStatus = 'Finalizada';
+            }
+
+            const updatedProject: Project = {
+                ...currentProject,
+                signatures: updatedSignatures,
+                currentStatus: nextStatus
+            };
+
+            await updateProject(updatedProject);
+        } catch (error: any) {
+            console.error('Error signing project stage:', error);
+            alert(`Erro ao assinar etapa: ${error.message}`);
             throw error;
         }
     };
@@ -1165,7 +1208,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <DataContext.Provider value={{
             clients, projects, installers, quotations, tasks, events, loading, refreshData: fetchData,
             addInstaller, updateInstaller, deleteInstaller,
-            addProject, updateProject, patchProject, deleteProject,
+            addProject, updateProject, patchProject, deleteProject, signProjectStage,
             addClient, updateClient, deleteClient,
             addQuotation, updateQuotation, deleteQuotation,
             addTask, updateTask, deleteTask,

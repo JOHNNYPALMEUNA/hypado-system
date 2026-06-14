@@ -12,6 +12,7 @@ import ProjectTimelineTab from './ProjectTimelineTab';
 import BudgetAnalystTab from './BudgetAnalystTab';
 import PCPAnalystTab from './PCPAnalystTab';
 import WorkProgressAnalystTab from './WorkProgressAnalystTab';
+import CadernoTecnicoTab from './CadernoTecnicoTab';
 import { Camera } from 'lucide-react';
 
 interface ProjectModalProps {
@@ -93,6 +94,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     const allTabs = [
         { id: 'geral', label: 'Dossiê Técnico', icon: <FileText size={16} /> },
         { id: 'timeline', label: 'Timeline', icon: <Clock size={16} /> },
+        { id: 'assinaturas', label: 'Caderno Técnico & Assinaturas', icon: <ShieldCheck size={16} /> },
         { id: 'equipe', label: 'Equipe', icon: <Users size={16} /> },
         { id: 'qualidade', label: 'Auditoria', icon: <ShieldCheck size={16} /> },
         { id: 'analyst', label: 'IA Financeira', icon: <Brain size={16} /> },
@@ -162,6 +164,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
 
                     {activeModalTab === 'timeline' && (
                         <ProjectTimelineTab projectId={formData.id} history={formData.history || []} />
+                    )}
+
+                    {activeModalTab === 'assinaturas' && (
+                        <CadernoTecnicoTab
+                            formData={formData}
+                            setFormData={setFormData}
+                        />
                     )}
 
                     {activeModalTab === 'equipe' && (

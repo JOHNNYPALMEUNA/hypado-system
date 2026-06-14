@@ -30,7 +30,11 @@ export const mapProjectFromDB = (p: any): Project => ({
     architectId: p.architect_id || p.architectId || '',
     environmentsDetails: p.environmentsDetails || p.environments_details || [],
     outsourcedServices: p.outsourced_services || p.outsourcedServices || [],
-    crmStage: p.crm_stage || 'Sem tarefa'
+    crmStage: p.crm_stage || 'Sem tarefa',
+    signatures: p.signatures || [],
+    cadernoTecnicoUrl: p.caderno_tecnico_url || p.cadernoTecnicoUrl || '',
+    environments: p.environments || [],
+    whatsappGroupJid: p.whatsapp_group_jid || p.whatsappGroupJid || ''
 });
 
 export const mapProjectToDB = (project: Project) => {
@@ -76,7 +80,10 @@ export const mapProjectToDB = (project: Project) => {
         addressComplement: project.addressComplement,
         addressQuadra: project.addressQuadra,
         addressLote: project.addressLote,
-        crm_stage: project.crmStage || 'Sem tarefa'
+        crm_stage: project.crmStage || 'Sem tarefa',
+        signatures: project.signatures || [],
+        caderno_tecnico_url: project.cadernoTecnicoUrl || null,
+        whatsapp_group_jid: project.whatsappGroupJid || null
     };
 };
 
@@ -88,7 +95,8 @@ const SUMMARY_COLUMNS = `
     freight_organized, client_scheduled, delivery_path, 
     freight_carrier_id, freight_scheduling_date, client_delivery_date,
     addressCep, addressCity, addressStreet, addressNumber, 
-    addressNeighborhood, addressComplement, addressQuadra, addressLote
+    addressNeighborhood, addressComplement, addressQuadra, addressLote,
+    environments, whatsapp_group_jid
 `;
 
 export const projectService = {
