@@ -302,7 +302,10 @@ const MdoManager: React.FC<MdoManagerProps> = ({
             description: `DIÁRIA: ${newDiaryEntry.description || 'Montagem/Serviço'}`,
             value: val,
             date: newDiaryEntry.date,
-            category: 'Montagem'
+            category: 'Montagem',
+            metadata: {
+                installerId: newDiaryEntry.personId
+            }
         };
         await patchProject(p.id, { expenses: [...(p.expenses || []), newExp] });
         setNewDiaryEntry({ ...newDiaryEntry, value: '', description: '' });

@@ -560,7 +560,7 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {projects.filter(p => p.currentStatus !== 'Finalizada').map(project => {
+            {projects.filter(p => p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada' && p.currentStatus !== 'Venda').map(project => {
               const incompleteOut = (project.outsourcedServices || []).some(s => !s.supplierName || (s.value || 0) <= 0);
               const allOutReady = (project.outsourcedServices || []).length > 0 && (project.outsourcedServices || []).every(s => s.status === 'Pronto');
               const isDirect = project.deliveryPath === 'Direct';

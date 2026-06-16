@@ -79,7 +79,17 @@ const TechnicalAssistanceView: React.FC<Props> = ({
     const handleOpenModal = (assistance?: TechnicalAssistance) => {
         if (assistance) {
             setEditingId(assistance.id);
-            setFormData({ ...assistance });
+            let dailyValue = assistance.dailyRateValue || '';
+            if (assistance.projectId && assistance.projectId !== 'manual') {
+                const project = projects.find(p => p.id === assistance.projectId);
+                if (project && project.expenses) {
+                    const exp = project.expenses.find(e => e.id === `assistance-${assistance.id}`);
+                    if (exp) {
+                        dailyValue = exp.value.toString();
+                    }
+                }
+            }
+            setFormData({ ...assistance, dailyRateValue: dailyValue });
         } else {
             setEditingId(null);
             const todayObj = new Date();
@@ -92,7 +102,8 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                 id: `ta-${Date.now()}`,
                 clientId: '', clientName: '', projectId: '', workName: '',
                 requestDate: today,
-                reportedProblem: '', status: 'Aberto'
+                reportedProblem: '', status: 'Aberto',
+                dailyRateValue: ''
             });
         }
         setIsModalOpen(true);
@@ -146,35 +157,69 @@ const TechnicalAssistanceView: React.FC<Props> = ({
 
         const updatedData = { ...formData, status: newStatus };
 
-        // AUTOMATION: If Finalized, update Project Status
-        if (newStatus === 'Finalizado' && formData.projectId && formData.projectId !== 'manual') {
-            const p = projects.find(p => p.id === formData.projectId);
+        // Sync daily rate value to project expenses in a single call (with status/history if finalized)
+        if (formData.projectId && formData.projectId !== 'manual') {
+            const p = projects.find(proj => proj.id === formData.projectId);
             if (p) {
-                // Update Project to Finalized and Quality Report to Approved
-                const updatedReport = p.qualityReport ? { ...p.qualityReport, status: 'Aprovado' as const } : undefined;
-                updateProject({
+                let updatedExpenses = [...(p.expenses || [])];
+                const expenseId = `assistance-${formData.id}`;
+                const dailyRateNum = parseFloat(formData.dailyRateValue || '0');
+
+                if (formData.technicianId && dailyRateNum > 0) {
+                    const existingExpIdx = updatedExpenses.findIndex(exp => exp.id === expenseId);
+                    const installerName = installers.find(i => i.id === formData.technicianId)?.name || 'Montador';
+                    const expenseData = {
+                        id: expenseId,
+                        description: `ASSISTÊNCIA TÉCNICA: ${formData.reportedProblem || 'Garantia/Manutenção'} - ${installerName}`,
+                        value: dailyRateNum,
+                        date: formData.scheduledDate || new Date().toISOString().split('T')[0],
+                        category: 'Montagem',
+                        metadata: {
+                            installerId: formData.technicianId,
+                            assistanceId: formData.id
+                        }
+                    };
+                    if (existingExpIdx >= 0) {
+                        updatedExpenses[existingExpIdx] = expenseData;
+                    } else {
+                        updatedExpenses.push(expenseData);
+                    }
+                } else {
+                    updatedExpenses = updatedExpenses.filter(exp => exp.id !== expenseId);
+                }
+
+                // Prepare project updates
+                const projectUpdates: Partial<Project> = {
+                    expenses: updatedExpenses
+                };
+
+                if (newStatus === 'Finalizado') {
+                    projectUpdates.currentStatus = 'Finalizada';
+                    if (p.qualityReport) {
+                        projectUpdates.qualityReport = { ...p.qualityReport, status: 'Aprovado' as const };
+                    }
+                    projectUpdates.history = [...(p.history || []), { status: 'Finalizada', timestamp: new Date().toISOString() }];
+                }
+
+                await updateProject({
                     ...p,
-                    currentStatus: 'Finalizada',
-                    qualityReport: updatedReport,
-                    history: [...p.history, { status: 'Finalizada', timestamp: new Date().toISOString() }]
+                    ...projectUpdates
                 } as Project);
-            }
 
-            // Check if there are other open tickets to clear the global flag
-            // We need to check against the updated list, so we simulate it here
-            const otherOpenTickets = assistances.filter(a => a.id !== formData.id && a.status !== 'Finalizado').length;
-            if (otherOpenTickets === 0) {
-                localStorage.removeItem('chamadoAberto');
+                if (newStatus === 'Finalizado') {
+                    const otherOpenTickets = assistances.filter(a => a.id !== formData.id && a.status !== 'Finalizado').length;
+                    if (otherOpenTickets === 0) {
+                        localStorage.removeItem('chamadoAberto');
+                    }
+                    alert('✅ CHAMADO FINALIZADO!\n\nA obra foi automaticamente liberada e o status atualizado para "Finalizada" no modulo de Qualidade.');
+                }
             }
-
-            alert('✅ CHAMADO FINALIZADO!\n\nA obra foi automaticamente liberada e o status atualizado para "Finalizada" no modulo de Qualidade.');
         }
 
         if (editingId) {
             await updateAssistance(updatedData);
         } else {
             await addAssistance(updatedData);
-            // Logic for global flag if new ticket is open (already covered in QualityView, but good as backup)
             if (newStatus === 'Aberto') {
                 localStorage.setItem('chamadoAberto', 'true');
             }
@@ -191,6 +236,20 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                 alert('Senha incorreta!');
                 return;
             }
+
+            // Clean up the associated project expense
+            const assistance = assistances.find(a => a.id === editingId);
+            if (assistance && assistance.projectId && assistance.projectId !== 'manual') {
+                const p = projects.find(proj => proj.id === assistance.projectId);
+                if (p && p.expenses) {
+                    const updatedExpenses = p.expenses.filter(exp => exp.id !== `assistance-${editingId}`);
+                    await updateProject({
+                        ...p,
+                        expenses: updatedExpenses
+                    } as Project);
+                }
+            }
+
             await deleteAssistance(editingId);
             setIsModalOpen(false);
         }
@@ -706,6 +765,18 @@ const TechnicalAssistanceView: React.FC<Props> = ({
                                                 {installers.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                                             </select>
                                         </div>
+                                        {formData.technicianId && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Valor da Diária (R$)</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full p-3 bg-muted/50 rounded-xl font-bold text-sm outline-none focus:bg-amber-50 transition-colors"
+                                                    placeholder="0.00"
+                                                    value={formData.dailyRateValue || ''}
+                                                    onChange={e => setFormData({ ...formData, dailyRateValue: e.target.value })}
+                                                />
+                                            </div>
+                                        )}
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Resultado da Visita</label>
                                             <textarea

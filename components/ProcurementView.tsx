@@ -9,6 +9,7 @@ import PurchaseOrderManager from './procurement/PurchaseOrderManager';
 import MdoManager from './procurement/MdoManager';
 import PurchaseHistory from './procurement/PurchaseHistory';
 import PurchaseSettlementReportView from './PurchaseSettlementReportView';
+import PayrollManager from './procurement/PayrollManager';
 
 interface Props {
   projects: Project[];
@@ -20,7 +21,7 @@ interface Props {
   company: Company;
   installers: Installer[];
   clients: Client[];
-  externalActiveTab?: 'cotacoes' | 'concluidas' | 'apontamento' | 'diario' | 'produtos' | 'fornecedores';
+  externalActiveTab?: 'cotacoes' | 'concluidas' | 'apontamento' | 'diario' | 'folha' | 'produtos' | 'fornecedores';
   setExternalActiveTab?: (tab: any) => void;
   materialCategories: string[];
   setMaterialCategories: React.Dispatch<React.SetStateAction<string[]>>;
@@ -77,10 +78,11 @@ const ProcurementView: React.FC<Props> = ({
             { id: 'concluidas', label: 'Concluídas' },
             { id: 'apontamento', label: 'Empreitas' },
             { id: 'diario', label: 'Diário MDO' },
+            { id: 'folha', label: 'Folha de Pagamento' },
             { id: 'fornecedores', label: 'Parceiros' },
             { id: 'produtos', label: 'Biblioteca' }
           ].filter(tab => {
-            if (tab.id === 'diario') return userRole === 'owner';
+            if (tab.id === 'diario' || tab.id === 'folha') return userRole === 'owner';
             return true;
           }).map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -149,6 +151,13 @@ const ProcurementView: React.FC<Props> = ({
             patchProject={patchProject}
             company={company}
             mode="diario"
+          />
+        )}
+
+        {activeTab === 'folha' && (
+          <PayrollManager 
+            projects={projects}
+            installers={installers}
           />
         )}
 

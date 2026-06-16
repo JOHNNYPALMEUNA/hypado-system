@@ -41,8 +41,8 @@ const CRM_STAGES = [
 const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
   const { addProject, updateProject, deleteProject, addClient, userRole } = useData();
 
-  // Top tabs: Board vs. Reports
-  const [activeView, setActiveView] = useState<'board' | 'reports'>('board');
+  // Top tabs: Board vs. Reports vs. Closed vs. Unclosed vs. Lost
+  const [activeView, setActiveView] = useState<'board' | 'closed' | 'unclosed' | 'lost' | 'reports'>('board');
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,16 +128,39 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
     }
   };
 
-  // Filter projects that are in the 'Venda' stage
-  const activeLeads = (projects || []).filter(p => p.currentStatus === 'Venda');
+  // Get all leads based on current view/tab selection
+  const getLeadsForView = () => {
+    switch (activeView) {
+      case 'board':
+        return (projects || []).filter(p => p.currentStatus === 'Venda');
+      case 'closed':
+        return (projects || []).filter(p => p.crmStage === 'Proposta Fechada' || (p.currentStatus !== 'Venda' && p.currentStatus !== 'Cancelada'));
+      case 'unclosed':
+        return (projects || []).filter(p => p.crmStage === 'Proposta Não Fechada');
+      case 'lost':
+        return (projects || []).filter(p => p.crmStage === 'Orçamento Perdido');
+      default:
+        return [];
+    }
+  };
 
-  // Sellers list for filtering
+  const currentViewLeads = getLeadsForView();
+
+  // Sellers list for filtering (derived from all CRM-related leads to keep options consistent)
+  const crmLeads = (projects || []).filter(p => 
+    p.currentStatus === 'Venda' || 
+    p.crmStage === 'Proposta Fechada' || 
+    p.crmStage === 'Proposta Não Fechada' || 
+    p.crmStage === 'Orçamento Perdido' ||
+    (p.currentStatus !== 'Venda' && p.currentStatus !== 'Cancelada')
+  );
+  
   const sellersList = Array.from(
-    new Set(activeLeads.map(p => p.team).filter(Boolean))
+    new Set(crmLeads.map(p => p.team).filter(Boolean))
   );
 
   // Filtered Leads
-  const filteredLeads = activeLeads.filter(lead => {
+  const filteredLeads = currentViewLeads.filter(lead => {
     const matchesSearch =
       lead.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.workName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,6 +171,28 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
 
     return matchesSearch && matchesSeller;
   });
+
+  const getFilteredReportsLeads = () => {
+    const reportLeads = (projects || []).filter(p =>
+      p.currentStatus === 'Venda' ||
+      p.crmStage === 'Proposta Fechada' ||
+      p.crmStage === 'Proposta Não Fechada' ||
+      p.crmStage === 'Orçamento Perdido' ||
+      (p.currentStatus !== 'Venda' && p.currentStatus !== 'Cancelada')
+    );
+
+    return reportLeads.filter(lead => {
+      const matchesSearch =
+        lead.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.workName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lead.addressStreet || '').toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesSeller =
+        selectedSeller === 'Todos' || lead.team === selectedSeller;
+
+      return matchesSearch && matchesSeller;
+    });
+  };
 
   // Calculate Column metrics
   const getStageMetrics = (stage: string) => {
@@ -340,6 +385,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
       const updated = {
         ...project,
         currentStatus: 'Projeto' as ProductionStatus,
+        crmStage: 'Proposta Fechada',
         contractDate: new Date().toISOString().split('T')[0],
         history: [...(project.history || []), { status: 'Projeto' as ProductionStatus, timestamp: new Date().toISOString() }]
       };
@@ -347,6 +393,49 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
       try {
         await updateProject(updated);
         setIsEditModalOpen(false);
+        setEditingProject(null);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  // Mark lead as lost (Proposta Não Fechada or Orçamento Perdido)
+  const handleMarkAsLost = async (lostStage: 'Proposta Não Fechada' | 'Orçamento Perdido') => {
+    if (!editingProject) return;
+    if (confirm(`Confirmar marcação desta oportunidade como "${lostStage}"?`)) {
+      const updated = {
+        ...editingProject,
+        currentStatus: 'Cancelada' as ProductionStatus,
+        crmStage: lostStage,
+        history: [...(editingProject.history || []), { status: 'Cancelada' as ProductionStatus, timestamp: new Date().toISOString() }]
+      };
+
+      try {
+        await updateProject(updated);
+        setIsEditModalOpen(false);
+        setEditingProject(null);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  // Reactivate lead (Move back to negotiation)
+  const handleReactivateLead = async () => {
+    if (!editingProject) return;
+    if (confirm(`Confirmar retorno da oportunidade "${editingProject.workName}" para negociação ativa?`)) {
+      const updated = {
+        ...editingProject,
+        currentStatus: 'Venda' as ProductionStatus,
+        crmStage: 'Sem tarefa',
+        history: [...(editingProject.history || []), { status: 'Venda' as ProductionStatus, timestamp: new Date().toISOString() }]
+      };
+
+      try {
+        await updateProject(updated);
+        setIsEditModalOpen(false);
+        setEditingProject(null);
       } catch (err) {
         console.error(err);
       }
@@ -413,7 +502,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
     setIsAnalyzingPipeline(true);
     setPipelineReport('');
     try {
-      const report = await analyzeSalesPipeline(filteredLeads);
+      const report = await analyzeSalesPipeline(getFilteredReportsLeads());
       setPipelineReport(report);
     } catch (error) {
       console.error(error);
@@ -428,12 +517,31 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
 
   // Render Pipeline Report/Analysis Tab
   const renderReportsTab = () => {
+    const reportStages = [
+      'Sem tarefa',
+      'Folow up (Whatsapp)',
+      'Gerar orçamento',
+      'Apresentação da proposta',
+      'Proposta Fechada',
+      'Proposta Não Fechada',
+      'Orçamento Perdido'
+    ];
+
+    const filteredReportsLeads = getFilteredReportsLeads();
+    const totalReportsLeadsCount = filteredReportsLeads.length;
+
     // Stage counts for funnel visualization
-    const stageCounts = CRM_STAGES.map(stage => ({
-      stage,
-      count: filteredLeads.filter(p => (p.crmStage || 'Sem tarefa') === stage).length,
-      value: filteredLeads.filter(p => (p.crmStage || 'Sem tarefa') === stage).reduce((sum, p) => sum + (p.value || 0), 0)
-    }));
+    const stageCounts = reportStages.map(stage => {
+      const stageLeads = filteredReportsLeads.filter(p => {
+        if (stage === 'Proposta Fechada') {
+          return p.crmStage === 'Proposta Fechada' || (p.currentStatus !== 'Venda' && p.currentStatus !== 'Cancelada');
+        }
+        return (p.crmStage || 'Sem tarefa') === stage;
+      });
+      const count = stageLeads.length;
+      const value = stageLeads.reduce((sum, p) => sum + (p.value || 0), 0);
+      return { stage, count, value };
+    });
 
     const maxCount = Math.max(...stageCounts.map(s => s.count)) || 1;
 
@@ -456,7 +564,10 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                   'bg-indigo-500/20 border-indigo-500/30 text-indigo-500',
                   'bg-sky-500/20 border-sky-500/30 text-sky-500',
                   'bg-amber-500/20 border-amber-500/30 text-amber-500',
-                  'bg-emerald-500/20 border-emerald-500/30 text-emerald-500'
+                  'bg-purple-500/20 border-purple-500/30 text-purple-500',
+                  'bg-emerald-500/20 border-emerald-500/30 text-emerald-500',
+                  'bg-red-500/20 border-red-500/30 text-red-500',
+                  'bg-rose-500/20 border-rose-500/30 text-rose-500'
                 ];
 
                 return (
@@ -471,7 +582,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                         style={{ width: `${widthPercent}%` }}
                       >
                         <span className="text-[10px] font-black uppercase tracking-wider">
-                          {Math.round((sc.count / (totalLeadsCount || 1)) * 100)}%
+                          {Math.round((sc.count / (totalReportsLeadsCount || 1)) * 100)}%
                         </span>
                       </div>
                     </div>
@@ -484,7 +595,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
           <div className="pt-4 border-t border-border mt-6 text-xs text-muted-foreground leading-relaxed flex items-start gap-2">
             <Clock size={16} className="shrink-0 text-slate-400 mt-0.5" />
             <span>
-              Mantenha o funil balanceado! Se a etapa de <strong>Apresentação</strong> estiver muito vazia comparada ao <strong>Orçamento</strong>, foque em agendar reuniões com urgência.
+              Mantenha o funil balanceado! Se as etapas finais estiverem vazias, foque em melhorar as taxas de fechamento.
             </span>
           </div>
         </div>
@@ -502,7 +613,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
 
               <button
                 onClick={triggerPipelineAnalysis}
-                disabled={isAnalyzingPipeline || filteredLeads.length === 0}
+                disabled={isAnalyzingPipeline || filteredReportsLeads.length === 0}
                 className="bg-primary hover:bg-primary-hover text-primary-foreground font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm disabled:opacity-50"
               >
                 {isAnalyzingPipeline ? (
@@ -534,8 +645,8 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                 <div className="h-60 flex flex-col items-center justify-center gap-3 text-center text-muted-foreground">
                   <FileText size={40} className="text-slate-400" />
                   <p className="text-xs font-bold uppercase tracking-wider">
-                    {filteredLeads.length === 0 
-                      ? 'Nenhum lead ativo para analisar no funil' 
+                    {filteredReportsLeads.length === 0 
+                      ? 'Nenhum lead para analisar no funil' 
                       : 'Clique no botão acima para solicitar a análise da IA'}
                   </p>
                 </div>
@@ -552,17 +663,112 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
     );
   };
 
+  const renderListView = (title: string, emptyMessage: string) => {
+    return (
+      <div className="space-y-4">
+        {/* List table */}
+        <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
+          {filteredLeads.length === 0 ? (
+            <div className="p-12 text-center text-muted-foreground text-xs font-black uppercase tracking-wider">
+              {emptyMessage}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Projeto / Cliente</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Valor</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Data Fechamento</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Vendedor</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Etapa comercial</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filteredLeads.map(lead => {
+                    const client = clients.find(c => c.id === lead.clientId);
+                    return (
+                      <tr key={lead.id} className="hover:bg-muted/20 transition-colors cursor-pointer" onClick={() => openEditModal(lead)}>
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-foreground text-sm leading-tight">{lead.workName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{lead.clientName}</p>
+                        </td>
+                        <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                          R$ {lead.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 text-xs text-muted-foreground font-semibold">
+                          {lead.contractDate || lead.registrationDate || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-xs font-bold text-foreground">
+                          {lead.team || 'Sem Vendedor'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="bg-muted border border-border text-primary text-[10px] font-bold uppercase px-2.5 py-1 rounded-full">
+                            {lead.crmStage || 'Sem tarefa'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                          <div className="flex justify-end gap-2">
+                            {client?.phone && (
+                              <button
+                                onClick={() => openWhatsApp(client.phone, lead.clientName, lead.workName)}
+                                title="Chamar no WhatsApp"
+                                className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all animate-in zoom-in-95 duration-200"
+                              >
+                                <MessageSquare size={14} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openEditModal(lead)}
+                              title="Visualizar Detalhes"
+                              className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition-all"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* View Switcher: Board vs Reports */}
-      <div className="flex justify-between items-center bg-card border border-border px-4 py-2 rounded-2xl shadow-sm">
-        <div className="flex gap-4">
+      {/* View Switcher: Board vs Closed vs Unclosed vs Lost vs Reports */}
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-card border border-border px-4 py-3 rounded-2xl shadow-sm gap-4">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setActiveView('board')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${activeView === 'board' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
             Quadro Kanban
+          </button>
+          <button
+            onClick={() => setActiveView('closed')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${activeView === 'closed' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            🤝 Propostas Fechadas
+          </button>
+          <button
+            onClick={() => setActiveView('unclosed')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${activeView === 'unclosed' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            ❌ Propostas Não Fechadas
+          </button>
+          <button
+            onClick={() => setActiveView('lost')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${activeView === 'lost' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            📉 Orçamentos Perdidos
           </button>
           <button
             onClick={() => setActiveView('reports')}
@@ -571,19 +777,23 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
             📊 Relatórios & IA
           </button>
         </div>
-        <div className="text-[10px] font-black uppercase text-muted-foreground tracking-widest hidden sm:block">
+        <div className="text-[10px] font-black uppercase text-muted-foreground tracking-widest hidden lg:block shrink-0">
           CRM Hypado Planejados
         </div>
       </div>
 
-      {activeView === 'board' ? (
+      {activeView === 'reports' ? (
+        renderReportsTab()
+      ) : (
         <>
           {/* 1. TOP STATS BAR */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${activeView === 'board' ? 'lg:grid-cols-5' : 'lg:grid-cols-2'} gap-4`}>
             {/* Metric 1 */}
             <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
               <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Total em Negociação</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                  {activeView === 'board' ? 'Total em Negociação' : activeView === 'closed' ? 'Total Fechado' : activeView === 'unclosed' ? 'Total Não Fechado' : 'Total Perdido'}
+                </p>
                 <p className="text-xl font-black text-foreground mt-1">
                   R$ {pipelineTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
@@ -596,7 +806,9 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
             {/* Metric 2 */}
             <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
               <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Oportunidades</p>
+                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">
+                  {activeView === 'board' ? 'Oportunidades' : activeView === 'closed' ? 'Contratos Fechados' : activeView === 'unclosed' ? 'Propostas Não Fechadas' : 'Orçamentos Perdidos'}
+                </p>
                 <p className="text-2xl font-black text-foreground mt-1">{totalLeadsCount}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -604,44 +816,48 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
               </div>
             </div>
 
-            {/* Metric 3 */}
-            <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Apresentações</p>
-                <p className="text-2xl font-black text-foreground mt-1">
-                  {filteredLeads.filter(p => p.crmStage === 'Apresentação da proposta').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                <Sparkles size={22} />
-              </div>
-            </div>
+            {activeView === 'board' && (
+              <>
+                {/* Metric 3 */}
+                <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Apresentações</p>
+                    <p className="text-2xl font-black text-foreground mt-1">
+                      {filteredLeads.filter(p => p.crmStage === 'Apresentação da proposta').length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <Sparkles size={22} />
+                  </div>
+                </div>
 
-            {/* Metric 4 */}
-            <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Sem Vendedor</p>
-                <p className="text-2xl font-black text-amber-600 dark:text-amber-500 mt-1">
-                  {filteredLeads.filter(p => !p.team || p.team === 'Sem Vendedor').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-500">
-                <AlertTriangle size={22} />
-              </div>
-            </div>
+                {/* Metric 4 */}
+                <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Sem Vendedor</p>
+                    <p className="text-2xl font-black text-amber-600 dark:text-amber-500 mt-1">
+                      {filteredLeads.filter(p => !p.team || p.team === 'Sem Vendedor').length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-500">
+                    <AlertTriangle size={22} />
+                  </div>
+                </div>
 
-            {/* Metric 5 */}
-            <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Orçamentos</p>
-                <p className="text-2xl font-black text-sky-600 dark:text-sky-450 mt-1">
-                  {filteredLeads.filter(p => p.crmStage === 'Gerar orçamento').length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-450">
-                <Clock size={22} />
-              </div>
-            </div>
+                {/* Metric 5 */}
+                <div className="bg-card text-card-foreground border border-border p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-wider">Orçamentos</p>
+                    <p className="text-2xl font-black text-sky-600 dark:text-sky-450 mt-1">
+                      {filteredLeads.filter(p => p.crmStage === 'Gerar orçamento').length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-450">
+                    <Clock size={22} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 2. FILTER & ACTION HEADER */}
@@ -672,129 +888,137 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                 </select>
               </div>
 
-              <button
-                onClick={() => setIsLeadModalOpen(true)}
-                className="flex-1 md:flex-initial bg-primary hover:bg-primary-hover text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
-              >
-                <Plus size={16} />
-                NOVO LEAD
-              </button>
+              {activeView === 'board' && (
+                <button
+                  onClick={() => setIsLeadModalOpen(true)}
+                  className="flex-1 md:flex-initial bg-primary hover:bg-primary-hover text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-sm"
+                >
+                  <Plus size={16} />
+                  NOVO LEAD
+                </button>
+              )}
             </div>
           </div>
 
-          {/* 3. KANBAN BOARD */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
-            {CRM_STAGES.map(stage => {
-              const stageLeads = filteredLeads.filter(p => (p.crmStage || 'Sem tarefa') === stage);
-              const { count, totalValue } = getStageMetrics(stage);
+          {/* 3. KANBAN BOARD OR LIST VIEWS */}
+          {activeView === 'board' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+              {CRM_STAGES.map(stage => {
+                const stageLeads = filteredLeads.filter(p => (p.crmStage || 'Sem tarefa') === stage);
+                const { count, totalValue } = getStageMetrics(stage);
 
-              return (
-                <div
-                  key={stage}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => handleDrop(e, stage)}
-                  className="bg-muted/40 border border-border rounded-3xl p-4 flex flex-col min-h-[600px] shadow-sm relative overflow-hidden group"
-                >
-                  <div className="pb-3 mb-4 border-b border-border flex justify-between items-center">
-                    <div>
-                      <h4 className="font-black text-sm text-foreground uppercase tracking-wider">{stage}</h4>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase mt-1 block">
-                        {count} {count === 1 ? 'oportunidade' : 'oportunidades'}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                        R$ {(totalValue / 1000).toFixed(1)}k
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 flex-1 overflow-y-auto max-h-[550px] custom-scrollbar pr-1">
-                    {stageLeads.length === 0 ? (
-                      <div className="h-40 border border-dashed border-border rounded-2xl flex items-center justify-center text-muted-foreground text-xs font-medium uppercase tracking-wider">
-                        Arrastar leads aqui
+                return (
+                  <div
+                    key={stage}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(e, stage)}
+                    className="bg-muted/40 border border-border rounded-3xl p-4 flex flex-col min-h-[600px] shadow-sm relative overflow-hidden group"
+                  >
+                    <div className="pb-3 mb-4 border-b border-border flex justify-between items-center">
+                      <div>
+                        <h4 className="font-black text-sm text-foreground uppercase tracking-wider">{stage}</h4>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase mt-1 block">
+                          {count} {count === 1 ? 'oportunidade' : 'oportunidades'}
+                        </span>
                       </div>
-                    ) : (
-                      stageLeads.map(lead => {
-                        const client = clients.find(c => c.id === lead.clientId);
+                      <div className="text-right">
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                          R$ {(totalValue / 1000).toFixed(1)}k
+                        </span>
+                      </div>
+                    </div>
 
-                        return (
-                          <div
-                            key={lead.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, lead.id)}
-                            onClick={() => openEditModal(lead)}
-                            className="bg-card hover:bg-muted/30 border border-border hover:border-primary/40 p-4 rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all group/card relative overflow-hidden"
-                          >
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary transform scale-y-0 group-hover/card:scale-y-100 transition-transform"></div>
+                    <div className="space-y-4 flex-1 overflow-y-auto max-h-[550px] custom-scrollbar pr-1">
+                      {stageLeads.length === 0 ? (
+                        <div className="h-40 border border-dashed border-border rounded-2xl flex items-center justify-center text-muted-foreground text-xs font-medium uppercase tracking-wider">
+                          Arrastar leads aqui
+                        </div>
+                      ) : (
+                        stageLeads.map(lead => {
+                          const client = clients.find(c => c.id === lead.clientId);
 
-                            <div className="flex justify-between items-start gap-2 mb-2">
-                              <h5 className="font-bold text-foreground text-sm leading-tight group-hover/card:text-primary transition-colors">
-                                {lead.workName}
-                              </h5>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditModal(lead);
-                                }}
-                                className="text-muted-foreground hover:text-foreground transition-colors p-1"
-                              >
-                                <Edit3 size={14} />
-                              </button>
-                            </div>
+                          return (
+                            <div
+                              key={lead.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, lead.id)}
+                              onClick={() => openEditModal(lead)}
+                              className="bg-card hover:bg-muted/30 border border-border hover:border-primary/40 p-4 rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all group/card relative overflow-hidden"
+                            >
+                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary transform scale-y-0 group-hover/card:scale-y-100 transition-transform"></div>
 
-                            <div className="space-y-1 text-xs text-muted-foreground font-medium mb-3">
-                              <p className="text-foreground font-semibold">{lead.clientName}</p>
-                              <p className="text-muted-foreground truncate">{lead.environments.join(', ')}</p>
-                            </div>
-
-                            <div className="flex justify-between items-center pt-3 border-t border-border">
-                              <div>
-                                <p className="text-[9px] uppercase font-bold text-muted-foreground">Valor Estimado</p>
-                                <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
-                                  R$ {lead.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                </p>
-                              </div>
-
-                              {client?.phone && (
+                              <div className="flex justify-between items-start gap-2 mb-2">
+                                <h5 className="font-bold text-foreground text-sm leading-tight group-hover/card:text-primary transition-colors">
+                                  {lead.workName}
+                                </h5>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    openWhatsApp(client.phone, lead.clientName, lead.workName);
+                                    openEditModal(lead);
                                   }}
-                                  title="Chamar no WhatsApp"
-                                  className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all duration-200"
+                                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
                                 >
-                                  <MessageSquare size={14} />
+                                  <Edit3 size={14} />
                                 </button>
-                              )}
-                            </div>
-
-                            <div className="flex justify-between items-center mt-3 text-[10px] text-muted-foreground font-semibold uppercase">
-                              <div className="flex items-center gap-1">
-                                <User size={10} />
-                                <span>{lead.team || 'Sem Vendedor'}</span>
                               </div>
-                              <div className="bg-muted border border-border rounded-full px-2 py-0.5 text-primary font-bold">
-                                {lead.registrationDate ? (
-                                  `${Math.ceil((Date.now() - new Date(lead.registrationDate).getTime()) / (86400000))} dias`
-                                ) : (
-                                  'Lead Novo'
+
+                              <div className="space-y-1 text-xs text-muted-foreground font-medium mb-3">
+                                <p className="text-foreground font-semibold">{lead.clientName}</p>
+                                <p className="text-muted-foreground truncate">{lead.environments.join(', ')}</p>
+                              </div>
+
+                              <div className="flex justify-between items-center pt-3 border-t border-border">
+                                <div>
+                                  <p className="text-[9px] uppercase font-bold text-muted-foreground">Valor Estimado</p>
+                                  <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    R$ {lead.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  </p>
+                                </div>
+
+                                {client?.phone && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openWhatsApp(client.phone, lead.clientName, lead.workName);
+                                    }}
+                                    title="Chamar no WhatsApp"
+                                    className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-all duration-200"
+                                  >
+                                    <MessageSquare size={14} />
+                                  </button>
                                 )}
                               </div>
+
+                              <div className="flex justify-between items-center mt-3 text-[10px] text-muted-foreground font-semibold uppercase">
+                                <div className="flex items-center gap-1">
+                                  <User size={10} />
+                                  <span>{lead.team || 'Sem Vendedor'}</span>
+                                </div>
+                                <div className="bg-muted border border-border rounded-full px-2 py-0.5 text-primary font-bold">
+                                  {lead.registrationDate ? (
+                                    `${Math.ceil((Date.now() - new Date(lead.registrationDate).getTime()) / (86400000))} dias`
+                                  ) : (
+                                    'Lead Novo'
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : activeView === 'closed' ? (
+            renderListView('Propostas Fechadas', 'Nenhuma proposta fechada encontrada.')
+          ) : activeView === 'unclosed' ? (
+            renderListView('Propostas Não Fechadas', 'Nenhuma proposta não fechada encontrada.')
+          ) : (
+            renderListView('Orçamentos Perdidos', 'Nenhum orçamento perdido encontrado.')
+          )}
         </>
-      ) : (
-        renderReportsTab()
       )}
 
       {/* 4. NEW LEAD MODAL */}
@@ -1222,7 +1446,7 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                       onChange={(e) => setEditLeadData(prev => ({ ...prev, crmStage: e.target.value }))}
                       className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary/50 transition-all font-semibold"
                     >
-                      {CRM_STAGES.map(stage => (
+                      {Array.from(new Set([...CRM_STAGES, editLeadData.crmStage])).map(stage => (
                         <option key={stage} value={stage} className="bg-card text-foreground">{stage}</option>
                       ))}
                     </select>
@@ -1351,23 +1575,71 @@ const CRMFunnelView: React.FC<CRMFunnelViewProps> = ({ projects, clients }) => {
                   </div>
                 </div>
 
-                {/* Win Close Deal Box */}
-                <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl space-y-2 mt-4">
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 size={18} />
-                    <span className="text-xs font-black uppercase tracking-wider">Contrato Fechado</span>
+                {editingProject.currentStatus === 'Venda' ? (
+                  <>
+                    {/* Win Close Deal Box */}
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 size={18} />
+                        <span className="text-xs font-black uppercase tracking-wider">Contrato Fechado</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Avance o projeto para a fase de <strong>Desenho Técnico / PCP</strong>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleCloseDeal(editingProject)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm"
+                      >
+                        🚀 Iniciar Produção Executiva
+                      </button>
+                    </div>
+
+                    {/* Lose / Canceled Deal Box */}
+                    <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl space-y-2 mt-4">
+                      <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                        <X size={18} />
+                        <span className="text-xs font-black uppercase tracking-wider">Finalizar como Perdido</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Marque esta oportunidade como perdida ou orçamento não fechado.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsLost('Proposta Não Fechada')}
+                          className="flex-1 bg-red-600 hover:bg-red-500 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                        >
+                          Proposta Não Fechada
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsLost('Orçamento Perdido')}
+                          className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                        >
+                          Orçamento Perdido
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="bg-slate-500/10 border border-slate-500/20 p-4 rounded-2xl space-y-2 mt-4">
+                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                      <Clock size={18} />
+                      <span className="text-xs font-black uppercase tracking-wider">Reativar Lead</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Mova este lead de volta para a negociação ativa (Em Negociação).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleReactivateLead}
+                      className="w-full bg-slate-600 hover:bg-slate-500 text-white py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm"
+                    >
+                      Mover para Em Negociação
+                    </button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Avance o projeto para a fase de <strong>Desenho Técnico / PCP</strong>.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => handleCloseDeal(editingProject)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm"
-                  >
-                    🚀 Iniciar Produção Executiva
-                  </button>
-                </div>
+                )}
 
               </div>
             </div>

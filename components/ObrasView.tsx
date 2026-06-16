@@ -269,8 +269,8 @@ const ObrasView: React.FC<Props> = ({
    const filteredProjects = useMemo(() => {
       let list = projects;
       if (filterStatus === 'Todas') {
-         // Exclude Finalizada and Cancelada from "Todas" view to clean up the UI
-         list = list.filter(p => p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada');
+         // Exclude Finalizada, Cancelada, and Venda from "Todas" view to clean up the UI
+         list = list.filter(p => p.currentStatus !== 'Finalizada' && p.currentStatus !== 'Cancelada' && p.currentStatus !== 'Venda');
       } else {
          list = list.filter(p => p.currentStatus === filterStatus);
       }
@@ -791,7 +791,7 @@ const ObrasView: React.FC<Props> = ({
          {/* FILTER BAR */}
          <div className="flex bg-muted p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
             <button onClick={() => setFilterStatus('Todas')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all whitespace-nowrap ${filterStatus === 'Todas' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-muted-foreground'}`}>Todas</button>
-            {['Venda', 'Projeto', 'Corte', 'Produção', 'Entrega', 'Instalação', 'Vistoria', 'Finalizada', 'Cancelada'].map(status => (
+            {['Projeto', 'Corte', 'Produção', 'Entrega', 'Instalação', 'Vistoria', 'Finalizada', 'Cancelada'].map(status => (
                <button
                   key={status}
                   onClick={() => setFilterStatus(status as ProductionStatus)}

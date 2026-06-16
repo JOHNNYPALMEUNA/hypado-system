@@ -150,6 +150,15 @@ export interface EnvironmentWithDetails {
   commissionValue?: number; // Final agreed value
   mdoStatus?: 'Pendente' | 'Enviado' | 'Aceito' | 'Recusado'; // Negotiation Status
   currentStatus?: ProductionStatus; // Status of this specific environment
+  payments?: EnvironmentPayment[];
+}
+
+export interface EnvironmentPayment {
+  id: string;
+  date: string;
+  value: number;
+  percentage: number;
+  description?: string;
 }
 
 export interface Expense {
@@ -350,6 +359,7 @@ export interface TechnicalAssistance {
   finalObservations?: string;
 
   status: AssistanceStatus;
+  dailyRateValue?: string;
 }
 
 export interface StageSignature {
