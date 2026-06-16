@@ -30,7 +30,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   company,
   mode
 }) => {
-  const { fetchFullProject } = useData();
+  const { fetchFullProject, addProject, clients } = useData();
 
   // Shared States
   const [selectedOSId, setSelectedOSId] = useState('');
@@ -46,6 +46,8 @@ const MdoManager: React.FC<MdoManagerProps> = ({
     value: '', 
     description: '' 
   });
+  const [isManualProject, setIsManualProject] = useState(false);
+  const [manualProjectName, setManualProjectName] = useState('');
 
   // Contract Modal States
   const [contractText, setContractText] = useState('');
@@ -293,9 +295,73 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   const handleLaunchDiary = async (e: React.FormEvent) => {
     e.preventDefault();
     const val = Number(newDiaryEntry.value);
-    if (!newDiaryEntry.personId || !newDiaryEntry.projectId || val <= 0) return alert("Preencha todos os campos.");
+    
+    if (!newDiaryEntry.personId || val <= 0) {
+        alert("Preencha o Profissional e o Valor.");
+        return;
+    }
 
-    const p = projects.find(proj => proj.id === newDiaryEntry.projectId);
+    if (!isManualProject && !newDiaryEntry.projectId) {
+        alert("Selecione a Obra de Origem.");
+        return;
+    }
+
+    if (isManualProject && !manualProjectName.trim()) {
+        alert("Digite o nome da obra.");
+        return;
+    }
+
+    let targetProjectId = newDiaryEntry.projectId;
+    let targetProjectName = '';
+
+    if (isManualProject) {
+        targetProjectName = manualProjectName.trim();
+    } else if (newDiaryEntry.projectId === 'internal-labor') {
+        targetProjectName = 'Mão de Obra Interna';
+    }
+
+    let p: Project | undefined;
+
+    if (targetProjectName) {
+        p = projects.find(proj => 
+            (newDiaryEntry.projectId === 'internal-labor' && proj.id === 'internal-labor') ||
+            proj.workName.toLowerCase().trim() === targetProjectName.toLowerCase()
+        );
+
+        if (!p) {
+            const newProjId = newDiaryEntry.projectId === 'internal-labor' ? 'internal-labor' : `os-manual-${Date.now()}`;
+            const dummyClient = clients[0] || { id: 'manual-client', name: 'Cliente Avulso' };
+
+            const newProject: Project = {
+                id: newProjId,
+                clientId: dummyClient.id,
+                clientName: dummyClient.name,
+                workName: targetProjectName,
+                environments: [],
+                environmentsDetails: [],
+                contractDate: new Date().toISOString().split('T')[0],
+                promisedDate: new Date().toISOString().split('T')[0],
+                currentStatus: 'Projeto',
+                history: [{ status: 'Projeto', timestamp: new Date().toISOString() }],
+                value: 0,
+                expenses: [],
+                team: '',
+                workAddress: 'Não informado'
+            };
+
+            try {
+                await addProject(newProject);
+                p = newProject;
+            } catch (err) {
+                console.error("Erro ao criar obra manual:", err);
+                alert("Erro ao criar obra no banco de dados.");
+                return;
+            }
+        }
+    } else {
+        p = projects.find(proj => proj.id === newDiaryEntry.projectId);
+    }
+
     if (p) {
         const newExp = {
             id: `diary-${Date.now()}`,
@@ -309,6 +375,8 @@ const MdoManager: React.FC<MdoManagerProps> = ({
         };
         await patchProject(p.id, { expenses: [...(p.expenses || []), newExp] });
         setNewDiaryEntry({ ...newDiaryEntry, value: '', description: '' });
+        setManualProjectName('');
+        setIsManualProject(false);
         alert("Diária lançada com sucesso!");
     }
   };
@@ -460,16 +528,41 @@ const MdoManager: React.FC<MdoManagerProps> = ({
                             </select>
                         </div>
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Obra de Origem</label>
-                            <select 
-                                title="Obra de Origem"
-                                className="w-full p-6 bg-slate-50 rounded-[24px] border-none outline-none font-bold shadow-inner"
-                                value={newDiaryEntry.projectId}
-                                onChange={e => setNewDiaryEntry({...newDiaryEntry, projectId: e.target.value})}
-                            >
-                                <option value="">Vincular custo à obra...</option>
-                                {projects.filter(p => !['Finalizada', 'Cancelada'].includes(p.currentStatus)).map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
-                            </select>
+                            <div className="flex justify-between items-center ml-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Obra de Origem</label>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsManualProject(!isManualProject);
+                                        setNewDiaryEntry(prev => ({ ...prev, projectId: '' }));
+                                        setManualProjectName('');
+                                    }}
+                                    className="text-[10px] font-black uppercase tracking-widest text-amber-500 hover:text-slate-900 transition-colors"
+                                >
+                                    {isManualProject ? 'Selecionar da Lista' : 'Digitar Nome da Obra'}
+                                </button>
+                            </div>
+                            {isManualProject ? (
+                                <input
+                                    type="text"
+                                    placeholder="Digite o nome da obra..."
+                                    className="w-full p-6 bg-slate-50 rounded-[24px] border-none outline-none font-bold shadow-inner"
+                                    value={manualProjectName}
+                                    onChange={e => setManualProjectName(e.target.value)}
+                                    required
+                                />
+                            ) : (
+                                <select 
+                                    title="Obra de Origem"
+                                    className="w-full p-6 bg-slate-50 rounded-[24px] border-none outline-none font-bold shadow-inner"
+                                    value={newDiaryEntry.projectId}
+                                    onChange={e => setNewDiaryEntry({...newDiaryEntry, projectId: e.target.value})}
+                                >
+                                    <option value="">Vincular custo à obra...</option>
+                                    <option value="internal-labor">Mão de Obra Interna (Geral)</option>
+                                    {projects.filter(p => !['Finalizada', 'Cancelada'].includes(p.currentStatus)).map(p => <option key={p.id} value={p.id}>{p.workName}</option>)}
+                                </select>
+                            )}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                              <div className="space-y-4">
