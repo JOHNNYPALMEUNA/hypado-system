@@ -83,6 +83,10 @@ const ObrasView: React.FC<Props> = ({
       value: '',
       contractDate: new Date().toISOString().split('T')[0],
       promisedDate: '',
+      projectDeadlineDate: '',
+      cuttingDeadlineDate: '',
+      preAssemblyDeadlineDate: '',
+      installationDeadlineDate: '',
       installerId: '',
       // Address Fields
       addressCep: '',
@@ -282,7 +286,12 @@ const ObrasView: React.FC<Props> = ({
       setFormData({
          clientId: '', workName: '', selectedEnvironments: [], environmentsDetails: {}, environmentsValues: {},
          outsourcedServices: [], value: '', contractDate: new Date().toISOString().split('T')[0],
-         promisedDate: '', installerId: '', workAddress: '', currentStatus: 'Projeto', expenses: [],
+         promisedDate: '',
+         projectDeadlineDate: '',
+         cuttingDeadlineDate: '',
+         preAssemblyDeadlineDate: '',
+         installationDeadlineDate: '',
+         installerId: '', workAddress: '', currentStatus: 'Projeto', expenses: [],
          checklist: INITIAL_CHECKLIST.items.map(i => ({ ...i, passed: null })),
          projectPdfUrl: '', architectId: '', renderImageUrl: ''
       });
@@ -321,6 +330,10 @@ const ObrasView: React.FC<Props> = ({
          value: os.value.toString(),
          contractDate: os.contractDate,
          promisedDate: os.promisedDate,
+         projectDeadlineDate: os.projectDeadlineDate || '',
+         cuttingDeadlineDate: os.cuttingDeadlineDate || '',
+         preAssemblyDeadlineDate: os.preAssemblyDeadlineDate || '',
+         installationDeadlineDate: os.installationDeadlineDate || '',
          installerId: os.installerId || '',
          architectId: os.architectId || '',
          workAddress: os.workAddress,
@@ -453,14 +466,14 @@ const ObrasView: React.FC<Props> = ({
       const client = clients.find(c => c.id === formData.clientId);
 
       let text = `*PEDIDO DE PRODUÇÃO/MONTAGEM - HYPADO*\n\n`;
-      text += `ðŸ¢ *Obra:* ${formData.workName}\n`;
+      text += `🏢 *Obra:* ${formData.workName}\n`;
       text += `👤 *Cliente:* ${client?.name || 'Não informado'}\n`;
-      text += `ðŸ“ *Ambiente:* ${envName}\n`;
+      text += `📍 *Ambiente:* ${envName}\n`;
       if (formData.promisedDate) text += `📅 *Entrega:* ${formatDate(formData.promisedDate)}\n`;
       text += `\n*MEMORIAL DESCRITIVO:* \n`;
       text += `• Fita de Borda: ${env.fitacao}\n`;
       text += `• Fundo: ${env.fundo}\n`;
-      if (env.observation) text += `\nðŸ“ *Obs:* ${env.observation}\n`;
+      if (env.observation) text += `\n📍 *Obs:* ${env.observation}\n`;
 
       text += `\n*MÓDULOS:* \n`;
       (env.modules || []).forEach((m: any) => {
@@ -554,6 +567,10 @@ const ObrasView: React.FC<Props> = ({
          value: Number(formData.value),
          contractDate: formData.contractDate,
          promisedDate: formData.promisedDate,
+         projectDeadlineDate: formData.projectDeadlineDate,
+         cuttingDeadlineDate: formData.cuttingDeadlineDate,
+         preAssemblyDeadlineDate: formData.preAssemblyDeadlineDate,
+         installationDeadlineDate: formData.installationDeadlineDate,
          team: installers.find(i => i.id === formData.installerId)?.name || 'N/A',
          installerId: formData.installerId,
          architectId: formData.architectId,

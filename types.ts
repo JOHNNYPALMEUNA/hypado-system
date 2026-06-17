@@ -208,6 +208,10 @@ export interface Project {
   environmentsDetails: EnvironmentWithDetails[];
   contractDate: string;
   promisedDate: string;
+  projectDeadlineDate?: string;
+  cuttingDeadlineDate?: string;
+  preAssemblyDeadlineDate?: string;
+  installationDeadlineDate?: string;
   currentStatus: ProductionStatus;
   history: { status: ProductionStatus; timestamp: string }[];
   value: number;

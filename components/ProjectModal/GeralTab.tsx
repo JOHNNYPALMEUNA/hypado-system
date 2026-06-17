@@ -134,13 +134,53 @@ const GeralTab: React.FC<GeralTabProps> = ({
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground uppercase">Data Prometida</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase">Data Prometida (Entrega)</label>
                     <input
                         type="date"
                         disabled={formData.currentStatus === 'Finalizada'}
                         className="w-full h-11 px-4 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         value={formData.promisedDate || ''}
                         onChange={e => setFormData({ ...formData, promisedDate: e.target.value })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase">Prazo do Projeto (Desenho)</label>
+                    <input
+                        type="date"
+                        disabled={formData.currentStatus === 'Finalizada'}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.projectDeadlineDate || ''}
+                        onChange={e => setFormData({ ...formData, projectDeadlineDate: e.target.value })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase">Prazo do Corte</label>
+                    <input
+                        type="date"
+                        disabled={formData.currentStatus === 'Finalizada'}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.cuttingDeadlineDate || ''}
+                        onChange={e => setFormData({ ...formData, cuttingDeadlineDate: e.target.value })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase">Prazo Pré-Montagem</label>
+                    <input
+                        type="date"
+                        disabled={formData.currentStatus === 'Finalizada'}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.preAssemblyDeadlineDate || ''}
+                        onChange={e => setFormData({ ...formData, preAssemblyDeadlineDate: e.target.value })}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase">Prazo Instalação</label>
+                    <input
+                        type="date"
+                        disabled={formData.currentStatus === 'Finalizada'}
+                        className="w-full h-11 px-4 bg-background border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.installationDeadlineDate || ''}
+                        onChange={e => setFormData({ ...formData, installationDeadlineDate: e.target.value })}
                     />
                 </div>
             </div>

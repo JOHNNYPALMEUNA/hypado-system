@@ -4,7 +4,7 @@ import {
   ArrowRight, Box, PenTool, CheckCircle2, Truck,
   ChevronRight, Lock, Unlock,
   Factory as FactoryIcon, GlassWater, Scissors, DollarSign, Building2, AlertTriangle, Hammer as Screwdriver,
-  User, Layers, FileText, Upload, Sparkles, Check, ExternalLink, Search, ArrowLeft, Gauge, ShieldCheck, Brain, TrendingUp, Clock, X, Save, Users
+  User, Layers, FileText, Upload, Sparkles, Check, ExternalLink, Search, ArrowLeft, Gauge, ShieldCheck, Brain, TrendingUp, Clock, X, Save, Users, CalendarDays
 } from 'lucide-react';
 
 
@@ -43,6 +43,14 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
   const [showDeliveryModal, setShowDeliveryModal] = useState<string | null>(null);
   const [showExpeditionModal, setShowExpeditionModal] = useState<string | null>(null);
   const [tempDate, setTempDate] = useState<string>('');
+
+  const [selectedProjectDeadlines, setSelectedProjectDeadlines] = useState<Project | null>(null);
+  const [deadlineForm, setDeadlineForm] = useState({
+    projectDeadlineDate: '',
+    cuttingDeadlineDate: '',
+    preAssemblyDeadlineDate: '',
+    installationDeadlineDate: ''
+  });
   const [tempFreightDate, setTempFreightDate] = useState<string>('');
   const [assemblySearch, setAssemblySearch] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
@@ -663,6 +671,21 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
                             <ArrowLeft size={15} />
                           </button>
                         )}
+                        <button
+                          onClick={() => {
+                            setSelectedProjectDeadlines(project);
+                            setDeadlineForm({
+                              projectDeadlineDate: project.projectDeadlineDate || '',
+                              cuttingDeadlineDate: project.cuttingDeadlineDate || '',
+                              preAssemblyDeadlineDate: project.preAssemblyDeadlineDate || '',
+                              installationDeadlineDate: project.installationDeadlineDate || ''
+                            });
+                          }}
+                          className="p-3 rounded-[14px] bg-muted/50 text-amber-500 hover:bg-amber-50 hover:text-amber-600 border-2 border-slate-100 hover:border-amber-100 transition-all active:scale-95"
+                          title="Definir Datas e Prazos PCP"
+                        >
+                          <CalendarDays size={15} />
+                        </button>
                         <button
                           onClick={() => {
                             if (project.currentStatus === 'Produção' && !logisticsComplete) {
@@ -1717,6 +1740,101 @@ const PCPView: React.FC<Props> = ({ projects, setProjects, installers, goToProcu
           </div>
         );
       })()}
+      
+      {/* MODAL PARA DEFINIÇÃO DE PRAZOS DO PCP */}
+      {selectedProjectDeadlines && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-[48px] shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-10">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h4 className="text-xl font-black uppercase italic text-foreground tracking-tighter">
+                    Datas e Prazos PCP
+                  </h4>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1 truncate max-w-[280px]">
+                    {selectedProjectDeadlines.workName}
+                  </p>
+                </div>
+                <button 
+                  title="Fechar" 
+                  onClick={() => setSelectedProjectDeadlines(null)} 
+                  className="p-2 hover:bg-slate-100 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await patchProject(selectedProjectDeadlines.id, {
+                      project_deadline_date: deadlineForm.projectDeadlineDate || null,
+                      cutting_deadline_date: deadlineForm.cuttingDeadlineDate || null,
+                      pre_assembly_deadline_date: deadlineForm.preAssemblyDeadlineDate || null,
+                      installation_deadline_date: deadlineForm.installationDeadlineDate || null
+                    });
+                    setSelectedProjectDeadlines(null);
+                    alert("Prazos do PCP atualizados com sucesso!");
+                  } catch (err: any) {
+                    console.error("Erro ao atualizar prazos:", err);
+                    alert("Erro ao atualizar prazos: " + err.message);
+                  }
+                }} 
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Prazo do Projeto (Desenho)</label>
+                  <input 
+                    type="date"
+                    className="w-full p-4 rounded-[20px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner animate-in fade-in-50"
+                    value={deadlineForm.projectDeadlineDate}
+                    onChange={e => setDeadlineForm({ ...deadlineForm, projectDeadlineDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Prazo de Entrega do Corte</label>
+                  <input 
+                    type="date"
+                    className="w-full p-4 rounded-[20px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner animate-in fade-in-50"
+                    value={deadlineForm.cuttingDeadlineDate}
+                    onChange={e => setDeadlineForm({ ...deadlineForm, cuttingDeadlineDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Prazo de Pré-Montagem</label>
+                  <input 
+                    type="date"
+                    className="w-full p-4 rounded-[20px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner animate-in fade-in-50"
+                    value={deadlineForm.preAssemblyDeadlineDate}
+                    onChange={e => setDeadlineForm({ ...deadlineForm, preAssemblyDeadlineDate: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Prazo de Instalação</label>
+                  <input 
+                    type="date"
+                    className="w-full p-4 rounded-[20px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner animate-in fade-in-50"
+                    value={deadlineForm.installationDeadlineDate}
+                    onChange={e => setDeadlineForm({ ...deadlineForm, installationDeadlineDate: e.target.value })}
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-slate-900 text-white p-5 rounded-[20px] font-black uppercase text-xs tracking-[0.2em] shadow-2xl hover:bg-emerald-600 transition-all active:scale-95 mt-4 animate-in slide-in-from-bottom-2 duration-300"
+                >
+                  Salvar Prazos
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Confetti active={triggerConfetti} />
     </div >
   );

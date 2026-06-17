@@ -132,6 +132,58 @@ const AgendaView: React.FC<Props> = ({
                     originalItem: proj
                 });
             }
+            if (proj.projectDeadlineDate === dateStr) {
+                list.push({
+                    id: `project-deadline-${proj.id}`,
+                    type: 'promised',
+                    title: `✏️ PCP Projeto: ${proj.workName}`,
+                    description: `Prazo limite de detalhamento técnico do projeto.`,
+                    color: 'bg-cyan-500/10 hover:bg-cyan-500/20',
+                    borderColor: 'border-cyan-500/20',
+                    textColor: 'text-cyan-700 dark:text-cyan-300',
+                    icon: <Calendar size={12} />,
+                    originalItem: proj
+                });
+            }
+            if (proj.cuttingDeadlineDate === dateStr) {
+                list.push({
+                    id: `cutting-deadline-${proj.id}`,
+                    type: 'promised',
+                    title: `🪚 PCP Corte: ${proj.workName}`,
+                    description: `Prazo limite de corte/furação de chapas de MDF.`,
+                    color: 'bg-orange-500/10 hover:bg-orange-500/20',
+                    borderColor: 'border-orange-500/20',
+                    textColor: 'text-orange-700 dark:text-orange-300',
+                    icon: <Calendar size={12} />,
+                    originalItem: proj
+                });
+            }
+            if (proj.preAssemblyDeadlineDate === dateStr) {
+                list.push({
+                    id: `preassembly-deadline-${proj.id}`,
+                    type: 'promised',
+                    title: `🛠️ PCP Pré-Montagem: ${proj.workName}`,
+                    description: `Prazo limite para pré-montagem do mobiliário na oficina.`,
+                    color: 'bg-purple-500/10 hover:bg-purple-500/20',
+                    borderColor: 'border-purple-500/20',
+                    textColor: 'text-purple-700 dark:text-purple-300',
+                    icon: <Calendar size={12} />,
+                    originalItem: proj
+                });
+            }
+            if (proj.installationDeadlineDate === dateStr) {
+                list.push({
+                    id: `installation-deadline-${proj.id}`,
+                    type: 'promised',
+                    title: `🏡 PCP Instalação: ${proj.workName}`,
+                    description: `Prazo planejado para conclusão da montagem no cliente.`,
+                    color: 'bg-emerald-500/10 hover:bg-emerald-500/20',
+                    borderColor: 'border-emerald-500/20',
+                    textColor: 'text-emerald-700 dark:text-emerald-300',
+                    icon: <Calendar size={12} />,
+                    originalItem: proj
+                });
+            }
             if (proj.freightDate === dateStr) {
                 list.push({
                     id: `freight-${proj.id}`,

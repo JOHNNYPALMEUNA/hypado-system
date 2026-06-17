@@ -9,6 +9,10 @@ export const mapProjectFromDB = (p: any): Project => ({
     workAddress: p.workAddress,
     contractDate: p.contractDate,
     promisedDate: p.promisedDate,
+    projectDeadlineDate: p.project_deadline_date || p.projectDeadlineDate,
+    cuttingDeadlineDate: p.cutting_deadline_date || p.cuttingDeadlineDate,
+    preAssemblyDeadlineDate: p.pre_assembly_deadline_date || p.preAssemblyDeadlineDate,
+    installationDeadlineDate: p.installation_deadline_date || p.installationDeadlineDate,
     currentStatus: p.currentStatus,
     installerId: p.installer_id || p.installerId,
     cloudFolderLink: p.cloudFolderLink,
@@ -47,6 +51,10 @@ export const mapProjectToDB = (project: Project) => {
         value: project.value,
         contractDate: project.contractDate,
         promisedDate: project.promisedDate,
+        project_deadline_date: project.projectDeadlineDate || null,
+        cutting_deadline_date: project.cuttingDeadlineDate || null,
+        pre_assembly_deadline_date: project.preAssemblyDeadlineDate || null,
+        installation_deadline_date: project.installationDeadlineDate || null,
         currentStatus: project.currentStatus,
         cloudFolderLink: project.cloudFolderLink,
         materialsDelivered: project.materialsDelivered,
@@ -96,7 +104,8 @@ const SUMMARY_COLUMNS = `
     freight_carrier_id, freight_scheduling_date, client_delivery_date,
     addressCep, addressCity, addressStreet, addressNumber, 
     addressNeighborhood, addressComplement, addressQuadra, addressLote,
-    environments, whatsapp_group_jid
+    environments, whatsapp_group_jid,
+    project_deadline_date, cutting_deadline_date, pre_assembly_deadline_date, installation_deadline_date
 `;
 
 export const projectService = {
