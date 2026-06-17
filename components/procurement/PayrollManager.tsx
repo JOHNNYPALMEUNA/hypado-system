@@ -299,7 +299,7 @@ export const PayrollManager: React.FC<PayrollManagerProps> = ({ projects, instal
   }, [payrollReport]);
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4">
+    <div id="printable-content" className="space-y-8 animate-in slide-in-from-bottom-4">
       
       {/* 1. HEADER ROW */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 no-print">

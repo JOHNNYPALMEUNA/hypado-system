@@ -94,7 +94,7 @@ const SupplierOrderView: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-muted p-4 md:p-8 font-sans print:bg-card print:p-0">
+        <div id="printable-content" className="min-h-screen bg-muted p-4 md:p-8 font-sans print:bg-card print:p-0">
             <div className="max-w-2xl mx-auto bg-card rounded-[40px] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 print:shadow-none print:rounded-none">
 
                 {/* Header - "Cabeçalho Ripado" Style */}

@@ -382,7 +382,7 @@ const MdoManager: React.FC<MdoManagerProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4">
+    <div id="printable-content" className="space-y-8 animate-in slide-in-from-bottom-4">
       {mode === 'apontamento' ? (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">

@@ -146,7 +146,7 @@ const PublicDailyReportView: React.FC<PublicDailyReportViewProps> = ({ date }) =
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-12">
+        <div id="printable-content" className="min-h-screen bg-slate-50 font-sans selection:bg-emerald-200 selection:text-emerald-900 pb-12">
             {/* Header */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm print:hidden">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
