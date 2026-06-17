@@ -206,6 +206,31 @@ const FinancialAuditView: React.FC = () => {
 
                 const finalDescription = data.description || manualText || 'Recibo processado por IA';
 
+                let descriptionWithRef = isManualProject ? `[INTERNO: ${manualProjectName}] ${finalDescription}` : finalDescription;
+                let uniqueId = '';
+
+                if (!isManualProject && selectedProjectId) {
+                    const project = projects.find(p => p.id === selectedProjectId);
+                    if (project) {
+                        uniqueId = `refund-${Date.now()}`;
+                        const newExp = {
+                            id: uniqueId,
+                            description: `REEMBOLSO: ${finalEstablishment} - ${finalDescription}`,
+                            value: processedAmount || 0,
+                            date: data.date || new Date().toISOString().split('T')[0],
+                            category: data.category || 'Outros',
+                            metadata: {
+                                installerId: selectedInstaller?.id
+                            }
+                        };
+                        await updateProject({
+                            ...project,
+                            expenses: [...(project.expenses || []), newExp]
+                        } as Project);
+                        descriptionWithRef = `${finalDescription} | [Ref: ${uniqueId}]`;
+                    }
+                }
+
                 const newRequest: Omit<RefundRequest, 'id'> = {
                     collaboratorName: selectedCollaborator,
                     date: data.date || new Date().toISOString().split('T')[0],
@@ -216,7 +241,7 @@ const FinancialAuditView: React.FC = () => {
                     status: '🟡 A PAGAR',
                     createdAt: new Date().toISOString(),
                     projectId: isManualProject ? undefined : (selectedProjectId || undefined),
-                    description: isManualProject ? `[INTERNO: ${manualProjectName}] ${finalDescription}` : finalDescription,
+                    description: descriptionWithRef,
                     receiptUrl: base64 // Store the digital mirror
                 } as any;
                 await addRefundRequest(newRequest as RefundRequest);
@@ -265,17 +290,44 @@ const FinancialAuditView: React.FC = () => {
                     processedAmount = parseFloat(data.amount.replace('R$', '').replace('.', '').replace(',', '.').trim());
                 }
 
+                const finalDescription = data.description || manualText;
+                const finalEstablishment = data.establishment || 'Lançamento Manual';
+                let descriptionWithRef = isManualProject ? `[INTERNO: ${manualProjectName}] ${finalDescription}` : finalDescription;
+                let uniqueId = '';
+
+                if (!isManualProject && selectedProjectId) {
+                    const project = projects.find(p => p.id === selectedProjectId);
+                    if (project) {
+                        uniqueId = `refund-${Date.now()}`;
+                        const newExp = {
+                            id: uniqueId,
+                            description: `REEMBOLSO: ${finalEstablishment} - ${finalDescription}`,
+                            value: processedAmount || 0,
+                            date: data.date || new Date().toISOString().split('T')[0],
+                            category: data.category || 'Outros',
+                            metadata: {
+                                installerId: selectedInstaller?.id
+                            }
+                        };
+                        await updateProject({
+                            ...project,
+                            expenses: [...(project.expenses || []), newExp]
+                        } as Project);
+                        descriptionWithRef = `${finalDescription} | [Ref: ${uniqueId}]`;
+                    }
+                }
+
                 const newRequest: Omit<RefundRequest, 'id'> = {
                     collaboratorName: selectedCollaborator,
                     date: data.date || new Date().toISOString().split('T')[0],
-                    establishment: data.establishment || 'Lançamento Manual',
+                    establishment: finalEstablishment,
                     category: data.category || 'Outros',
                     amount: processedAmount || 0,
                     cnpj: data.cnpj,
                     status: '🟡 A PAGAR',
                     createdAt: new Date().toISOString(),
                     projectId: isManualProject ? undefined : (selectedProjectId || undefined),
-                    description: isManualProject ? `[INTERNO: ${manualProjectName}] ${data.description || manualText}` : (data.description || manualText),
+                    description: descriptionWithRef,
                 } as any;
                 await addRefundRequest(newRequest as RefundRequest);
                 setManualText('');
@@ -432,20 +484,23 @@ const FinancialAuditView: React.FC = () => {
     const handleSaveEdit = async () => {
         if (!editingRequest || !editingRequest.establishment || !editingRequest.amount) return;
 
-        const refMatch = editingRequest.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+)\]/);
+        const refMatch = editingRequest.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+|refund-\d+)\]/);
         const refId = refMatch ? refMatch[1] : null;
 
         if (refId && editingRequest.projectId) {
             const p = projects.find(proj => proj.id === editingRequest.projectId);
             if (p) {
-                if (refId.startsWith('diary-')) {
+                if (refId.startsWith('diary-') || refId.startsWith('refund-')) {
                     const updatedExpenses = (p.expenses || []).map(e => {
                         if (e.id === refId) {
+                            const prefix = refId.startsWith('diary-') ? 'DIÁRIA: ' : 'REEMBOLSO: ';
+                            const cleanDesc = editingRequest.description.replace(/\[Ref:\s*(diary-\d+|refund-\d+)\]/, '').replace(/\|$/, '').trim();
                             return {
                                 ...e,
                                 value: editingRequest.amount,
-                                description: `DIÁRIA: ${editingRequest.description.replace(/\[Ref:\s*diary-\d+\]/, '').trim() || 'Serviço de Montagem'}`,
-                                date: editingRequest.date
+                                description: `${prefix}${cleanDesc}`,
+                                date: editingRequest.date,
+                                category: editingRequest.category === 'Diária' ? 'Montagem' : (editingRequest.category || 'Outros')
                             };
                         }
                         return e;
@@ -1030,13 +1085,13 @@ const FinancialAuditView: React.FC = () => {
                                                                     return;
                                                                 }
                                                                 
-                                                                const refMatch = request.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+)\]/);
+                                                                const refMatch = request.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+|refund-\d+)\]/);
                                                                 const refId = refMatch ? refMatch[1] : null;
                                                                 
                                                                 if (refId && request.projectId) {
                                                                     const p = projects.find(proj => proj.id === request.projectId);
                                                                     if (p) {
-                                                                        if (refId.startsWith('diary-')) {
+                                                                        if (refId.startsWith('diary-') || refId.startsWith('refund-')) {
                                                                             const updatedExpenses = (p.expenses || []).filter(e => e.id !== refId);
                                                                             await updateProject({ ...p, expenses: updatedExpenses } as Project);
                                                                         } else if (refId.startsWith('pay-')) {
