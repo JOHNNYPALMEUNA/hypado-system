@@ -26,7 +26,16 @@ import { processRefundReceipt } from '../geminiService';
 import { supabase } from '../supabaseClient';
 
 const FinancialAuditView: React.FC = () => {
-    const { addRefundRequest, updateRefundRequest, deleteRefundRequest, bulkUpdateRefundRequests, projects, installers, isIdle } = useData();
+    const { 
+        addRefundRequest, 
+        updateRefundRequest, 
+        deleteRefundRequest, 
+        bulkUpdateRefundRequests, 
+        projects, 
+        installers, 
+        isIdle,
+        updateProject 
+    } = useData();
     const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
     React.useEffect(() => {
@@ -81,6 +90,74 @@ const FinancialAuditView: React.FC = () => {
     const [settlementSuccessData, setSettlementSuccessData] = useState<{ id: string, url: string } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Unified entry type selection
+    const [entryType, setEntryType] = useState<'reembolso' | 'diaria' | 'empreita'>('reembolso');
+
+    // Empreita specific states
+    const [selectedEnvName, setSelectedEnvName] = useState('');
+    const [empreitaPercentage, setEmpreitaPercentage] = useState('');
+    const [empreitaValue, setEmpreitaValue] = useState('');
+
+    // Diária specific states
+    const [newDiaryDate, setNewDiaryDate] = useState(new Date().toISOString().split('T')[0]);
+    const [newDiaryAmount, setNewDiaryAmount] = useState('');
+    const [newDiaryDescription, setNewDiaryDescription] = useState('');
+
+    const selectedInstaller = useMemo(() => {
+        return installers.find(inst => inst.name === selectedCollaborator);
+    }, [selectedCollaborator, installers]);
+
+    const selectedProject = useMemo(() => {
+        return projects.find(p => p.id === selectedProjectId);
+    }, [selectedProjectId, projects]);
+
+    const availableEnvironments = useMemo(() => {
+        if (!selectedProject || !selectedInstaller) return [];
+        return (selectedProject.environmentsDetails || []).filter(env => 
+            env.assignedInstallerId === selectedInstaller.id &&
+            env.mdoStatus === 'Aceito'
+        );
+    }, [selectedProject, selectedInstaller]);
+
+    const selectedEnv = useMemo(() => {
+        return availableEnvironments.find(e => e.name === selectedEnvName);
+    }, [selectedEnvName, availableEnvironments]);
+
+    const envStats = useMemo(() => {
+        if (!selectedEnv) return { total: 0, paid: 0, balance: 0 };
+        const total = selectedEnv.authorizedMdoValue || 0;
+        const payments = (selectedEnv as any).payments || [];
+        const paid = payments.reduce((sum: number, pay: any) => sum + (pay.value || 0), 0);
+        const balance = total - paid;
+        return { 
+            total: parseFloat(total.toFixed(2)), 
+            paid: parseFloat(paid.toFixed(2)), 
+            balance: parseFloat(balance.toFixed(2)) 
+        };
+    }, [selectedEnv]);
+
+    const handleEmpreitaValueChange = (valStr: string) => {
+        setEmpreitaValue(valStr);
+        const val = parseFloat(valStr) || 0;
+        const total = envStats.total;
+        if (total > 0) {
+            setEmpreitaPercentage(((val / total) * 100).toFixed(2));
+        } else {
+            setEmpreitaPercentage('0');
+        }
+    };
+
+    const handleEmpreitaPercentageChange = (pctStr: string) => {
+        setEmpreitaPercentage(pctStr);
+        const pct = parseFloat(pctStr) || 0;
+        const total = envStats.total;
+        if (total > 0) {
+            setEmpreitaValue(((total * pct) / 100).toFixed(2));
+        } else {
+            setEmpreitaValue('0');
+        }
+    };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -214,8 +291,194 @@ const FinancialAuditView: React.FC = () => {
         setEditingRequest({ ...request });
     };
 
+    const handleLaunchDiaria = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedCollaborator || !selectedProjectId) {
+            alert("Por favor, preencha o Colaborador e o Projeto.");
+            return;
+        }
+        const amountNum = parseFloat(newDiaryAmount);
+        if (isNaN(amountNum) || amountNum <= 0) {
+            alert("Por favor, insira um valor de diária maior que zero.");
+            return;
+        }
+
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (!project) return;
+
+        setIsProcessing(true);
+        const uniqueId = `diary-${Date.now()}`;
+
+        // 1. Add expense to project
+        const newExp = {
+            id: uniqueId,
+            description: `DIÁRIA: ${newDiaryDescription || 'Serviço de Montagem'}`,
+            value: amountNum,
+            date: newDiaryDate,
+            category: 'Montagem',
+            metadata: {
+                installerId: selectedInstaller?.id
+            }
+        };
+
+        try {
+            await updateProject({
+                ...project,
+                expenses: [...(project.expenses || []), newExp]
+            } as Project);
+
+            // 2. Add refund request
+            const newRequest: Omit<RefundRequest, 'id'> = {
+                collaboratorName: selectedCollaborator,
+                date: newDiaryDate,
+                establishment: 'DIÁRIA',
+                description: `${newDiaryDescription || 'Serviço de Montagem'} | [Ref: ${uniqueId}]`,
+                category: 'Diária',
+                amount: amountNum,
+                status: '🟡 A PAGAR',
+                createdAt: new Date().toISOString(),
+                projectId: selectedProjectId,
+            } as any;
+
+            await addRefundRequest(newRequest as RefundRequest);
+            setNewDiaryAmount('');
+            setNewDiaryDescription('');
+            alert("Diária lançada com sucesso!");
+        } catch (err: any) {
+            console.error(err);
+            alert(`Erro ao lançar diária: ${err.message || err}`);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleLaunchEmpreita = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedCollaborator || !selectedProjectId || !selectedEnvName) {
+            alert("Selecione Colaborador, Obra e Ambiente.");
+            return;
+        }
+        const amountNum = parseFloat(empreitaValue);
+        const percentageNum = parseFloat(empreitaPercentage);
+        if (isNaN(amountNum) || amountNum <= 0 || isNaN(percentageNum) || percentageNum <= 0) {
+            alert("Insira valor e percentual válidos.");
+            return;
+        }
+
+        if (amountNum > envStats.balance + 0.01) {
+            alert(`Erro: O valor solicitado (R$ ${amountNum.toFixed(2)}) excede o saldo restante desta empreita (R$ ${envStats.balance.toFixed(2)}). O total acordado é R$ ${envStats.total.toFixed(2)}.`);
+            return;
+        }
+
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (!project) return;
+
+        setIsProcessing(true);
+        const uniqueId = `pay-${Date.now()}`;
+
+        // 1. Add payment to project environment
+        const newPayment = {
+            id: uniqueId,
+            date: new Date().toISOString().split('T')[0],
+            value: amountNum,
+            percentage: percentageNum,
+            description: newDiaryDescription || `Medição - Avanço de ${percentageNum}%`
+        };
+
+        const newEnvDetails = (project.environmentsDetails || []).map(env => {
+            if (env.name === selectedEnvName) {
+                const currentPayments = (env as any).payments || [];
+                return {
+                    ...env,
+                    payments: [...currentPayments, newPayment]
+                };
+            }
+            return env;
+        });
+
+        try {
+            await updateProject({
+                ...project,
+                environmentsDetails: newEnvDetails as any
+            } as Project);
+
+            // 2. Add refund request
+            const newRequest: Omit<RefundRequest, 'id'> = {
+                collaboratorName: selectedCollaborator,
+                date: new Date().toISOString().split('T')[0],
+                establishment: `EMPREITA: ${selectedEnvName}`,
+                description: `${newDiaryDescription || `Medição - Avanço de ${percentageNum}%`} | [Ref: ${uniqueId}]`,
+                category: 'Empreita',
+                amount: amountNum,
+                status: '🟡 A PAGAR',
+                createdAt: new Date().toISOString(),
+                projectId: selectedProjectId,
+            } as any;
+
+            await addRefundRequest(newRequest as RefundRequest);
+            setEmpreitaValue('');
+            setEmpreitaPercentage('');
+            setSelectedEnvName('');
+            setNewDiaryDescription('');
+            alert("Empreita lançada com sucesso!");
+        } catch (err: any) {
+            console.error(err);
+            alert(`Erro ao lançar empreita: ${err.message || err}`);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleSaveEdit = async () => {
         if (!editingRequest || !editingRequest.establishment || !editingRequest.amount) return;
+
+        const refMatch = editingRequest.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+)\]/);
+        const refId = refMatch ? refMatch[1] : null;
+
+        if (refId && editingRequest.projectId) {
+            const p = projects.find(proj => proj.id === editingRequest.projectId);
+            if (p) {
+                if (refId.startsWith('diary-')) {
+                    const updatedExpenses = (p.expenses || []).map(e => {
+                        if (e.id === refId) {
+                            return {
+                                ...e,
+                                value: editingRequest.amount,
+                                description: `DIÁRIA: ${editingRequest.description.replace(/\[Ref:\s*diary-\d+\]/, '').trim() || 'Serviço de Montagem'}`,
+                                date: editingRequest.date
+                            };
+                        }
+                        return e;
+                    });
+                    await updateProject({ ...p, expenses: updatedExpenses } as Project);
+                } else if (refId.startsWith('pay-')) {
+                    const updatedEnvs = (p.environmentsDetails || []).map(env => {
+                        const currentPayments = (env as any).payments || [];
+                        if (currentPayments.some((pay: any) => pay.id === refId)) {
+                            return {
+                                ...env,
+                                payments: currentPayments.map((pay: any) => {
+                                    if (pay.id === refId) {
+                                        const total = env.authorizedMdoValue || 0;
+                                        const pct = total > 0 ? (editingRequest.amount / total) * 100 : 0;
+                                        return {
+                                            ...pay,
+                                            value: editingRequest.amount,
+                                            percentage: parseFloat(pct.toFixed(2)),
+                                            description: editingRequest.description.replace(/\[Ref:\s*pay-\d+\]/, '').trim() || `Medição - Avanço de ${pct.toFixed(2)}%`,
+                                            date: editingRequest.date
+                                        };
+                                    }
+                                    return pay;
+                                })
+                            };
+                        }
+                        return env;
+                    });
+                    await updateProject({ ...p, environmentsDetails: updatedEnvs as any } as Project);
+                }
+            }
+        }
 
         await updateRefundRequest(editingRequest);
         setEditingRequest(null);
@@ -350,7 +613,32 @@ const FinancialAuditView: React.FC = () => {
                             <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-500">
                                 <Plus size={20} />
                             </div>
-                            <h3 className="text-lg font-black tracking-tight">Nova Despesa</h3>
+                            <h3 className="text-lg font-black tracking-tight">Novo Lançamento</h3>
+                        </div>
+
+                        {/* Tabs Selection */}
+                        <div className="flex bg-slate-900/50 p-1 rounded-2xl mb-8 border border-slate-800">
+                            {(['reembolso', 'diaria', 'empreita'] as const).map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => {
+                                        setEntryType(t);
+                                        setSelectedEnvName('');
+                                        setEmpreitaPercentage('');
+                                        setEmpreitaValue('');
+                                        setNewDiaryAmount('');
+                                        setNewDiaryDescription('');
+                                    }}
+                                    className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                        entryType === t 
+                                            ? 'bg-indigo-500 text-white shadow-lg' 
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    {t === 'reembolso' ? 'Reembolso' : t === 'diaria' ? 'Diária' : 'Empreita'}
+                                </button>
+                            ))}
                         </div>
 
                         <div className="space-y-6">
@@ -373,7 +661,7 @@ const FinancialAuditView: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Projeto</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Projeto / Obra</label>
                                 <div className="relative">
                                     <select
                                         value={isManualProject ? "manual" : selectedProjectId}
@@ -388,9 +676,10 @@ const FinancialAuditView: React.FC = () => {
                                         }}
                                         className="w-full pl-4 pr-12 py-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none appearance-none"
                                         title="Selecionar projeto ou uso interno"
+                                        disabled={entryType === 'empreita' && !selectedCollaborator}
                                     >
                                         <option value="">Selecione um projeto</option>
-                                        <option value="manual">👉 Lancamento Interno / Outro</option>
+                                        {entryType !== 'empreita' && <option value="manual">👉 Lancamento Interno / Outro</option>}
                                         {projects.map(project => (
                                             <option key={project.id} value={project.id}>{project.workName}</option>
                                         ))}
@@ -398,7 +687,7 @@ const FinancialAuditView: React.FC = () => {
                                     <ArrowRight className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 rotate-90" size={18} />
                                 </div>
 
-                                {isManualProject && (
+                                {isManualProject && entryType !== 'empreita' && (
                                     <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
                                         <input
                                             type="text"
@@ -411,43 +700,183 @@ const FinancialAuditView: React.FC = () => {
                                 )}
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block text-center">Captura por IA</label>
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isProcessing}
-                                    className="w-full aspect-square border-2 border-dashed border-slate-800 rounded-[32px] flex flex-col items-center justify-center gap-4 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all group disabled:opacity-50"
-                                >
-                                    <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
-                                        {isProcessing ? <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /> : <Upload size={32} />}
+                            {entryType === 'reembolso' && (
+                                <>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block text-center">Captura por IA</label>
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            disabled={isProcessing}
+                                            className="w-full aspect-square border-2 border-dashed border-slate-800 rounded-[32px] flex flex-col items-center justify-center gap-4 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all group disabled:opacity-50"
+                                        >
+                                            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
+                                                {isProcessing ? <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /> : <Upload size={32} />}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-bold">Subir Foto ou PDF</p>
+                                                <p className="text-xs text-muted-foreground mt-1">Clique para selecionar</p>
+                                            </div>
+                                        </button>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" className="hidden" title="Selecionar comprovante" />
                                     </div>
-                                    <div className="text-center">
-                                        <p className="text-sm font-bold">Subir Foto ou PDF</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Clique para selecionar</p>
-                                    </div>
-                                </button>
-                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" className="hidden" title="Selecionar comprovante" />
-                            </div>
 
-                            <div className="pt-4 border-t border-slate-800/50">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Lançamento por Texto</label>
-                                <div className="relative">
-                                    <textarea
-                                        placeholder="Cole o texto da nota aqui..."
-                                        value={manualText}
-                                        onChange={(e) => setManualText(e.target.value)}
-                                        className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm h-32 resize-none focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
-                                    />
+                                    <div className="pt-4 border-t border-slate-800/50">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 block">Lançamento por Texto</label>
+                                        <div className="relative">
+                                            <textarea
+                                                placeholder="Cole o texto da nota aqui..."
+                                                value={manualText}
+                                                onChange={(e) => setManualText(e.target.value)}
+                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm h-32 resize-none focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+                                            />
+                                            <button
+                                                onClick={handleManualSubmit}
+                                                disabled={isProcessing || !manualText}
+                                                className="absolute bottom-4 right-4 p-2 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                                                title="Enviar texto para processamento"
+                                            >
+                                                <ArrowRight size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {entryType === 'diaria' && (
+                                <form onSubmit={handleLaunchDiaria} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Data</label>
+                                            <input
+                                                type="date"
+                                                value={newDiaryDate}
+                                                onChange={(e) => setNewDiaryDate(e.target.value)}
+                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Valor (R$)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={newDiaryAmount}
+                                                onChange={(e) => setNewDiaryAmount(e.target.value)}
+                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Descrição / Notas</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Montagem extra de cozinha"
+                                            value={newDiaryDescription}
+                                            onChange={(e) => setNewDiaryDescription(e.target.value)}
+                                            className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                        />
+                                    </div>
                                     <button
-                                        onClick={handleManualSubmit}
-                                        disabled={isProcessing || !manualText}
-                                        className="absolute bottom-4 right-4 p-2 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/20 disabled:opacity-50"
-                                        title="Enviar texto para processamento"
+                                        type="submit"
+                                        disabled={isProcessing}
+                                        className="w-full py-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
                                     >
-                                        <ArrowRight size={18} />
+                                        {isProcessing ? 'Processando...' : 'Lançar Diária'}
                                     </button>
-                                </div>
-                            </div>
+                                </form>
+                            )}
+
+                            {entryType === 'empreita' && (
+                                <form onSubmit={handleLaunchEmpreita} className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Ambiente</label>
+                                        <select
+                                            value={selectedEnvName}
+                                            onChange={(e) => {
+                                                setSelectedEnvName(e.target.value);
+                                                setEmpreitaValue('');
+                                                setEmpreitaPercentage('');
+                                            }}
+                                            className="w-full pl-4 pr-12 py-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none appearance-none text-white"
+                                            title="Selecionar ambiente"
+                                            required
+                                            disabled={!selectedProjectId}
+                                        >
+                                            <option value="">Selecione o ambiente</option>
+                                            {availableEnvironments.map(env => (
+                                                <option key={env.name} value={env.name}>{env.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {selectedEnv && (
+                                        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl space-y-2 text-[11px] font-medium">
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">Total Acordado:</span>
+                                                <span className="text-white font-bold">R$ {envStats.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-400">Total Pago/Solicitado:</span>
+                                                <span className="text-white font-bold">R$ {envStats.paid.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div className="flex justify-between border-t border-slate-800 pt-1">
+                                                <span className="text-slate-400 font-bold">Saldo Restante:</span>
+                                                <span className="text-emerald-400 font-black">R$ {envStats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Percentual (%)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="Ex: 15"
+                                                value={empreitaPercentage}
+                                                onChange={(e) => handleEmpreitaPercentageChange(e.target.value)}
+                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                                required
+                                                disabled={!selectedEnvName}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Valor (R$)</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="0.00"
+                                                value={empreitaValue}
+                                                onChange={(e) => handleEmpreitaValueChange(e.target.value)}
+                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                                required
+                                                disabled={!selectedEnvName}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Descrição / Notas</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ex: Medição da montagem"
+                                            value={newDiaryDescription}
+                                            onChange={(e) => setNewDiaryDescription(e.target.value)}
+                                            className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isProcessing || !selectedEnvName}
+                                        className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                    >
+                                        {isProcessing ? 'Processando...' : 'Lançar Medição'}
+                                    </button>
+                                </form>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -594,13 +1023,39 @@ const FinancialAuditView: React.FC = () => {
                                                             <FileText size={18} className="group-hover/btn:scale-110 transition-transform" />
                                                         </button>
                                                         <button
-                                                            onClick={() => {
+                                                            onClick={async () => {
                                                                 const pwd = prompt('Digite a senha de administrador:');
                                                                 if (pwd !== 'admin123') {
                                                                     alert('Senha incorreta!');
                                                                     return;
                                                                 }
-                                                                deleteRefundRequest(request.id);
+                                                                
+                                                                const refMatch = request.description?.match(/\[Ref:\s*(diary-\d+|pay-\d+)\]/);
+                                                                const refId = refMatch ? refMatch[1] : null;
+                                                                
+                                                                if (refId && request.projectId) {
+                                                                    const p = projects.find(proj => proj.id === request.projectId);
+                                                                    if (p) {
+                                                                        if (refId.startsWith('diary-')) {
+                                                                            const updatedExpenses = (p.expenses || []).filter(e => e.id !== refId);
+                                                                            await updateProject({ ...p, expenses: updatedExpenses } as Project);
+                                                                        } else if (refId.startsWith('pay-')) {
+                                                                            const updatedEnvs = (p.environmentsDetails || []).map(env => {
+                                                                                const currentPayments = (env as any).payments || [];
+                                                                                if (currentPayments.some((pay: any) => pay.id === refId)) {
+                                                                                    return {
+                                                                                        ...env,
+                                                                                        payments: currentPayments.filter((pay: any) => pay.id !== refId)
+                                                                                    };
+                                                                                }
+                                                                                return env;
+                                                                            });
+                                                                            await updateProject({ ...p, environmentsDetails: updatedEnvs as any } as Project);
+                                                                        }
+                                                                    }
+                                                                }
+                                                                
+                                                                await deleteRefundRequest(request.id);
                                                             }}
                                                             className="p-3 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm group/btn"
                                                             title="Excluir lançamento"
@@ -805,6 +1260,8 @@ const FinancialAuditView: React.FC = () => {
                                     <option value="Fitação">Fitação</option>
                                     <option value="Terceirizados">Terceirizados</option>
                                     <option value="Uber">Uber</option>
+                                    <option value="Diária">Diária</option>
+                                    <option value="Empreita">Empreita</option>
                                     <option value="Outros">Outros</option>
                                 </select>
                             </div>
