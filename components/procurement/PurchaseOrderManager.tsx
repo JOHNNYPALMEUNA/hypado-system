@@ -159,7 +159,13 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
     const orderData = {
       workName: order.workName,
       supplierName: supplierName,
-      items: order.items,
+      items: order.items.map(item => {
+        const mat = materials.find(m => m.id === item.productId || m.name === item.name);
+        return {
+          ...item,
+          imageUrl: mat?.imageUrl
+        };
+      }),
       date: new Date(order.date).toLocaleDateString(),
       adminPhone: company.phone?.replace(/\D/g, '') || '',
       orderId: order.id,

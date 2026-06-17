@@ -9,6 +9,7 @@ interface OrderItem {
     quantity: number;
     unit: string;
     brand?: string;
+    imageUrl?: string;
 }
 
 interface OrderData {
@@ -148,9 +149,16 @@ const SupplierOrderView: React.FC = () => {
                         <div className="divide-y divide-slate-100 print:divide-slate-300">
                             {data.items.map((item, idx) => (
                                 <div key={idx} className="py-4 flex items-center justify-between gap-4">
-                                    <div className="flex-1">
-                                        <p className="font-bold text-foreground uppercase text-sm">{item.name}</p>
-                                        {item.brand && <p className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-widest">Marca: {item.brand}</p>}
+                                    <div className="flex gap-4 items-center flex-1">
+                                        {item.imageUrl && (
+                                            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100/50 print:border-slate-300 flex-shrink-0">
+                                                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1">
+                                            <p className="font-bold text-foreground uppercase text-sm">{item.name}</p>
+                                            {item.brand && <p className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-widest">Marca: {item.brand}</p>}
+                                        </div>
                                     </div>
                                     <div className="text-right">
                                         <span className="block font-black text-lg text-foreground">{item.quantity}</span>
@@ -160,6 +168,34 @@ const SupplierOrderView: React.FC = () => {
                             ))}
                         </div>
                     </div>
+
+                    {/* Reference Images Gallery */}
+                    {data.items.some(item => item.imageUrl) && (
+                        <div 
+                            style={{ pageBreakBefore: 'always' }}
+                            className="mt-8 pt-8 border-t border-slate-200 print:mt-0 print:pt-4 print:break-before-page animate-in fade-in slide-in-from-bottom-2 duration-300"
+                        >
+                            <div className="flex items-center gap-2 border-b-2 border-slate-100 pb-2 mb-6 print:border-black">
+                                <Package size={18} className="text-amber-500 print:text-black" />
+                                <h3 className="font-black uppercase italic text-foreground tracking-wider text-sm">
+                                    Anexo: Imagens de Referência
+                                </h3>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {data.items.filter(item => item.imageUrl).map((item, idx) => (
+                                    <div key={idx} className="border border-slate-100 rounded-3xl p-4 bg-slate-50 flex flex-col items-center justify-between text-center min-h-[180px] print:bg-white print:border print:border-black print:rounded-none">
+                                        <div className="w-full h-32 rounded-2xl overflow-hidden bg-white mb-3 flex items-center justify-center border border-slate-100/50 print:border-slate-300">
+                                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-black uppercase leading-tight text-foreground line-clamp-2">{item.name}</p>
+                                            {item.brand && <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Marca: {item.brand}</p>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Actions */}
                     <div className="space-y-3 print:hidden">

@@ -45,14 +45,13 @@ export const formatDate = (date: string | null | undefined): string => {
 };
 
 interface OrderItem {
-    // ... existing code ...
     name: string;
     quantity: number;
     unit: string;
     brand?: string;
-    // Optional extra fields that might exist
     materialValue?: number;
     productId?: string;
+    imageUrl?: string;
 }
 
 interface OrderData {
@@ -76,6 +75,7 @@ interface OrderData {
 // date -> d
 // adminPhone -> p
 // orderId -> oid
+// items[].imageUrl -> img
 
 const minifyOrderData = (data: OrderData): any => {
     return {
@@ -89,7 +89,8 @@ const minifyOrderData = (data: OrderData): any => {
             n: item.name,
             q: item.quantity,
             u: item.unit,
-            b: item.brand
+            b: item.brand,
+            img: item.imageUrl
         }))
     };
 };
@@ -111,7 +112,8 @@ const expandOrderStructure = (minified: any): OrderData => {
             name: item.n || 'Item sem nome',
             quantity: item.q || 0,
             unit: item.u || 'un',
-            brand: item.b
+            brand: item.b,
+            imageUrl: item.img
         })),
         totalItems: (minified.i || []).length
     };
