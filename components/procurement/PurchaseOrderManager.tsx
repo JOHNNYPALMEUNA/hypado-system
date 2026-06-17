@@ -606,7 +606,7 @@ const PurchaseOrderManager: React.FC<PurchaseOrderManagerProps> = ({
                                   onChange={e => setNewQuotation({...newQuotation, supplierId: e.target.value})}
                               >
                                   <option value="">Escolher Fornecedor...</option>
-                                  {suppliers.filter(s => s.type === 'Material').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                  {suppliers.filter(s => s.type === 'Material' || s.type === 'Ferragens').map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                               </select>
                           </div>
 

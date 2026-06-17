@@ -104,6 +104,9 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
             <div className="flex justify-between items-start mb-6 relative z-10">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
                 s.type === 'Material' ? 'bg-amber-50 text-amber-500' :
+                s.type === 'Ferragens' ? 'bg-cyan-50 text-cyan-500' :
+                s.type === 'Serviço (Corte/Fitação)' ? 'bg-orange-50 text-orange-500' :
+                s.type === 'Serviço de Pintura' ? 'bg-pink-50 text-pink-500' :
                 s.type === 'Montagem' ? 'bg-blue-50 text-blue-500' :
                 s.type === 'Montador Interno' ? 'bg-indigo-50 text-indigo-500' :
                 s.type === 'Mão de Obra Interna' ? 'bg-emerald-50 text-emerald-500' :
@@ -128,6 +131,9 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
                 <div className="flex flex-wrap gap-2 mb-4">
                 <span className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-full ${
                     s.type === 'Material' ? 'bg-amber-100 text-amber-700' :
+                    s.type === 'Ferragens' ? 'bg-cyan-100 text-cyan-700' :
+                    s.type === 'Serviço (Corte/Fitação)' ? 'bg-orange-100 text-orange-700 font-extrabold border border-orange-200' :
+                    s.type === 'Serviço de Pintura' ? 'bg-pink-100 text-pink-700' :
                     s.type === 'Montagem' ? 'bg-blue-100 text-blue-700' :
                     s.type === 'Montador Interno' ? 'bg-indigo-100 text-indigo-700' :
                     s.type === 'Mão de Obra Interna' ? 'bg-emerald-100 text-emerald-700' :
@@ -136,6 +142,9 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
                     'bg-slate-100 text-slate-700'
                 }`}>
                     {s.type === 'Material' ? 'Fornecedor Material' :
+                     s.type === 'Ferragens' ? 'Fornecedor Ferragens' :
+                     s.type === 'Serviço (Corte/Fitação)' ? 'Terceirização (Corte/Fitação)' :
+                     s.type === 'Serviço de Pintura' ? 'Serviço de Pintura' :
                      s.type === 'Montagem' ? 'Montador Externo' :
                      s.type === 'Terceiros' ? 'Serviço de Terceiros' :
                      s.type === 'Serviço' ? 'Prestador Serviço' :
@@ -186,11 +195,14 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Tipo</label>
                     <select 
                       title="Tipo de Parceiro"
-                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner"
+                      className="w-full p-5 rounded-[24px] bg-slate-50 border-none outline-none font-bold focus:ring-2 focus:ring-slate-900 transition-all shadow-inner animate-in fade-in"
                       value={form.type}
                       onChange={e => setForm({...form, type: e.target.value as SupplierType})}
                     >
                       <option value="Material">Fornecedor Material</option>
+                      <option value="Ferragens">Fornecedor Ferragens</option>
+                      <option value="Serviço (Corte/Fitação)">Terceirização (Corte/Fitação)</option>
+                      <option value="Serviço de Pintura">Serviço de Pintura</option>
                       <option value="Montagem">Montador Externo</option>
                       <option value="Montador Interno">Montador Interno</option>
                       <option value="Mão de Obra Interna">Mão de Obra Interna</option>
