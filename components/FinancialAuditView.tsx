@@ -17,13 +17,22 @@ import {
     MoreVertical,
     Plus,
     X,
-    ExternalLink
+    ExternalLink,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext';
 import { RefundRequest, RefundStatus } from '../types';
 import { processRefundReceipt } from '../geminiService';
 
 import { supabase } from '../supabaseClient';
+
+const MONTH_NAMES = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 const FinancialAuditView: React.FC = () => {
     const { 
@@ -103,6 +112,50 @@ const FinancialAuditView: React.FC = () => {
     const [newDiaryDate, setNewDiaryDate] = useState(new Date().toISOString().split('T')[0]);
     const [newDiaryAmount, setNewDiaryAmount] = useState('');
     const [newDiaryDescription, setNewDiaryDescription] = useState('');
+
+    const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+    const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+
+    const calendarDays = useMemo(() => {
+        const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+        const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+        const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate();
+        
+        const days = [];
+        // Prev month padding
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const yearStr = calendarMonth === 0 ? calendarYear - 1 : calendarYear;
+            const monthStr = String(calendarMonth === 0 ? 12 : calendarMonth).padStart(2, '0');
+            const dayStr = String(prevMonthDays - i).padStart(2, '0');
+            days.push({
+                dayNum: prevMonthDays - i,
+                dateStr: `${yearStr}-${monthStr}-${dayStr}`,
+                isCurrentMonth: false
+            });
+        }
+        // Current month
+        for (let i = 1; i <= daysInMonth; i++) {
+            days.push({
+                dayNum: i,
+                dateStr: `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
+                isCurrentMonth: true
+            });
+        }
+        // Next month padding to complete 42 cells (6 rows)
+        const totalCells = 42;
+        const nextMonthPadding = totalCells - days.length;
+        for (let i = 1; i <= nextMonthPadding; i++) {
+            const yearStr = calendarMonth === 11 ? calendarYear + 1 : calendarYear;
+            const monthStr = String(calendarMonth === 11 ? 1 : calendarMonth + 2).padStart(2, '0');
+            const dayStr = String(i).padStart(2, '0');
+            days.push({
+                dayNum: i,
+                dateStr: `${yearStr}-${monthStr}-${dayStr}`,
+                isCurrentMonth: false
+            });
+        }
+        return days;
+    }, [calendarMonth, calendarYear]);
 
     const selectedInstaller = useMemo(() => {
         return installers.find(inst => inst.name === selectedCollaborator);
@@ -217,7 +270,7 @@ const FinancialAuditView: React.FC = () => {
                             id: uniqueId,
                             description: `REEMBOLSO: ${finalEstablishment} - ${finalDescription}`,
                             value: processedAmount || 0,
-                            date: data.date || new Date().toISOString().split('T')[0],
+                            date: data.date || newDiaryDate,
                             category: data.category || 'Outros',
                             metadata: {
                                 installerId: selectedInstaller?.id
@@ -233,7 +286,7 @@ const FinancialAuditView: React.FC = () => {
 
                 const newRequest: Omit<RefundRequest, 'id'> = {
                     collaboratorName: selectedCollaborator,
-                    date: data.date || new Date().toISOString().split('T')[0],
+                    date: data.date || newDiaryDate,
                     establishment: finalEstablishment,
                     category: data.category || 'Outros',
                     amount: processedAmount || 0,
@@ -303,7 +356,7 @@ const FinancialAuditView: React.FC = () => {
                             id: uniqueId,
                             description: `REEMBOLSO: ${finalEstablishment} - ${finalDescription}`,
                             value: processedAmount || 0,
-                            date: data.date || new Date().toISOString().split('T')[0],
+                            date: data.date || newDiaryDate,
                             category: data.category || 'Outros',
                             metadata: {
                                 installerId: selectedInstaller?.id
@@ -319,7 +372,7 @@ const FinancialAuditView: React.FC = () => {
 
                 const newRequest: Omit<RefundRequest, 'id'> = {
                     collaboratorName: selectedCollaborator,
-                    date: data.date || new Date().toISOString().split('T')[0],
+                    date: data.date || newDiaryDate,
                     establishment: finalEstablishment,
                     category: data.category || 'Outros',
                     amount: processedAmount || 0,
@@ -431,7 +484,7 @@ const FinancialAuditView: React.FC = () => {
         // 1. Add payment to project environment
         const newPayment = {
             id: uniqueId,
-            date: new Date().toISOString().split('T')[0],
+            date: newDiaryDate,
             value: amountNum,
             percentage: percentageNum,
             description: newDiaryDescription || `Medição - Avanço de ${percentageNum}%`
@@ -457,7 +510,7 @@ const FinancialAuditView: React.FC = () => {
             // 2. Add refund request
             const newRequest: Omit<RefundRequest, 'id'> = {
                 collaboratorName: selectedCollaborator,
-                date: new Date().toISOString().split('T')[0],
+                date: newDiaryDate,
                 establishment: `EMPREITA: ${selectedEnvName}`,
                 description: `${newDiaryDescription || `Medição - Avanço de ${percentageNum}%`} | [Ref: ${uniqueId}]`,
                 category: 'Empreita',
@@ -755,6 +808,92 @@ const FinancialAuditView: React.FC = () => {
                                 )}
                             </div>
 
+                            {/* CALENDÁRIO / AGENDA DE LANÇAMENTO */}
+                            <div className="bg-slate-950/40 border border-slate-800/60 rounded-[32px] p-5 space-y-4 shadow-inner">
+                                <div className="flex justify-between items-center px-1">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar size={16} className="text-indigo-400" />
+                                        <span className="text-xs font-black uppercase tracking-widest text-slate-200 italic">
+                                            {MONTH_NAMES[calendarMonth]} de {calendarYear}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                if (calendarMonth === 0) {
+                                                    setCalendarMonth(11);
+                                                    setCalendarYear(prev => prev - 1);
+                                                } else {
+                                                    setCalendarMonth(prev => prev - 1);
+                                                }
+                                            }} 
+                                            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all active:scale-95"
+                                            title="Mês anterior"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                if (calendarMonth === 11) {
+                                                    setCalendarMonth(0);
+                                                    setCalendarYear(prev => prev + 1);
+                                                } else {
+                                                    setCalendarMonth(prev => prev + 1);
+                                                }
+                                            }} 
+                                            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all active:scale-95"
+                                            title="Próximo mês"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-1 text-center">
+                                    {WEEK_DAYS.map((day, idx) => (
+                                        <span key={idx} className="text-[9px] font-black text-slate-500 uppercase">{day}</span>
+                                    ))}
+                                    {calendarDays.map((cell, idx) => {
+                                        const isSelected = newDiaryDate === cell.dateStr;
+                                        const isToday = new Date().toISOString().split('T')[0] === cell.dateStr;
+                                        
+                                        // Count launches on this day for indicators
+                                        const launchesCount = refundRequests.filter(r => r.date === cell.dateStr).length;
+                                        
+                                        return (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => setNewDiaryDate(cell.dateStr)}
+                                                className={`relative aspect-square rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center ${
+                                                    isSelected 
+                                                        ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' 
+                                                        : isToday
+                                                            ? 'bg-slate-900 text-amber-400 border border-slate-800'
+                                                            : cell.isCurrentMonth 
+                                                                ? 'text-slate-300 hover:bg-slate-900/50' 
+                                                                : 'text-slate-600 hover:bg-slate-900/30'
+                                                }`}
+                                            >
+                                                <span>{cell.dayNum}</span>
+                                                {launchesCount > 0 && (
+                                                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400 animate-pulse'}`}></span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                
+                                <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold px-1 border-t border-slate-800/30 pt-3">
+                                    <span>Lançar na Data:</span>
+                                    <span className="text-white font-extrabold bg-slate-900 px-3 py-1 rounded-xl border border-slate-800">
+                                        {new Date(newDiaryDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                    </span>
+                                </div>
+                            </div>
+
                             {entryType === 'reembolso' && (
                                 <>
                                     <div className="space-y-3">
@@ -799,29 +938,17 @@ const FinancialAuditView: React.FC = () => {
 
                             {entryType === 'diaria' && (
                                 <form onSubmit={handleLaunchDiaria} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Data</label>
-                                            <input
-                                                type="date"
-                                                value={newDiaryDate}
-                                                onChange={(e) => setNewDiaryDate(e.target.value)}
-                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Valor (R$)</label>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                placeholder="0.00"
-                                                value={newDiaryAmount}
-                                                onChange={(e) => setNewDiaryAmount(e.target.value)}
-                                                className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
-                                                required
-                                            />
-                                        </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Valor da Diária (R$)</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="0.00"
+                                            value={newDiaryAmount}
+                                            onChange={(e) => setNewDiaryAmount(e.target.value)}
+                                            className="w-full p-4 bg-slate-900/50 border border-slate-800 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 text-white"
+                                            required
+                                        />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block">Descrição / Notas</label>
